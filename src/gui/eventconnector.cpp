@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -44,6 +44,9 @@
 #include "../base/selection.h"
 #include "../game/gamemanager.h"
 #include "../game/game.h"
+
+#include <utility>
+#include "../game/newgamesettings.h"
 #include "../game/job.h"
 #include "../game/jobmanager.h"
 #include "../game/soundmanager.h"
@@ -60,6 +63,7 @@ EventConnector::EventConnector( GameManager* parent ) :
 	gm( parent ),
 	QObject( parent )
 {
+	qRegisterMetaType<NewGameSettingsSnapshot>();
 	m_tiAggregator           = new AggregatorTileInfo( this );
 	m_spAggregator           = new AggregatorStockpile( this );
 	m_wsAggregator           = new AggregatorWorkshop( this );
@@ -77,6 +81,10 @@ EventConnector::EventConnector( GameManager* parent ) :
 	m_soundAggregator	 = new AggregatorSound( this );
 
 	connect( m_selectionAggregator, &AggregatorSelection::signalSelectTile, m_tiAggregator, &AggregatorTileInfo::onShowTileInfo );
+	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, m_creatureInfoAggregator, &AggregatorCreatureInfo::onRequestCreatureUpdate );
+	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, m_creatureInfoAggregator, &AggregatorCreatureInfo::onRequestProfessionList );
+	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, this, [this]( unsigned int ) { onTutorialFact( static_cast<unsigned int>( TutorialFact::SelectGnome ) ); } );
+	connect( m_creatureInfoAggregator, &AggregatorCreatureInfo::signalCreatureUpdate, this, [this]( const GuiCreatureInfo& info ) { if( info.id != 0 ) onTutorialFact( static_cast<unsigned int>( TutorialFact::InspectGnome ) ); } );
 }
 
 /// @brief Updates the stored Game pointer; called on new game / load game.
@@ -174,10 +182,19 @@ void EventConnector::onKeyPress( int key )
 	}
 }
 
-/// @brief Toggles the paused flag and emits the updated state to the GUI.
+/// @brief Toggles the authoritative simulation pause flag and lets GameManager
+///        emit the updated state to the GUI.
 void EventConnector::onTogglePause()
 {
-	emit signalUpdatePause( !gm->paused() );
+	// This slot is used by the legacy keyboard/toolbar pause path.  It used to
+	// emit only the GUI notification, which made the pause label change while
+	// leaving Game::m_paused untouched.  Toggle the authoritative simulation
+	// state through GameManager; setPaused() emits signalUpdatePause after the
+	// state has actually changed, so all UI projections stay consistent.
+	if ( gm )
+	{
+		gm->setPaused( !gm->paused() );
+	}
 }
 
 /// @brief Propagates an Escape key press through the GUI stack (close top window).
@@ -220,6 +237,23 @@ void EventConnector::onTerrainCommand( unsigned int tileID, QString cmd )
 				g->jm()->addJob( "Harvest", Position( tileID ), 0 );
 			}
 		}
+	}
+	else if ( cmd == "CancelJob" )
+	{
+		g->jm()->cancelJob( Position( tileID ) );
+		m_tiAggregator->onUpdateTileInfo( tileID );
+	}
+	else if ( cmd == "RaisePrio" )
+	{
+		Position pos( tileID );
+		g->jm()->raisePrio( pos );
+		m_tiAggregator->onUpdateTileInfo( tileID );
+	}
+	else if ( cmd == "LowerPrio" )
+	{
+		Position pos( tileID );
+		g->jm()->lowerPrio( pos );
+		m_tiAggregator->onUpdateTileInfo( tileID );
 	}
 }
 
@@ -322,10 +356,87 @@ void EventConnector::emitInMenu( bool value )
 	emit signalInMenu( value );
 }
 
+void EventConnector::emitWorldTransitionStarted( bool generating )
+{
+	emit signalWorldTransitionStarted( generating );
+}
+
+void EventConnector::emitWorldTransitionProgress( QString message )
+{
+	emit signalWorldTransitionProgress( message );
+}
+
+void EventConnector::emitWorldTransitionFinished( bool success )
+{
+	emit signalWorldTransitionFinished( success );
+}
+
 /// @brief Starts a new game via GameManager.
 void EventConnector::onStartNewGame()
 {
 	gm->startNewGame();
+}
+
+void EventConnector::onStartTutorial()
+{
+	if( gm ) gm->startTutorial();
+}
+
+void EventConnector::onTutorialAdvance() { if( gm && gm->game() && gm->game()->tutorial() ) gm->game()->tutorial()->advance(); }
+void EventConnector::onTutorialSkip() { if( gm && gm->game() && gm->game()->tutorial() ) gm->game()->tutorial()->skip(); }
+void EventConnector::onTutorialRestart() { if( !gm || !gm->game() || !gm->game()->tutorial() ) return; if( gm->game()->tutorial()->incompatible() ) gm->startTutorial(); else gm->game()->tutorial()->restart(); }
+void EventConnector::onTutorialToggleHints() { if( gm && gm->game() && gm->game()->tutorial() ) gm->game()->tutorial()->toggleHints(); }
+void EventConnector::onTutorialFinish() { if( gm && gm->game() && gm->game()->tutorial() ) gm->game()->tutorial()->continueAnyway(); }
+void EventConnector::onTutorialFact( unsigned int fact ) { if( gm && gm->game() && gm->game()->tutorial() && fact < static_cast<unsigned int>( TutorialFact::Count ) ) gm->game()->tutorial()->observeFact( static_cast<TutorialFact>( fact ) ); }
+void EventConnector::onTutorialSnapshot( TutorialSnapshot snapshot ) { emit signalHudTutorial( std::move( snapshot ) ); }
+
+void EventConnector::onRequestNewGameSettings()
+{
+	if ( !Global::newGameSettings ) return;
+	auto* settings = Global::newGameSettings;
+	emit signalNewGameSettings( NewGameSettingsSnapshot{
+		settings->kingdomName(), settings->seed(), settings->worldSize(), settings->zLevels(),
+		settings->ground(), settings->flatness(), settings->oceanSize(), settings->rivers(),
+		settings->riverSize(), settings->numGnomes(), settings->startZone(), settings->treeDensity(),
+		settings->plantDensity(), settings->numWildAnimals(), settings->isPeaceful() } );
+}
+
+void EventConnector::onSetNewGameField( QString field, QVariant value )
+{
+	if ( !Global::newGameSettings ) return;
+	auto* settings = Global::newGameSettings;
+	const auto integer = [&]() { return value.toInt(); };
+	if ( field == "kingdom_name" ) settings->setKingdomName( value.toString() );
+	else if ( field == "seed" ) settings->setSeed( value.toString() );
+	else if ( field == "peaceful" ) settings->setPeaceful( value.toBool() );
+	else if ( field == "world_size" ) settings->setWorldSize( integer() );
+	else if ( field == "z_levels" ) settings->setZLevels( integer() );
+	else if ( field == "ground" ) settings->setGround( integer() );
+	else if ( field == "flatness" ) settings->setFlatness( integer() );
+	else if ( field == "ocean_size" ) settings->setOceanSize( integer() );
+	else if ( field == "rivers" ) settings->setRivers( integer() );
+	else if ( field == "river_size" ) settings->setRiverSize( integer() );
+	else if ( field == "gnomes" ) settings->setNumGnomes( integer() );
+	else if ( field == "start_zone" ) settings->setStartZone( integer() );
+	else if ( field == "tree_density" ) settings->setTreeDensity( integer() );
+	else if ( field == "plant_density" ) settings->setPlantDensity( integer() );
+	else if ( field == "wild_animals" ) settings->setNumWildAnimals( integer() );
+	else return;
+	onRequestNewGameSettings();
+}
+
+void EventConnector::onRandomizeNewGameName()
+{
+	if ( !Global::newGameSettings ) return;
+	Global::newGameSettings->setRandomName();
+	onRequestNewGameSettings();
+}
+
+void EventConnector::onRandomizeNewGameSeed()
+{
+	if ( !Global::newGameSettings ) return;
+	Global::newGameSettings->setRandomSeed();
+	onRequestNewGameSettings();
 }
 
 /// @brief Continues the most recent save via GameManager.
@@ -344,7 +455,7 @@ void EventConnector::onLoadGame( QString folder )
 /// @brief Saves the current game via GameManager.
 void EventConnector::onSaveGame()
 {
-	gm->saveGame();
+	emit signalSaveGameFinished( gm && gm->saveGame() );
 }
 
 /// @brief Forwards the show-main-menu flag to GameManager.
@@ -427,7 +538,7 @@ void EventConnector::onCmdBuild( BuildItemType type, QString param, QString item
 		case BuildItemType::Terrain:
 		{
 			QString type = DB::select( "Type", "Constructions", item ).toString();
-			
+
 			if( !param.isEmpty() )
 			{
 				if( param == "FillHole" )
@@ -489,4 +600,14 @@ void EventConnector::onAnswer( unsigned int id, bool answer )
 Game* EventConnector::game()
 {
 	return g;
+}
+
+void EventConnector::onHudSettlement( QString name, unsigned int gnomes, unsigned int animals, unsigned int items )
+{
+	emit signalHudSettlement( std::move( name ), gnomes, animals, items );
+}
+
+void EventConnector::onHudClock( int minute, int hour, int day, QString seasonId, int year, bool daylight, int nextSunMinute )
+{
+	emit signalHudClock( minute, hour, day, std::move( seasonId ), year, daylight, nextSunMinute );
 }

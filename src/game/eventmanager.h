@@ -28,6 +28,7 @@
 #include <QMap>
 #include <QObject>
 #include <QVariantMap>
+#include <QSet>
 
 class Game;
 
@@ -170,6 +171,7 @@ private:
 	QMap<QString, int> m_reqMap;
 
 	QList<Event> m_eventList;
+	QSet<unsigned int> m_promptedEvents;
 
 	Event createEvent( QString eventID );
 

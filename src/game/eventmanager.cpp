@@ -155,6 +155,7 @@ QVariantMap EventManager::serialize()
 void EventManager::deserialize( QVariantMap in )
 {
 	m_eventList.clear();
+	m_promptedEvents.clear();
 	m_missions.clear();
 	auto vel = in.value( "EventList" ).toList();
 	for ( auto ve : vel )
@@ -189,7 +190,7 @@ void EventManager::onTick( quint64 tickNumber, bool seasonChanged, bool dayChang
 		}
 	}
 
-	if ( seasonChanged )
+	if ( seasonChanged && !( g && g->tutorial() && g->tutorial()->tutorialMode() ) )
 	{
 		auto ev = createEvent( "EventMigration" );
 		srand( std::chrono::system_clock::now().time_since_epoch().count() );
@@ -273,6 +274,8 @@ bool EventManager::checkRequirements( Event& event )
 			return true;
 		case EventRequire::QUERY:
 		{
+			if( m_promptedEvents.contains( event.id ) ) return false;
+			m_promptedEvents.insert( event.id );
 			QString msg = im.value( "Message" ).toString();
 
 			if ( !msg.isEmpty() )
@@ -464,12 +467,14 @@ void EventManager::onAnswer( unsigned int id, bool answer )
 					}
 				}
 				e.data = eventMap;
+				m_promptedEvents.remove( id );
 				m_eventList.removeAt( i );
 				executeEvent( e );
 				break;
 			}
 			else
 			{
+				m_promptedEvents.remove( id );
 				m_eventList.removeAt( i );
 				break;
 			}
@@ -562,6 +567,12 @@ void EventManager::onDebugEvent( EventType type, QVariantMap args )
 	{
 		em.insert( "Amount", amount );
 	}
+	if( args.contains( "Location" ) )
+	{
+		auto init = em.value( "Init" ).toMap();
+		init.insert( "Location", args.value( "Location" ) );
+		em.insert( "Init", init );
+	}
 	em.insert( "Species", args.value( "Type" ).toString() );
 	e.data        = em;
 	m_eventList.append( e );
@@ -625,6 +636,7 @@ void EventManager::finishMission( unsigned int id )
  */
 void EventManager::addTraderEvent( NeighborKingdom kingdom )
 {
+	if( g && g->tutorial() && g->tutorial()->tutorialMode() ) return;
 	quint64 leaveTick = kingdom.nextTrader;
 	quint64 tick      = leaveTick + kingdom.distance * Global::util->ticksPerMinute * Global::util->minutesPerHour;
 
@@ -646,7 +658,7 @@ void EventManager::addTraderEvent( NeighborKingdom kingdom )
  */
 void EventManager::addRaidEvent( NeighborKingdom kingdom )
 {
-	if ( GameState::peaceful )
+	if ( GameState::peaceful || ( g && g->tutorial() && g->tutorial()->tutorialMode() ) )
 	{
 		return;
 	}

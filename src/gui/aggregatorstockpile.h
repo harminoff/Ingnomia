@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorstockpile.h
- *  @brief Data types and aggregator for the Stockpile XAML window: exposes priority, capacity,
+ *  @brief Data types and aggregator for the Stockpile RmlUi window: exposes priority, capacity,
  *         pull/allow-pull flags, the active item filter, and a human-readable content summary.
  */
 #pragma once
@@ -31,6 +31,8 @@ class Game;
 /// @brief One line in the stockpile content summary (item type × material × count).
 struct ItemsSummary
 {
+	QString itemSID;        ///< Stable item string ID.
+	QString materialSID;    ///< Stable material string ID.
 	QString itemName;      ///< Localised item name.
 	QString materialName;  ///< Localised material name.
 	int count;             ///< Count in this stockpile.
@@ -59,7 +61,7 @@ struct GuiStockpileInfo
 
 Q_DECLARE_METATYPE( GuiStockpileInfo )
 
-/// @brief Bridges the Stockpile XAML window with the game-side StockpileManager. Produces
+/// @brief Bridges the Stockpile RmlUi window with the game-side StockpileManager. Produces
 ///        GuiStockpileInfo payloads and forwards edits (priority, pull flags, filter toggles).
 class AggregatorStockpile : public QObject
 {

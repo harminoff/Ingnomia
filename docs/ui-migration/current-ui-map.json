@@ -1,0 +1,984 @@
+{
+  "schema_version": 1,
+  "scope": "Current upstream UI at commit 4f99266c0f95faa847ca0db2af18cf59aff07f4b; static source map only",
+  "row_count": 23,
+  "required_fields": [
+    "screen_or_component",
+    "player_purpose",
+    "entry_point",
+    "current_source_files",
+    "current_data_bindings",
+    "current_commands_actions",
+    "relevant_proxy_or_aggregator",
+    "keyboard_behavior",
+    "modal_or_non_modal_behavior",
+    "data_update_source",
+    "replacement_rmlui_document_or_component",
+    "migration_status",
+    "validation_status",
+    "notes_and_risks"
+  ],
+  "rows": [
+    {
+      "screen_or_component": "Application UI host, rendering, and input boundary",
+      "player_purpose": "Presents the world and all interface layers in one native window and decides whether pointer, keyboard, text, wheel, resize, and focus events belong to the GUI or the world.",
+      "entry_point": "src/main.cpp creates MainWindow; MainWindow::initializeGL loads content/xaml/Main.xaml and creates the Noesis view.",
+      "current_source_files": [
+        "src/main.cpp",
+        "src/gui/mainwindow.h",
+        "src/gui/mainwindow.cpp",
+        "src/gui/mainwindowrenderer.h",
+        "src/gui/mainwindowrenderer.cpp",
+        "content/xaml/Main.xaml"
+      ],
+      "current_data_bindings": [
+        "Root ViewModel is installed as Main.xaml DataContext",
+        "ViewModel.Width, ViewModel.Height, ViewModel.UIScale",
+        "ViewModel.ShowMainMenu, ViewModel.ShowGameGUI"
+      ],
+      "current_commands_actions": [
+        "Noesis KeyDown, KeyUp, Char, MouseMove, MouseButtonDown, MouseButtonUp, MouseWheel",
+        "World camera drag and WASD pan",
+        "World left-click selection and right-click cancellation",
+        "World wheel zoom or z-level change",
+        "H/O/R/comma/period/space/escape direct game shortcuts"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "EventConnector",
+        "ProxyMainView",
+        "ProxyGameView",
+        "AggregatorSelection",
+        "AggregatorRenderer"
+      ],
+      "keyboard_behavior": "Noesis receives KeyDown first and can consume it; printable Char is synthesized only for a narrow 32-255/single-QChar case. Space bypasses Noesis KeyDown and toggles pause. Unconsumed keys use direct switches. Key release is always sent to Noesis and clears WASD state.",
+      "modal_or_non_modal_behavior": "The host is non-modal. GUI ownership is decided per pointer event using a Noesis VisualTree hit test; no global modal input shield was found in MainWindow.",
+      "data_update_source": "Qt window events; MainWindowRenderer camera/viewport state; queued MainWindow signals to game-thread aggregators; ViewModel window-size/UI-scale slots.",
+      "replacement_rmlui_document_or_component": "runtime/RmlUiHost plus documents/app_shell.rml input adapter",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; runtime_input_and_framebuffer_validation_required",
+      "notes_and_risks": "Critical parity seam. A world press followed by release over GUI sends a GUI up without a GUI down; a GUI press released over world also sends GUI up. A world-started drag remains a camera drag after crossing GUI. Mouse move still updates the world cursor behind GUI. A world-origin right press released over GUI does not clear m_rightDown in that branch. Logical Noesis coordinates versus device-pixel OpenGL viewport require high-DPI proof. Preserve GUI consumption, 5-pixel drag threshold, click-on-release, right-click, wheel XOR setting, and z bounds."
+    },
+    {
+      "screen_or_component": "Root route shell",
+      "player_purpose": "Switches between title/menu flow and the running-game HUD while applying the global interface scale.",
+      "entry_point": "content/xaml/Main.xaml, loaded directly by MainWindow::initializeGL.",
+      "current_source_files": [
+        "content/xaml/Main.xaml",
+        "src/gui/xaml/Main.xaml.h",
+        "src/gui/xaml/Main.xaml.cpp",
+        "src/gui/xaml/ViewModel.h",
+        "src/gui/xaml/ViewModel.cpp"
+      ],
+      "current_data_bindings": [
+        "Width",
+        "Height",
+        "UIScale",
+        "ShowMainMenu",
+        "ShowGameGUI"
+      ],
+      "current_commands_actions": [
+        "State transitions: Main, Start, Settings, NewGame, LoadGame, Wait, GameRunning, Ingame"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "Escape enters through EventConnector. GameModel gets first chance to close an in-game surface; only a propagated escape reaches ViewModel::OnBack to open or close the pause menu.",
+      "modal_or_non_modal_behavior": "Mutually exclusive main-menu and game roots, but child overlays inside GameGui are layered rather than separate native windows.",
+      "data_update_source": "ViewModel state changes; MainWindow resize divided by UIScale; Settings proxy UI-scale updates.",
+      "replacement_rmlui_document_or_component": "documents/app_shell.rml plus navigation/RouteController",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; route_transitions_not_exercised",
+      "notes_and_risks": "The Start state exists in C++ but no distinct visible Start page was identified. Preserve the escape propagation order and avoid simultaneous interactive roots."
+    },
+    {
+      "screen_or_component": "Title and main menu",
+      "player_purpose": "Lets the player continue the newest compatible save, start immediately, configure a new world, load a save, change settings, or exit.",
+      "entry_point": "ViewModel State::Main displays MainMenu.xaml/MainPage.xaml after startup or returning from a game.",
+      "current_source_files": [
+        "content/xaml/MainMenu.xaml",
+        "content/xaml/MainPage.xaml",
+        "content/xaml/styles/mainmenu/pageswap.xaml",
+        "src/gui/xaml/MainMenu.xaml.cpp",
+        "src/gui/xaml/MainPage.xaml.cpp",
+        "src/gui/xaml/ViewModel.cpp"
+      ],
+      "current_data_bindings": [
+        "Version",
+        "ShowContinue",
+        "ContinueText",
+        "MainCommand",
+        "StartCommand",
+        "NewGameCommand",
+        "LoadGameCommand",
+        "SettingsCommand",
+        "ExitCommand"
+      ],
+      "current_commands_actions": [
+        "Continue",
+        "New Game with current NewGameSettings",
+        "Set up Game",
+        "Load Game",
+        "Settings",
+        "Exit"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "The page sets initial focus to Continue on fade-in. Normal focused-button navigation is handled by Noesis. Escape is routed through ViewModel::OnBack.",
+      "modal_or_non_modal_behavior": "Full-screen route; non-modal within the menu flow.",
+      "data_update_source": "ProxyMainView receives version and compatible-save availability; EventConnector starts, continues, or exits through GameManager.",
+      "replacement_rmlui_document_or_component": "screens/main_menu.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; focus_and_continue_flow_not_exercised",
+      "notes_and_risks": "The visible immediate New Game action starts with the current settings, while Set up Game opens the editor. Preserve that distinction and newest-compatible-save logic."
+    },
+    {
+      "screen_or_component": "New-game setup",
+      "player_purpose": "Configures world generation, population, starting resources and animals, name, seed, and presets before creating a kingdom.",
+      "entry_point": "Main menu Set up Game command changes ViewModel to State::NewGame and shows NewGamePage.xaml.",
+      "current_source_files": [
+        "content/xaml/NewGamePage.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/NewGameModel.h",
+        "src/gui/xaml/NewGameModel.cpp",
+        "src/gui/xaml/NewGamePage.xaml.cpp"
+      ],
+      "current_data_bindings": [
+        "WorldSize",
+        "WorldZ",
+        "GroundLevel",
+        "Flatness",
+        "OceanSize",
+        "NumRivers",
+        "RiverSize",
+        "NumGnomes",
+        "StartZoneSize",
+        "TreeDensity",
+        "PlantDensity",
+        "WildAnimals",
+        "Peaceful",
+        "KingdomName",
+        "Seed",
+        "StartingItems",
+        "StartingAnimals",
+        "Materials",
+        "Presets"
+      ],
+      "current_commands_actions": [
+        "Start game",
+        "Back",
+        "Randomize seed/name",
+        "Choose preset",
+        "Add/remove starting items and animals",
+        "Change generation sliders and selectors"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ViewModel",
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "Focused controls use Noesis keyboard behavior; Escape/Back returns to the parent menu route.",
+      "modal_or_non_modal_behavior": "Full-screen menu route; non-modal.",
+      "data_update_source": "NewGameModel directly wraps Global::newGameSettings and database-backed preset/item/animal/material catalogs; EventConnector forwards start to GameManager.",
+      "replacement_rmlui_document_or_component": "screens/new_game.rml plus components/world_generation_form.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; create_world_and_preset_roundtrip_not_exercised",
+      "notes_and_risks": "This is a broad, stateful form with template-driven lists. Migration must preserve numeric ranges, preset side effects, stable IDs, and the exact settings object consumed by game creation."
+    },
+    {
+      "screen_or_component": "Continue and load-game browser",
+      "player_purpose": "Finds kingdoms and saves, shows save metadata and compatibility, and resumes a selected or most recent game.",
+      "entry_point": "Continue on MainPage, Load Game on MainPage, or Load in the pause menu.",
+      "current_source_files": [
+        "content/xaml/LoadGamePage.xaml",
+        "src/gui/xaml/LoadGameModel.h",
+        "src/gui/xaml/LoadGameModel.cpp",
+        "src/gui/xaml/loadgameproxy.h",
+        "src/gui/xaml/loadgameproxy.cpp",
+        "src/gui/aggregatorloadgame.h",
+        "src/gui/aggregatorloadgame.cpp",
+        "src/game/gamemanager.cpp"
+      ],
+      "current_data_bindings": [
+        "Kingdoms",
+        "SavedGames",
+        "SelectedKingdom",
+        "SelectedGame",
+        "SelectedPath",
+        "Compatible",
+        "WorldName",
+        "SaveTime",
+        "Version"
+      ],
+      "current_commands_actions": [
+        "Select kingdom",
+        "Select save",
+        "Load selected save",
+        "Continue newest compatible save",
+        "Back"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "LoadGameProxy",
+        "AggregatorLoadGame",
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "Focused list/buttons use Noesis; Escape/Back returns to title or pause-menu parent.",
+      "modal_or_non_modal_behavior": "Full-screen route. It can be entered from either title or an already-running paused game.",
+      "data_update_source": "AggregatorLoadGame scans save metadata, returns kingdom/save lists through LoadGameProxy, and selected path reaches GameManager::ContinueGame.",
+      "replacement_rmlui_document_or_component": "screens/load_game.rml plus components/save_browser.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; filesystem_scan_compatibility_and_load_not_exercised",
+      "notes_and_risks": "Compatibility status must remain visible and enforced. Loading from an existing game tears down and reinitializes global/game/aggregator state; UI navigation alone is not sufficient validation."
+    },
+    {
+      "screen_or_component": "Settings",
+      "player_purpose": "Changes interface scale, fullscreen, language, camera keyboard speed, minimum light, mouse-wheel behavior, and master volume.",
+      "entry_point": "Settings from title or pause menu displays SettingsPage.xaml.",
+      "current_source_files": [
+        "content/xaml/SettingsPage.xaml",
+        "src/gui/xaml/SettingsModel.h",
+        "src/gui/xaml/SettingsModel.cpp",
+        "src/gui/xaml/settingsproxy.h",
+        "src/gui/xaml/settingsproxy.cpp",
+        "src/gui/aggregatorsettings.h",
+        "src/gui/aggregatorsettings.cpp",
+        "src/base/config.cpp",
+        "src/base/config.h"
+      ],
+      "current_data_bindings": [
+        "UIScale",
+        "Fullscreen",
+        "Language",
+        "KeyboardMoveSpeed",
+        "LightMin",
+        "ToggleMouseWheel",
+        "AudioMasterVolume",
+        "UIScales",
+        "Languages"
+      ],
+      "current_commands_actions": [
+        "Persist each setting immediately",
+        "Back"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "SettingsProxy",
+        "AggregatorSettings",
+        "ProxyMainView"
+      ],
+      "keyboard_behavior": "Focused controls use Noesis. The Controls tab is a placeholder; configured keybinding catalog is not exposed here.",
+      "modal_or_non_modal_behavior": "Full-screen menu route; non-modal. There is no Apply/Revert transaction.",
+      "data_update_source": "Config values are read by AggregatorSettings and persisted as controls change; scale and window effects are relayed to the GUI thread.",
+      "replacement_rmlui_document_or_component": "screens/settings.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; persistence_restart_fullscreen_audio_and_scale_not_exercised",
+      "notes_and_risks": "Potential key/default mismatches exist: bundled config uses GUIScale while code also synthesizes uiscale; default language text does not match en_US/fr_FR options; AudioMasterVolume may be absent. Language choice does not dynamically swap the explicitly merged en_US XAML dictionaries."
+    },
+    {
+      "screen_or_component": "Wait/loading page",
+      "player_purpose": "Shows that the game is busy during a menu-to-game transition.",
+      "entry_point": "ViewModel State::Wait displays WaitPage.xaml during start/load processing.",
+      "current_source_files": [
+        "content/xaml/WaitPage.xaml",
+        "src/gui/xaml/WaitPage.xaml.cpp",
+        "src/gui/xaml/ViewModel.cpp"
+      ],
+      "current_data_bindings": [
+        "No dynamic binding identified"
+      ],
+      "current_commands_actions": [
+        "No player action identified"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "No page-specific command; host-level keys may still arrive unless the route consumes them.",
+      "modal_or_non_modal_behavior": "Full-screen waiting route, intended to be blocking from the player's perspective.",
+      "data_update_source": "ViewModel route state around GameManager start/load lifecycle.",
+      "replacement_rmlui_document_or_component": "screens/loading.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; transition_and_input_blocking_not_exercised",
+      "notes_and_risks": "The current page is static. Replacement should explicitly define whether escape and world input are blocked while game state is being torn down or initialized."
+    },
+    {
+      "screen_or_component": "Pause menu, save, resume, and return-to-title",
+      "player_purpose": "Pauses or resumes the simulation and offers load, save, settings, and quit-to-menu actions while a game is active.",
+      "entry_point": "Escape propagates from GameModel to ViewModel, or ViewModel is told to show the menu by GameManager.",
+      "current_source_files": [
+        "content/xaml/IngamePage.xaml",
+        "src/gui/xaml/IngamePage.xaml.cpp",
+        "src/gui/xaml/ViewModel.cpp",
+        "src/gui/xaml/ProxyMainView.cpp",
+        "src/gui/eventconnector.cpp",
+        "src/game/gamemanager.cpp"
+      ],
+      "current_data_bindings": [
+        "IngameCommand",
+        "LoadGameCommand",
+        "SaveGameCommand",
+        "SettingsCommand",
+        "MainCommand"
+      ],
+      "current_commands_actions": [
+        "Resume",
+        "Load",
+        "Save",
+        "Settings",
+        "Quit to main menu"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyMainView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "Escape first closes the deepest GameModel surface/build tier/selection; only if none is active does it toggle this menu. Space toggles pause directly at the host.",
+      "modal_or_non_modal_behavior": "Full-screen menu root replaces the game GUI and GameManager pauses the simulation; semantically modal over the running game.",
+      "data_update_source": "ViewModel route and GameManager pause state. Save pauses, performs IO, then restores/resumes according to the prior state.",
+      "replacement_rmlui_document_or_component": "screens/pause_menu.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; save_resume_escape_stack_and_return_to_title_not_exercised",
+      "notes_and_risks": "Preserve the two-stage escape contract and pause ownership. Save/load must be validated against actual slot mutation and a subsequent reload, not just button activation."
+    },
+    {
+      "screen_or_component": "In-game HUD, time, watch list, render toggles, and speed controls",
+      "player_purpose": "Keeps kingdom status, level, date/time, sunlight, watched objects, rendering modes, pause, and simulation speed visible while leaving the map dominant.",
+      "entry_point": "GameGui.xaml becomes visible when ViewModel ShowGameGUI is true after game initialization.",
+      "current_source_files": [
+        "content/xaml/GameGui.xaml",
+        "src/gui/xaml/GameGui.xaml.cpp",
+        "src/gui/xaml/GameModel.h",
+        "src/gui/xaml/GameModel.cpp",
+        "src/gui/xaml/ProxyGameView.h",
+        "src/gui/xaml/ProxyGameView.cpp",
+        "src/gui/eventconnector.cpp"
+      ],
+      "current_data_bindings": [
+        "KingdomName",
+        "KingdomInfo1",
+        "KingdomInfo2",
+        "KingdomInfo3",
+        "ViewLevel",
+        "Day",
+        "Year",
+        "Time",
+        "Sunlight",
+        "TimeImage",
+        "WatchList",
+        "Paused",
+        "GameSpeed",
+        "RenderDesignations",
+        "RenderJobs",
+        "RenderWalls",
+        "RenderAxles"
+      ],
+      "current_commands_actions": [
+        "Pause/resume",
+        "Normal/fast speed",
+        "Toggle designation/job/wall/axle rendering",
+        "Select watched object"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyGameView",
+        "EventConnector",
+        "AggregatorInventory",
+        "AggregatorRenderer"
+      ],
+      "keyboard_behavior": "Space toggles pause before Noesis; H toggles walls; O toggles overlays and Ctrl+O debug mode; comma/period rotate the world; WASD pans. These are direct host switches, not the declared KeyBindings catalog.",
+      "modal_or_non_modal_behavior": "Non-modal HUD layered over the world. Individual HUD elements consume pointer events only where VisualTree hit testing returns a visual.",
+      "data_update_source": "Game clock/time and kingdom signals through EventConnector; globals/GameManager for pause and speed; renderer settings; AggregatorInventory watch-list snapshots.",
+      "replacement_rmlui_document_or_component": "hud/game_hud.rml plus components/status_strip.rml and components/watch_list.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; live_clock_speed_render_and_map_clickthrough_not_exercised",
+      "notes_and_risks": "Do not let large transparent RmlUi boxes steal map clicks. Watch-list and speed state must update without polling the wrong thread. The declared keybindings.json catalog is currently not wired into MainWindow dispatch."
+    },
+    {
+      "screen_or_component": "Build/designation command tiers and active world selection",
+      "player_purpose": "Chooses mining, building, farming, stockpile, terrain, job, and other designations, previews an area in the map, rotates placements, and commits or cancels it.",
+      "entry_point": "Bottom GameGui action buttons select GameModel ButtonSelection and populate first/second-tier commands; map pointer events then reach AggregatorSelection.",
+      "current_source_files": [
+        "content/xaml/GameGui.xaml",
+        "content/xaml/SelectionGui.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/GameModel.cpp",
+        "src/gui/xaml/selectionmodel.cpp",
+        "src/gui/xaml/selectionproxy.cpp",
+        "src/gui/aggregatorselection.cpp",
+        "src/gui/aggregatorinventory.cpp",
+        "src/gui/eventconnector.cpp",
+        "src/base/selection.cpp"
+      ],
+      "current_data_bindings": [
+        "ButtonSelection",
+        "Actions",
+        "SubActions",
+        "BuildItems",
+        "SelectionAction",
+        "CursorPosition",
+        "FirstClick",
+        "SelectionSize"
+      ],
+      "current_commands_actions": [
+        "Choose Mine/Agriculture/Designation/Jobs/Build/Magic categories",
+        "Choose build type, material, and item",
+        "Set Global::sel action/item/materials",
+        "Left-click first/second corner or target",
+        "Right-click cancel/back",
+        "R rotate placement",
+        "Escape unwind selection then command tiers"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyGameView",
+        "SelectionProxy",
+        "EventConnector",
+        "AggregatorSelection",
+        "AggregatorInventory"
+      ],
+      "keyboard_behavior": "R rotates the active selection unless Ctrl invokes the debug OpenGL rotation path. Escape unwinds current selection, then subcommand tiers, before the pause menu. Right-click independently backs/cancels the active selection.",
+      "modal_or_non_modal_behavior": "Non-modal toolbar plus persistent selection readout; interaction mode captures world clicks only when an active selection action exists.",
+      "data_update_source": "GameModel command construction; AggregatorInventory build item/material availability; Selection owns action and geometry; AggregatorSelection projects screen coordinates using camera/viewport and emits renderer preview data.",
+      "replacement_rmlui_document_or_component": "hud/action_bar.rml plus hud/selection_status.rml and controllers/WorldSelectionController",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; representative_selection_build_material_rotation_commit_cancel_not_exercised",
+      "notes_and_risks": "Highest gameplay-regression risk. Left-click with no active action opens TileInfo, but with an action it commits selection. Projection searches downward up to 20 levels and Shift forces the visible z-level. Build variants and typed item/material payloads must remain intact. Magic has no subcommands and Plant tree has an empty action in the current source."
+    },
+    {
+      "screen_or_component": "Tile inspector and contextual terrain/object actions",
+      "player_purpose": "Inspects the selected tile and its terrain, items, creatures, automata, jobs, designations, rooms, mechanisms, and context actions.",
+      "entry_point": "A world left click with no active selection action causes AggregatorSelection to emit the tile ID to AggregatorTileInfo.",
+      "current_source_files": [
+        "content/xaml/TileInfo.xaml",
+        "src/gui/xaml/TileInfoModel.h",
+        "src/gui/xaml/TileInfoModel.cpp",
+        "src/gui/xaml/ProxyTileInfo.h",
+        "src/gui/xaml/ProxyTileInfo.cpp",
+        "src/gui/aggregatortileinfo.h",
+        "src/gui/aggregatortileinfo.cpp",
+        "src/gui/eventconnector.cpp"
+      ],
+      "current_data_bindings": [
+        "Title",
+        "Tabs",
+        "SelectedTab",
+        "Terrain",
+        "Items",
+        "Creatures",
+        "Automata",
+        "Jobs",
+        "Designations",
+        "Room",
+        "Tenant",
+        "Alarm",
+        "Mechanisms",
+        "Core",
+        "ShowDesignation"
+      ],
+      "current_commands_actions": [
+        "Mine/remove terrain/fell/destroy/harvest",
+        "Open creature inspector",
+        "Manage stockpile/workshop/agriculture/room",
+        "Set tenant/alarm",
+        "Refuel/invert/manage mechanisms",
+        "Change inspector tab",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyTileInfo",
+        "AggregatorTileInfo",
+        "EventConnector",
+        "AggregatorSelection"
+      ],
+      "keyboard_behavior": "Escape closes TileInfo through GameModel::OnCmdBack before the pause menu. World click continues to choose a new tile when not in an active selection mode.",
+      "modal_or_non_modal_behavior": "Non-modal center overlay. It coexists with the map and routes to other management surfaces.",
+      "data_update_source": "AggregatorTileInfo builds a snapshot from Game/Map/Global managers for the selected tile; tile-update signals refresh it; commands return through EventConnector to jobs/managers.",
+      "replacement_rmlui_document_or_component": "panels/tile_inspector.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; live_tile_refresh_context_action_and_close_not_exercised",
+      "notes_and_risks": "A new tile resets the current tab to All. Agriculture designation UI is embedded here rather than in a separately instantiated GameGui agriculture window. Context commands can mutate the simulation and need state-changing validation."
+    },
+    {
+      "screen_or_component": "Creature inspector",
+      "player_purpose": "Shows a selected creature's identity, activity, profession, attributes, needs, and equipped items.",
+      "entry_point": "Creature command from TileInfo opens CreatureInfo.xaml through GameModel.",
+      "current_source_files": [
+        "content/xaml/CreatureInfo.xaml",
+        "src/gui/xaml/creatureinfomodel.cpp",
+        "src/gui/xaml/creatureinfoproxy.cpp",
+        "src/gui/aggregatorcreatureinfo.cpp"
+      ],
+      "current_data_bindings": [
+        "Name",
+        "Activity",
+        "Profession",
+        "Attributes",
+        "Needs",
+        "Equipment",
+        "BodySlots"
+      ],
+      "current_commands_actions": [
+        "Change profession",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "CreatureInfoProxy",
+        "AggregatorCreatureInfo",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the inspector before propagating to the pause menu.",
+      "modal_or_non_modal_behavior": "Non-modal management overlay over the world.",
+      "data_update_source": "AggregatorCreatureInfo snapshots the selected creature and profession data; relevant manager updates are relayed through the proxy.",
+      "replacement_rmlui_document_or_component": "panels/creature_inspector.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; live_creature_profession_and_equipment_not_exercised",
+      "notes_and_risks": "Equipment is slot-structured and profession changes are mutations, not presentation-only fields."
+    },
+    {
+      "screen_or_component": "Agriculture management",
+      "player_purpose": "Creates and manages farms, pastures, and groves, including products, tilled state, animals, seeds, harvest rules, and limits.",
+      "entry_point": "TileInfo designation/manage flow displays Agriculture.xaml in its ShowDesignation region.",
+      "current_source_files": [
+        "content/xaml/Agriculture.xaml",
+        "src/gui/xaml/agriculturemodel.cpp",
+        "src/gui/xaml/agricultureproxy.cpp",
+        "src/gui/aggregatoragri.cpp",
+        "src/gui/xaml/TileInfoModel.cpp"
+      ],
+      "current_data_bindings": [
+        "ShowFarm",
+        "ShowPasture",
+        "ShowGrove",
+        "Title",
+        "Products",
+        "SelectedProduct",
+        "Tilled",
+        "Seeds",
+        "Animals",
+        "Harvest",
+        "Limits",
+        "Priority"
+      ],
+      "current_commands_actions": [
+        "Set farm/pasture/grove product",
+        "Toggle till/harvest settings",
+        "Add/remove animals",
+        "Change limits and priority",
+        "Confirm/manage designation"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "AgricultureProxy",
+        "AggregatorAgri",
+        "ProxyTileInfo",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "Escape backs out through the containing TileInfo/GameModel surface.",
+      "modal_or_non_modal_behavior": "Embedded non-modal inspector surface; current source also contains a GameModel ShowAgriculture route but GameGui does not instantiate a separate agriculture overlay.",
+      "data_update_source": "FarmManager, PastureManager, and GroveManager signals feed AggregatorAgri; commands mutate those managers through EventConnector/aggregation paths.",
+      "replacement_rmlui_document_or_component": "panels/agriculture_manager.rml embedded in tile_inspector.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; create_manage_and_refresh_each_designation_type_not_exercised",
+      "notes_and_risks": "Route duplication is ambiguous. Preserve the actually reachable embedded path unless product architecture intentionally changes it; validate each of farm, pasture, and grove separately."
+    },
+    {
+      "screen_or_component": "Stockpile management",
+      "player_purpose": "Names a stockpile, filters accepted items, sets priority and limits, suspends it, configures pull behavior, and reviews stocked contents.",
+      "entry_point": "Manage a stockpile from TileInfo to set GameModel ShownInfo::Stockpile.",
+      "current_source_files": [
+        "content/xaml/StockpileGui.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/StockpileModel.cpp",
+        "src/gui/xaml/StockpileProxy.cpp",
+        "src/gui/aggregatorstockpile.cpp"
+      ],
+      "current_data_bindings": [
+        "Name",
+        "Priority",
+        "Suspended",
+        "PullFrom",
+        "Categories",
+        "Filters",
+        "StockedItems",
+        "Limits"
+      ],
+      "current_commands_actions": [
+        "Rename",
+        "Set priority",
+        "Suspend/resume",
+        "Toggle filter tree nodes",
+        "Set limits",
+        "Configure pull source",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "StockpileProxy",
+        "AggregatorStockpile",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the stockpile overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal centered management overlay.",
+      "data_update_source": "StockpileManager add/content/tick signals and request snapshots feed AggregatorStockpile; commands mutate the selected stockpile.",
+      "replacement_rmlui_document_or_component": "windows/stockpile_manager.rml plus components/item_filter_tree.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; filter_limit_pull_and_live_content_refresh_not_exercised",
+      "notes_and_risks": "The filter hierarchy is template-driven and identity-sensitive. The XAML close button carries an apparently copied MilitaryWindow parameter, but current close handling ignores it; do not encode the wrong parameter into the new contract."
+    },
+    {
+      "screen_or_component": "Workshop, crafting orders, butcher/fisher, and trader",
+      "player_purpose": "Inspects a workshop, manages craft orders and priorities, operates special workshop modes, and builds trade offers.",
+      "entry_point": "Manage a workshop from TileInfo opens WorkshopGui.xaml through GameModel.",
+      "current_source_files": [
+        "content/xaml/WorkshopGui.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/workshopmodel.cpp",
+        "src/gui/xaml/workshopproxy.cpp",
+        "src/gui/aggregatorworkshop.cpp"
+      ],
+      "current_data_bindings": [
+        "WorkshopName",
+        "Jobs",
+        "AvailableCrafts",
+        "SelectedCraft",
+        "CraftPriority",
+        "CraftAmount",
+        "Repeat",
+        "ShowButcher",
+        "ShowFisher",
+        "ShowTrader",
+        "TraderInventory",
+        "Offer",
+        "OfferValue"
+      ],
+      "current_commands_actions": [
+        "Add/remove/reorder craft jobs",
+        "Set repeat/amount/priority/material choices",
+        "Suspend/resume",
+        "Butcher/fisher actions",
+        "Add/remove trader offer items",
+        "Submit trade",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "WorkshopProxy",
+        "AggregatorWorkshop",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the workshop overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal centered management overlay; special workshop submodes are conditional regions of the same surface.",
+      "data_update_source": "WorkshopManager selected-workshop/job-list updates and inventory/trade data feed AggregatorWorkshop; commands mutate workshop queues and trading state.",
+      "replacement_rmlui_document_or_component": "windows/workshop_manager.rml with craft_queue and trade_offer components",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; crafting_queue_special_modes_and_trade_mutation_not_exercised",
+      "notes_and_risks": "This combines multiple behavior modes and rich list templates. A visual match without queue reordering, material selection, and real inventory mutation is insufficient."
+    },
+    {
+      "screen_or_component": "Population, professions, skills, and schedules",
+      "player_purpose": "Reviews citizens and manages their professions, job priorities/skills, and daily schedules.",
+      "entry_point": "Population button in GameGui sets GameModel ShownInfo::Population.",
+      "current_source_files": [
+        "content/xaml/PopulationWindow.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/PopulationModel.cpp",
+        "src/gui/xaml/populationproxy.cpp",
+        "src/gui/aggregatorpopulation.cpp"
+      ],
+      "current_data_bindings": [
+        "Gnomes",
+        "SelectedGnome",
+        "Professions",
+        "SelectedProfession",
+        "Skills",
+        "Schedules",
+        "ScheduleHours",
+        "Priorities"
+      ],
+      "current_commands_actions": [
+        "Assign profession",
+        "Create/delete/rename profession",
+        "Change skill priorities",
+        "Create/delete/rename schedule",
+        "Edit schedule hours",
+        "Assign schedule",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "PopulationProxy",
+        "AggregatorPopulation",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the population overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal large management overlay.",
+      "data_update_source": "AggregatorPopulation snapshots population/profession/skill/schedule managers on open and returns mutations to those managers.",
+      "replacement_rmlui_document_or_component": "windows/population_manager.rml with profession_editor and schedule_editor components",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; profession_skill_schedule_persistence_not_exercised",
+      "notes_and_risks": "Dense editing surface with nested template lists. Validate stable selection when collections refresh and persistence across save/reload."
+    },
+    {
+      "screen_or_component": "Inventory and resource browser",
+      "player_purpose": "Browses owned resources by category/filter and compares available stock with totals.",
+      "entry_point": "Inventory button in GameGui sets GameModel ShownInfo::Inventory.",
+      "current_source_files": [
+        "content/xaml/InventoryGui.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/inventorymodel.cpp",
+        "src/gui/xaml/inventoryproxy.cpp",
+        "src/gui/aggregatorinventory.cpp"
+      ],
+      "current_data_bindings": [
+        "Categories",
+        "SelectedCategory",
+        "Filters",
+        "Items",
+        "Stock",
+        "Total"
+      ],
+      "current_commands_actions": [
+        "Choose category/filter",
+        "Expand/collapse filter tree",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "InventoryProxy",
+        "AggregatorInventory",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the inventory overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal large management overlay.",
+      "data_update_source": "InventoryManager item add/remove events and request snapshots feed AggregatorInventory; the same aggregator supplies build lists and watch data to other UI surfaces.",
+      "replacement_rmlui_document_or_component": "windows/inventory_browser.rml plus components/item_filter_tree.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; category_filter_and_live_stock_refresh_not_exercised",
+      "notes_and_risks": "GameGui's visible Inventory button text appears to say Stockpiles. Preserve the actual Inventory route/data contract while correcting player-facing labeling only if approved by the UX architecture."
+    },
+    {
+      "screen_or_component": "Military management",
+      "player_purpose": "Creates squads and roles, assigns members, configures uniforms/materials, attitudes and priorities, and controls military organization.",
+      "entry_point": "Military button in GameGui sets GameModel ShownInfo::Military.",
+      "current_source_files": [
+        "content/xaml/MilitaryGui.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/militarymodel.cpp",
+        "src/gui/xaml/militaryproxy.cpp",
+        "src/gui/aggregatormilitary.cpp"
+      ],
+      "current_data_bindings": [
+        "Squads",
+        "SelectedSquad",
+        "Roles",
+        "SelectedRole",
+        "Members",
+        "AvailableMembers",
+        "Uniform",
+        "Materials",
+        "Attitudes",
+        "Priorities"
+      ],
+      "current_commands_actions": [
+        "Create/delete/rename squad",
+        "Create/delete/configure role",
+        "Assign/remove members",
+        "Set equipment and materials",
+        "Set attitude and priorities",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "MilitaryProxy",
+        "AggregatorMilitary",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the military overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal large management overlay.",
+      "data_update_source": "AggregatorMilitary snapshots squad/role/population/material data and dispatches all military mutations to the game managers.",
+      "replacement_rmlui_document_or_component": "windows/military_manager.rml with squad_role_uniform components",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; squad_role_member_uniform_mutations_not_exercised",
+      "notes_and_risks": "Large identity-heavy editor. Maintain selected squad/role across refreshes and validate actual member/equipment assignments, not only list updates."
+    },
+    {
+      "screen_or_component": "Neighbors, diplomacy, and missions",
+      "player_purpose": "Reviews neighboring kingdoms, their wealth/economy/military/attitude, and creates or manages missions and assigned citizens.",
+      "entry_point": "Missions button in GameGui sets GameModel ShownInfo::Neighbors.",
+      "current_source_files": [
+        "content/xaml/Neighbors.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "src/gui/xaml/neighborsmodel.cpp",
+        "src/gui/xaml/neighborsproxy.cpp",
+        "src/gui/aggregatorneighbors.cpp"
+      ],
+      "current_data_bindings": [
+        "Neighbors",
+        "SelectedNeighbor",
+        "Wealth",
+        "Economy",
+        "Military",
+        "Attitude",
+        "Missions",
+        "AvailableGnomes",
+        "AssignedGnomes"
+      ],
+      "current_commands_actions": [
+        "Select neighbor",
+        "Create/cancel mission",
+        "Choose mission action",
+        "Assign/remove gnomes",
+        "Close"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "NeighborsProxy",
+        "AggregatorNeighbors",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the neighbors/missions overlay before pause-menu propagation.",
+      "modal_or_non_modal_behavior": "Non-modal large management overlay.",
+      "data_update_source": "EventManager mission updates and game neighbor data feed AggregatorNeighbors; mission actions mutate through its queued command path.",
+      "replacement_rmlui_document_or_component": "windows/diplomacy_missions.rml",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; neighbor_snapshot_mission_assignment_and_update_not_exercised",
+      "notes_and_risks": "The GameGui Kingdom command branch is empty while Missions opens this surface. Keep the reachable route distinct from planned kingdom UI."
+    },
+    {
+      "screen_or_component": "Event question/notification popup",
+      "player_purpose": "Presents an event message and accepts OK, Yes, or No responses.",
+      "entry_point": "Game/event systems signal EventConnector::onEvent, which updates GameModel popup fields and visibility.",
+      "current_source_files": [
+        "content/xaml/GameGui.xaml",
+        "src/gui/xaml/GameModel.cpp",
+        "src/gui/xaml/ProxyGameView.cpp",
+        "src/gui/eventconnector.cpp"
+      ],
+      "current_data_bindings": [
+        "ShowEventPopup",
+        "EventTitle",
+        "EventText",
+        "ShowAnswerOK",
+        "ShowAnswerYesNo"
+      ],
+      "current_commands_actions": [
+        "Answer OK",
+        "Answer Yes",
+        "Answer No"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "ProxyGameView",
+        "EventConnector"
+      ],
+      "keyboard_behavior": "No explicit Enter/Escape answer contract was identified; buttons rely on normal Noesis focus behavior.",
+      "modal_or_non_modal_behavior": "Semantically modal workflow, but the XAML is a centered 500x300 panel and static inspection did not prove a full-screen hit-test/input shield.",
+      "data_update_source": "Game/EventManager notification and response callback path through EventConnector.",
+      "replacement_rmlui_document_or_component": "modals/event_prompt.rml with explicit modal input blocker",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; focus_trap_default_answer_and_world_input_blocking_not_exercised",
+      "notes_and_risks": "Do not assume current layering blocks map clicks outside the panel. The replacement needs an explicit policy for world input, focus ownership, Enter/Escape, and unanswered-event lifecycle."
+    },
+    {
+      "screen_or_component": "Debug-only UI",
+      "player_purpose": "Lets developers inspect needs/decay and spawn gnomes/items or adjust diagnostic window/data sizes.",
+      "entry_point": "Debug button in the top-right HUD or Ctrl-modified host shortcuts set GameModel ShownInfo::Debug/debug modes.",
+      "current_source_files": [
+        "content/xaml/DebugGui.xaml",
+        "src/gui/xaml/debugmodel.cpp",
+        "src/gui/xaml/debugproxy.cpp",
+        "src/gui/aggregatordebug.cpp",
+        "src/gui/mainwindow.cpp"
+      ],
+      "current_data_bindings": [
+        "Needs",
+        "Decay",
+        "GnomeTypes",
+        "ItemTypes",
+        "SelectedGnome",
+        "SelectedItem",
+        "WindowSizes",
+        "DataSizes"
+      ],
+      "current_commands_actions": [
+        "Spawn gnome",
+        "Spawn item",
+        "Change needs/decay diagnostics",
+        "Change diagnostic sizes",
+        "Close",
+        "Ctrl+O/Ctrl+R host debug render behavior"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "DebugProxy",
+        "AggregatorDebug",
+        "ProxyGameView"
+      ],
+      "keyboard_behavior": "Escape closes the debug overlay. Ctrl+O toggles debug mode and Ctrl+R follows a separate debug OpenGL rotation path in MainWindow.",
+      "modal_or_non_modal_behavior": "Non-modal developer overlay.",
+      "data_update_source": "AggregatorDebug reads/mutates debug-facing game data; host direct shortcuts mutate renderer/debug state.",
+      "replacement_rmlui_document_or_component": "debug/debug_panel.rml behind an explicit debug availability gate",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; debug_build_gate_and_mutations_not_exercised",
+      "notes_and_risks": "Keep debug-only controls unavailable in release/player paths as intended. Spawning is destructive game mutation and should use disposable validation saves."
+    },
+    {
+      "screen_or_component": "Localization, styles, templates, fonts, icons, and images",
+      "player_purpose": "Provides all visible labels, reusable control/list presentation, typography, menu scenery, clock art, and command icons.",
+      "entry_point": "ResourceDictionary merges in Main.xaml and each player-facing XAML document; relative asset URIs resolve below content/xaml.",
+      "current_source_files": [
+        "content/xaml/localization/en_US.xaml",
+        "content/xaml/localization/fr_FR.xaml",
+        "content/xaml/localization/pt_BR.xaml",
+        "content/xaml/styles/colors.xaml",
+        "content/xaml/styles/mainmenu/styles.xaml",
+        "content/xaml/Theme/NoesisTheme.Styles.xaml",
+        "content/xaml/Theme/NoesisTheme.Fonts.xaml",
+        "content/xaml/Fonts",
+        "content/xaml/Theme/Fonts",
+        "content/xaml/buttons",
+        "content/xaml/Images",
+        "src/gui/strings.cpp"
+      ],
+      "current_data_bindings": [
+        "StaticResource localization keys",
+        "DataTemplates selected by reflected model types",
+        "Image URI properties and static image sources",
+        "FontFamily resources"
+      ],
+      "current_commands_actions": [
+        "No standalone action; these resources support every screen and control template"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "SettingsProxy for persisted language choice",
+        "No runtime localization resource-switch proxy identified"
+      ],
+      "keyboard_behavior": "Styles define focus/selection presentation; no centralized keyboard mapping is supplied by the resource dictionaries.",
+      "modal_or_non_modal_behavior": "Cross-cutting resource component, not a screen.",
+      "data_update_source": "Static XAML resources and assets; Strings loads database Translation text during game initialization.",
+      "replacement_rmlui_document_or_component": "shared/theme.rcss, shared/localization adapter, shared/components/*.rml, existing converted assets",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; locale_switch_font_license_asset_and_missing_key_audit_required",
+      "notes_and_risks": "All inspected player XAML explicitly merges localization/en_US.xaml, so the settings language value does not presently switch those dictionaries. Hard-coded English also exists. Preserve font license material. Inventory file contains every resource dictionary, key, template, converter, image reference, and XAML document found."
+    },
+    {
+      "screen_or_component": "Declared keyboard-command catalog",
+      "player_purpose": "Intended to map named actions such as global/build commands to configurable keyboard chords.",
+      "entry_point": "keybindings.json is parsed by src/gui/keybindings.cpp when KeyBindings::update is called.",
+      "current_source_files": [
+        "keybindings.json",
+        "src/gui/keybindings.h",
+        "src/gui/keybindings.cpp",
+        "src/base/global.cpp",
+        "src/gui/mainwindow.cpp"
+      ],
+      "current_data_bindings": [
+        "Configured command group/name/key/modifier records; not bound into XAML"
+      ],
+      "current_commands_actions": [
+        "Declared navigation, global, build and debug action names in keybindings.json",
+        "KeyBindings::getCommand lookup API"
+      ],
+      "relevant_proxy_or_aggregator": [
+        "No active proxy/aggregator dispatch identified"
+      ],
+      "keyboard_behavior": "Currently inactive in the inspected upstream path: Global contains a commented m_keyBindings.update(), and MainWindow uses direct Qt key switches rather than getCommand.",
+      "modal_or_non_modal_behavior": "Cross-cutting input configuration, not a screen.",
+      "data_update_source": "Static root keybindings.json if initialized; current runtime dispatch appears independent of it.",
+      "replacement_rmlui_document_or_component": "controllers/CommandRouter plus optional screens/keybindings.rml only after architecture decision",
+      "migration_status": "not_started",
+      "validation_status": "static_source_mapped; confirmed_not_wired_by_source_search; runtime_key_matrix_required",
+      "notes_and_risks": "Do not infer that every declared JSON action currently works. Preserve the actual direct shortcuts as the compatibility baseline, and treat activation of dormant bindings as a deliberate feature decision rather than migration parity."
+    }
+  ]
+}

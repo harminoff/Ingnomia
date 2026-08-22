@@ -1,0 +1,212 @@
+<rml>
+<head>
+    <title>Ingnomia cave component fixture</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
+    <link type="text/template" href="/templates/framed_window.rml" />
+    <link type="text/template" href="/templates/panel.rml" />
+    <link type="text/template" href="/templates/modal_shell.rml" />
+    <link type="text/template" href="/templates/state_panel.rml" />
+    <link type="text/template" href="/templates/inspector_section.rml" />
+</head>
+<body class="c-fixture-page">
+    <header class="c-fixture-page__header">
+        <h1>Cave interface component forge</h1>
+        <p>Wave 2 fixture: shared visual states and supported RmlUi 6.2 controls. Static examples do not imply game actions or full-app integration.</p>
+        <div class="u-row">
+            <span class="c-status-chip c-status-chip--info">i Information</span>
+            <span class="c-status-chip c-status-chip--success">&#10003; Ready</span>
+            <span class="c-status-chip c-status-chip--warning">! Warning</span>
+            <span class="c-status-chip c-status-chip--danger">&#215; Danger</span>
+            <span class="c-key-hint">Tab</span><span class="u-muted">moves focus</span>
+        </div>
+    </header>
+
+    <main class="c-fixture-grid">
+        <section class="c-fixture-cell">
+            <template src="framed-window">
+                <h2>Panels, toolbar, and buttons</h2>
+                <p>Iron structure, bronze selection, and amber focus remain separate.</p>
+                <div class="c-toolbar">
+                    <button class="c-icon-button" title="Inspect"><span class="c-icon-button__glyph">i</span></button>
+                    <button class="c-icon-button is-selected" title="Dig"><span class="c-icon-button__glyph">&#8595;</span></button>
+                    <div class="c-toolbar__separator"></div>
+                    <button class="c-button">Text button</button>
+                    <button class="c-button c-button--primary">Primary</button>
+                    <button class="c-button c-button--danger">Delete</button>
+                </div>
+                <div class="u-row" style="margin-top: 8dp;">
+                    <button class="c-button is-selected">Selected</button>
+                    <button class="c-button is-pending">Updating...</button>
+                    <button class="c-button is-error">Retry</button>
+                    <button class="c-button" disabled="disabled">Disabled</button>
+                </div>
+                <div class="c-panel c-panel--inset" style="margin-top: 12dp;">
+                    Inset working surface for dense values, never decorative card sprawl.
+                </div>
+            </template>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>Toggles, segments, and tabs</h2>
+            <label class="c-toggle">
+                <input class="checkbox" type="checkbox" checked="checked" />
+                <span class="c-toggle__copy">
+                    <span class="c-toggle__label">Show roofs</span>
+                    <span class="c-toggle__description">Checked state has text and a visible mark.</span>
+                </span>
+            </label>
+            <label class="c-toggle">
+                <input class="checkbox" type="checkbox" disabled="disabled" />
+                <span class="c-toggle__copy">
+                    <span class="c-toggle__label">Unavailable overlay</span>
+                    <span class="c-toggle__description">Blocked until an authoritative producer exists.</span>
+                </span>
+            </label>
+            <div class="c-segmented" style="margin: 12dp 0;">
+                <button class="c-segmented__item">Slow</button>
+                <button class="c-segmented__item is-selected">Normal</button>
+                <button class="c-segmented__item">Fast</button>
+            </div>
+            <div class="c-tabs">
+                <button class="c-tabs__tab is-selected">Overview</button>
+                <button class="c-tabs__tab">Orders</button>
+                <button class="c-tabs__tab">Materials</button>
+            </div>
+            <div class="c-panel c-panel--inset">Selected tab content. Arrow/Home/End activation belongs to the shared controller.</div>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>List and table</h2>
+            <div class="c-list" style="margin-bottom: 16dp;">
+                <div class="c-list__row" tab-index="auto"><span class="c-list__primary">Granite blocks</span><span class="c-list__meta">124</span></div>
+                <div class="c-list__row is-selected" tab-index="auto"><span class="c-list__primary">Copper bars</span><span class="c-badge">8</span></div>
+                <div class="c-list__row" tab-index="auto"><span class="c-list__primary">Pine logs</span><span class="c-list__meta">Refreshing</span></div>
+            </div>
+            <div class="c-table-wrap">
+                <table class="c-table">
+                    <thead><tr><th>Workshop</th><th>Status</th><th class="c-table__number">Queue</th></tr></thead>
+                    <tbody>
+                        <tr><td>Stonecutter</td><td><span class="c-status-chip c-status-chip--success">&#10003; Working</span></td><td class="c-table__number">4</td></tr>
+                        <tr class="is-selected"><td>Blacksmith</td><td><span class="c-status-chip c-status-chip--warning">! Blocked</span></td><td class="c-table__number">2</td></tr>
+                        <tr><td>Carpenter</td><td>Idle</td><td class="c-table__number">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>Tree and scroll region</h2>
+            <div class="c-tree">
+                <div class="c-tree__row" tab-index="auto"><button class="c-tree__disclosure" title="Collapse">&#9662;</button><input class="checkbox" type="checkbox" /><span class="c-tree__label">Stone</span><span class="c-list__meta">Mixed</span></div>
+                <div class="c-tree__row c-tree__row--depth-1" tab-index="auto"><button class="c-tree__disclosure" title="Expand">&#9656;</button><input class="checkbox" type="checkbox" checked="checked" /><span class="c-tree__label">Granite</span></div>
+                <div class="c-tree__row c-tree__row--depth-2" tab-index="auto"><span class="c-tree__disclosure"></span><input class="checkbox" type="checkbox" checked="checked" /><span class="c-tree__label">Granite blocks</span></div>
+            </div>
+            <div class="c-scroll-region" style="margin-top: 12dp;">
+                <h3>Scrollable ledger</h3>
+                <p>Wheel input is owned while the pointer is over this bounded region.</p>
+                <button class="c-context-action"><span class="c-context-action__glyph">&#8593;</span><span class="c-context-action__copy"><span class="c-context-action__label">Raise priority</span><span class="c-context-action__hint">Moves this order one position</span></span><span class="c-key-hint">Alt+Up</span></button>
+                <button class="c-context-action"><span class="c-context-action__glyph">&#8595;</span><span class="c-context-action__copy"><span class="c-context-action__label">Lower priority</span><span class="c-context-action__hint">Moves this order one position</span></span><span class="c-key-hint">Alt+Down</span></button>
+                <button class="c-context-action"><span class="c-context-action__glyph">&#215;</span><span class="c-context-action__copy"><span class="c-context-action__label">Cancel order</span><span class="c-context-action__hint">Requires confirmation</span></span></button>
+                <p>Extra content proves clipping and generated scrollbars without relying on browser-only sticky layout.</p>
+            </div>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>Fields and selectors</h2>
+            <label class="c-field">
+                <span class="c-field__label">Workshop name</span>
+                <input class="text c-field__control" type="text" value="Deep Forge" placeholder="Enter a name" />
+                <span class="c-field__help">Player-authored UTF-8 text remains visible and editable.</span>
+            </label>
+            <label class="c-field">
+                <span class="c-field__label">Priority</span>
+                <select class="c-field__control">
+                    <option value="low">Low</option>
+                    <option value="normal" selected="selected">Normal</option>
+                    <option value="high">High</option>
+                </select>
+            </label>
+            <div class="c-field is-dirty">
+                <span class="c-field__label">Maximum workers</span>
+                <div class="c-numeric-input">
+                    <button title="Decrease">&#8722;</button>
+                    <input class="text" type="text" value="12" />
+                    <button title="Increase">+</button>
+                </div>
+                <span class="c-field__help">Structural numeric input: controller validates integer range and step.</span>
+            </div>
+            <label class="c-field is-invalid">
+                <span class="c-field__label">Invalid example</span>
+                <input class="text c-field__control" type="text" value="-3" />
+                <span class="c-field__error">! Enter a value from 0 to 200.</span>
+            </label>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>Slider, progress, and compact status</h2>
+            <label class="c-field">
+                <span class="c-field__label">Interface scale - 125%</span>
+                <input class="range c-slider" type="range" min="80" max="200" step="5" value="125" />
+                <span class="c-field__help">Range, unit, value, and keyboard step stay visible.</span>
+            </label>
+            <div class="c-field">
+                <span class="c-field__label">Loading save - 64%</span>
+                <progress class="c-progress" value="64" max="100"></progress>
+                <div class="c-progress__label">64 of 100</div>
+            </div>
+            <div class="u-row">
+                <span class="c-badge">12</span>
+                <span class="c-status-chip c-status-chip--info">i New report</span>
+                <span class="c-key-hint">Esc</span><span class="u-muted">Back</span>
+            </div>
+            <div style="position: relative; height: 120dp; margin-top: 16dp;">
+                <button class="c-button">Tooltip anchor</button>
+                <div class="c-tooltip is-visible" style="left: 150dp; top: 0;">Tooltip fixture: name, consequence, and real hotkey. Runtime controller clamps and delays it.</div>
+            </div>
+        </section>
+
+        <section class="c-fixture-cell c-panel" style="position: relative; min-height: 250dp;">
+            <h2>Popover and alert rows</h2>
+            <button class="c-button is-selected">Actions</button>
+            <div class="c-popover is-open" style="right: 16dp; top: 64dp;">
+                <h3>Context actions</h3>
+                <button class="c-context-action"><span class="c-context-action__glyph">&#9671;</span><span class="c-context-action__copy"><span class="c-context-action__label">Center on map</span><span class="c-context-action__hint">Keeps current selection</span></span></button>
+                <button class="c-context-action"><span class="c-context-action__glyph">i</span><span class="c-context-action__copy"><span class="c-context-action__label">Inspect details</span><span class="c-context-action__hint">Opens the dock</span></span></button>
+            </div>
+            <div class="c-alert-row" style="margin-top: 12dp;"><span class="c-alert-row__marker">i</span><span class="c-alert-row__body"><span class="c-alert-row__title">Information</span><span class="c-alert-row__detail">A neutral typed event with no inferred severity.</span></span></div>
+            <div class="c-alert-row c-alert-row--warning" style="margin-top: 8dp;"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Workshop blocked</span><span class="c-alert-row__detail">Missing fuel. Color is redundant with marker and text.</span></span></div>
+        </section>
+
+        <section class="c-fixture-cell">
+            <template src="state-panel">
+                <div class="c-state-panel__title">No workshops selected</div>
+                <p class="c-state-panel__detail">Select a workshop on the map or return to the colony view.</p>
+                <button class="c-button">Back to map</button>
+                <div style="margin-top: 12dp;"><span class="c-loading-step"></span><span class="c-loading-step is-active"></span><span class="c-loading-step"></span><span class="u-muted"> Loading state uses text plus stepped progress.</span></div>
+            </template>
+        </section>
+
+        <section class="c-fixture-cell c-panel">
+            <h2>Inspector section</h2>
+            <template src="inspector-section">
+                <div class="u-row"><span class="u-grow">Material</span><strong>Granite</strong></div>
+                <div class="u-row"><span class="u-grow">Position</span><strong>42, 18, -6</strong></div>
+                <button class="c-context-action" style="margin-top: 8dp;"><span class="c-context-action__glyph">&#9671;</span><span class="c-context-action__copy"><span class="c-context-action__label">Center on map</span><span class="c-context-action__hint">Typed view.center_on action</span></span><span class="c-key-hint">Enter</span></button>
+            </template>
+        </section>
+
+        <section class="c-fixture-cell c-modal-preview">
+            <div class="c-modal c-modal--danger">
+                <div class="c-modal__header"><h2>Decision required</h2></div>
+                <div class="c-modal__body">
+                    <p>Cancel is the safe initial focus. The modal controller owns the full scrim, focus trap, typed confirmation, and restoration.</p>
+                    <div class="c-alert-row c-alert-row--danger"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Delete preset "Deep Start"?</span><span class="c-alert-row__detail">This removes the saved preset. It does not affect existing worlds.</span></span></div>
+                </div>
+                <div class="c-modal__actions"><button>Cancel</button><button class="c-button c-button--danger">Delete preset</button></div>
+            </div>
+        </section>
+    </main>
+</body>
+</rml>

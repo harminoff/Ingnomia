@@ -681,11 +681,23 @@ void Plant::layoutMulti( QString layoutSID, bool withFruit )
 /// @return true if all layout tiles are clear and placeable.
 bool Plant::testLayoutMulti( QString layoutSID, Position rootPos, Game* game )
 {
+	// Layout rows can contain positive z offsets (tree crowns) and are generated
+	// near the top of the map.  Reject an invalid root/layout coordinate before
+	// any World::getTile* call, whose flat-index accessor assumes valid input.
+	if ( !game || !game->w() || !rootPos.valid() )
+	{
+		return false;
+	}
+
 	auto ll = DB::selectRows( "TreeLayouts_Layout", layoutSID );
 	for ( const auto& vm : ll )
 	{
 		const Position offset( vm.value( "Offset" ).toString() );
 		const Position pos = rootPos + offset;
+		if ( !pos.valid() )
+		{
+			return false;
+		}
 		const auto tf      = game->w()->getTileFlag( pos );
 		const auto ft      = game->w()->floorType( pos );
 		const auto wt      = game->w()->wallType( pos );

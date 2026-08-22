@@ -73,8 +73,26 @@ bool World::construct( QString constructionSID, Position pos, int rotation, QLis
 	//qDebug() << "world::construct() " << constructionSID << pos.toString() << rotation;
 	QVariantMap con = DB::selectRow( "Constructions", constructionSID );
 	QString type    = con.value( "Type" ).toString();
-	
+
 	int typeNum     = m_constructionSID2ENUM.value( type );
+
+	// Finite water must never disappear merely because a blocking construction
+	// was committed. Reject the entire multi-tile construction before consuming
+	// materials or changing any tile if one of its wall parts is wet.
+	if ( typeNum == CID_WALL || typeNum == CID_FANCYWALL || typeNum == CID_FENCE || typeNum == CID_WALLFLOOR )
+	{
+		const auto sprites = DB::selectRows( "Constructions_Sprites", "ID", con.value( "ID" ).toString() );
+		for ( const auto& sprite : sprites )
+		{
+			const QVariantMap spriteMap = sprite;
+			if ( !spriteMap.value( "Type" ).toString().startsWith( "Wall" ) )
+				continue;
+			const Position constructionPos = pos + Position( spriteMap.value( "Offset" ).toString() );
+			const Tile& tile = getTile( constructionPos );
+			if ( tile.fluidLevel > 0 || tile.pressure > 0 || ( tile.flags & TileFlag::TF_WATER ) )
+				return false;
+		}
+	}
 
 	QStringList materialSIDs;
 	QVariantList materialUIDs;

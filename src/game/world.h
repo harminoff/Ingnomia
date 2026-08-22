@@ -115,6 +115,7 @@ private:
 	QSet<unsigned int> m_grassCandidatePositions;
 	QMap<unsigned int, QVariantMap> m_jobSprites;
 	std::set<unsigned int> m_water;
+	QSet<unsigned int> m_activeWater;
 	QList<Position> m_aquifiers;
 	QList<Position> m_deaquifiers;
 
@@ -264,6 +265,8 @@ public:
 	void addDeaquifier( Position pos );
 	void processWater();
 	void processWaterFlow();
+	void processWaterFlowLegacy();
+	void wakeWaterAround( Position pos );
 
 	void removeDesignation( Position pos );
 

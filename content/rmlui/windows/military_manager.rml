@@ -1,0 +1,76 @@
+<rml>
+<head>
+  <title data-l10n="management.military.title">Military</title>
+  <link type="text/rcss" href="/styles/base.rcss" />
+  <link type="text/rcss" href="/styles/components.rcss" />
+  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <link type="text/rcss" href="/windows/management6c.rcss" />
+</head>
+<body id="military_root" class="m6c-root is-hidden">
+  <div id="military_workbench" class="c-window m6c-workbench">
+    <div class="c-title-bar">
+      <handle class="c-title-bar__drag-handle" move_target="military_workbench" edge_margin="64dp 12dp 52dp 12dp"><div class="c-title-bar__mark"></div>
+      <h1 class="c-title-bar__title" data-l10n="management.military.title">Military</h1></handle>
+      <button id="military_close" class="c-button" data-l10n="management.military.close">Close</button>
+    </div>
+    <div id="military_body" class="c-window__body m6c-body">
+      <div id="military_tabs" class="c-tabs m6c-tabs">
+        <button id="military_tab_squads" class="c-tabs__tab m6c-tab" data-l10n="management.military.squads">Squads</button>
+        <button id="military_tab_roles" class="c-tabs__tab m6c-tab" data-l10n="management.military.roles_uniforms">Roles &amp; Uniforms</button>
+        <button id="military_tab_priorities" class="c-tabs__tab m6c-tab" data-l10n="management.military.target_priorities">Target Priorities</button>
+      </div>
+      <div id="military_primary_toolbar" class="c-toolbar m6c-primary-toolbar">
+        <input id="military_search" class="text m6c-search" type="text" placeholder="Filter loaded names" data-l10n-placeholder="management.military.search_placeholder" autofocus="true" />
+        <button id="military_sort_source" class="c-dropdown-button" data-l10n="management.military.source_order">Source order v</button>
+        <button id="military_sort_name" class="c-dropdown-button" data-l10n="management.military.name_order">Name order v</button>
+        <button id="military_refresh" data-l10n="management.military.refresh">Refresh</button>
+      </div>
+
+      <div id="military_loading" class="c-state-panel is-hidden"><div class="c-state-panel__mark">...</div><h2 class="c-state-panel__title" data-l10n="management.military.loading_title">Loading military records</h2><p class="c-state-panel__detail" data-l10n="management.military.loading_detail">Waiting for the authoritative game-thread snapshot.</p></div>
+      <div id="military_empty" class="c-state-panel is-hidden"><div class="c-state-panel__mark">0</div><h2 class="c-state-panel__title" data-l10n="management.military.empty_title">No military records</h2><p class="c-state-panel__detail" data-l10n="management.military.empty_detail">No squads, unassigned citizens, or roles were returned.</p></div>
+      <div id="military_error" class="c-state-panel is-hidden"><div class="c-state-panel__mark">!</div><h2 class="c-state-panel__title" data-l10n="management.military.error_title">Military data unavailable</h2><p class="c-state-panel__detail" data-l10n="management.military.error_detail">The payload was rejected or the bridge is unavailable.</p><button id="military_error_retry" data-l10n="management.military.retry">Retry</button></div>
+
+      <div id="military_main" class="m6c-layout is-hidden">
+        <section class="m6c-list-pane">
+          <div class="c-toolbar"><button id="military_previous" data-l10n="management.military.previous_row">Previous row</button><button id="military_next" data-l10n="management.military.next_row">Next row</button></div>
+          <p id="military_selection_status" class="m6c-status"></p>
+          <div id="military_squad_rows" class="c-list m6c-scroll"></div>
+          <div id="military_role_rows" class="c-list m6c-scroll is-hidden"></div>
+        </section>
+
+        <section id="military_squad_detail" class="m6c-detail-pane">
+          <h2 id="military_squad_title" data-l10n="management.military.squad">Squad</h2>
+          <div class="c-toolbar"><button id="squad_add" data-l10n="management.military.add_squad">Add squad</button><button id="squad_move_up" data-l10n="management.military.move_up">Move up</button><button id="squad_move_down" data-l10n="management.military.move_down">Move down</button><button id="squad_remove" class="c-button c-button--danger" data-l10n="management.military.delete">Delete...</button></div>
+          <div class="m6c-section"><label class="m6c-field__label" for="squad_name_input" data-l10n="management.military.squad_name">Squad name</label><input id="squad_name_input" class="text" type="text" /><button id="squad_rename" data-l10n="management.military.rename">Rename</button></div>
+          <div class="m6c-section"><h3 data-l10n="management.military.roster">Roster</h3><div id="military_member_rows" class="c-list m6c-scroll"></div><div class="c-toolbar"><button id="member_move_up" data-l10n="management.military.move_previous_squad">Move to previous squad</button><button id="member_move_down" data-l10n="management.military.move_next_squad">Move to next squad</button><button id="member_remove" data-l10n="management.military.remove_from_squad">Remove from squad</button></div></div>
+          <div class="m6c-section"><h3 data-l10n="management.military.unassigned_citizens">Unassigned citizens</h3><p data-l10n="management.military.unassigned_help">These citizens are not members of a squad. Select one here, then choose a role on the Roles &amp; Uniforms tab.</p><div id="military_unassigned_rows" class="c-list m6c-scroll"></div></div>
+        </section>
+
+        <section id="military_role_detail" class="m6c-detail-pane is-hidden">
+          <h2 id="military_role_title" data-l10n="management.military.role">Role</h2>
+          <div class="c-toolbar"><button id="role_add" data-l10n="management.military.add_role">Add role</button><button id="role_toggle_civilian" data-l10n="management.military.toggle_civilian">Toggle civilian</button><button id="role_remove" class="c-button c-button--danger" data-l10n="management.military.delete">Delete...</button></div>
+          <div class="m6c-section"><label class="m6c-field__label" for="role_name_input" data-l10n="management.military.role_name">Role name</label><input id="role_name_input" class="text" type="text" /><button id="role_rename" data-l10n="management.military.rename">Rename</button></div>
+          <div class="m6c-section"><h3 data-l10n="management.military.selected_citizen">Selected citizen</h3><p id="role_member_assignment_status" data-l10n="management.military.no_citizen_selected">No citizen selected.</p><button id="role_assign_member" data-l10n="management.military.assign_selected_role">Assign selected citizen to this role</button></div>
+          <div class="m6c-section"><h3 data-l10n="management.military.uniform_slots">Uniform slots</h3><div id="military_uniform_rows" class="c-list m6c-scroll"></div><h3 data-l10n="management.military.legal_types">Legal types</h3><div id="military_uniform_type_rows" class="c-list m6c-scroll"></div><h3 data-l10n="management.military.reported_materials">Materials reported for this type</h3><div id="military_uniform_material_rows" class="c-list m6c-scroll"></div></div>
+        </section>
+
+        <section id="military_priority_detail" class="m6c-detail-pane is-hidden">
+          <h2 id="military_priority_title" data-l10n="management.military.target_priorities">Target priorities</h2>
+          <div id="military_priority_rows" class="c-list m6c-scroll"></div>
+          <div class="c-toolbar"><button id="priority_move_up" data-l10n="management.military.move_up">Move up</button><button id="priority_move_down" data-l10n="management.military.move_down">Move down</button></div>
+          <div class="c-segmented"><button id="attitude_flee" class="c-dropdown-button c-segmented__item" data-l10n="management.military.attitude_flee">Flee ▾</button><button id="attitude_defend" class="c-dropdown-button c-segmented__item" data-l10n="management.military.attitude_defend">Defend ▾</button><button id="attitude_attack" class="c-dropdown-button c-segmented__item" data-l10n="management.military.attitude_attack">Attack ▾</button><button id="attitude_hunt" class="c-dropdown-button c-segmented__item" data-l10n="management.military.attitude_hunt">Hunt ▾</button></div>
+        </section>
+      </div>
+      <div class="c-toolbar m6c-footer"><span id="military_revision" class="c-status-chip c-status-chip--info"></span><span id="military_status"></span></div>
+    </div>
+  </div>
+
+  <div id="military_confirm_layer" class="c-modal-scrim m6c-modal-layer is-hidden">
+    <div class="c-modal c-modal--danger">
+      <div class="c-modal__header"><h2 data-l10n="management.military.confirm_removal">Confirm removal</h2></div>
+      <div class="c-modal__body"><p id="military_confirm_text" data-l10n="management.military.remove_record">Remove this record?</p></div>
+      <div class="c-modal__actions"><button id="military_confirm_cancel" data-l10n="management.military.cancel">Cancel</button><button id="military_confirm_accept" class="c-button c-button--danger" data-l10n="management.military.remove">Remove</button></div>
+    </div>
+  </div>
+</body>
+</rml>

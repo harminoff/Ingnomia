@@ -10,9 +10,7 @@ env:
 
 jobs:
   build:
-    # Windows-only for 0.9.0. The Qt6 + GLAD + Noesis 3.0.12 + C++23 stack has not
-    # been validated on Linux yet; a Linux job belongs with the future SDL2/GLFW
-    # windowing work, not the release build.
+    # Windows release gate for the Qt6 + GLAD + RmlUi + C++23 stack.
     runs-on: windows-2022
 
     steps:
@@ -44,7 +42,6 @@ jobs:
           Expand-Archive -Path $out -DestinationPath $dest -Force
         }
         Get-Dep "$env:DEPS_URL/steamworks_sdk_164.zip"               steam.zip    steamworks_sdk
-        Get-Dep "$env:DEPS_URL/NoesisGUI-NativeSDK-win-3.0.12.zip"   noesis.zip   noesis_sdk
         Get-Dep "$env:DEPS_URL/openal-1.25.1.zip"                    openal.zip   openal_sdk
         Get-Dep "$env:DEPS_URL/tilesheet.zip"                        tiles.zip    content
         Get-Dep "$env:DEPS_URL/audio.zip"                            audio.zip    content
@@ -55,9 +52,6 @@ jobs:
     - name: Configure CMake
       working-directory: ${{ github.workspace }}/build
       shell: pwsh
-      env:
-        NOESIS_LICENSE_KEY: ${{ secrets.NOESIS_LICENSE_KEY }}
-        NOESIS_LICENSE_NAME: ${{ secrets.NOESIS_LICENSE_NAME }}
       run: |
         # BugSplat is intentionally disabled: its SDK header uses set_unexpected,
         # removed in C++23. Matches the local/release build, which omits BUGSPLAT_DB.
@@ -67,10 +61,7 @@ jobs:
           -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" `
           -DCMAKE_INSTALL_BINDIR="." `
           -DSTEAM_SDK_ROOT="$ws/steamworks_sdk/sdk" `
-          -DNOESIS_ROOT="$ws/noesis_sdk" `
           -DOPENAL_ROOT="$ws/openal_sdk" `
-          -DNOESIS_LICENSE_NAME="$env:NOESIS_LICENSE_NAME" `
-          -DNOESIS_LICENSE_KEY="$env:NOESIS_LICENSE_KEY" `
           -DGIT_REPO="${{ github.repository }}" `
           -DGIT_REF="${{ github.ref }}" `
           -DGIT_SHA="${{ github.sha }}" `

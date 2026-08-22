@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorneighbors.h
- *  @brief Data types and aggregator bridging the Neighbors (diplomacy) XAML window with
+ *  @brief Data types and aggregator bridging the Neighbors (diplomacy) RmlUi window with
  *         NeighborManager. Exposes kingdom info, available-gnome lists for missions, and
  *         mission lifecycle signals.
  */
@@ -59,7 +59,7 @@ Q_DECLARE_METATYPE( GuiAvailableGnome )
 
 
 /// @brief Routes neighbour kingdom info and diplomacy mission state between NeighborManager
-///        and the Neighbors XAML window.
+///        and the Neighbors RmlUi window.
 class AggregatorNeighbors : public QObject
 {
 	Q_OBJECT

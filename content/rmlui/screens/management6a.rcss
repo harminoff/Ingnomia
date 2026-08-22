@@ -1,0 +1,62 @@
+.l-m6a-root { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.l-m6a-panel { position: absolute; right: 12dp; top: 76dp; bottom: 58dp; width: 560dp; max-width: 55%; display: flex; flex-direction: column; pointer-events: auto; color: #f1eee6; background-color: #252d31; border: 2dp #7a858a; }
+.l-m6a-title { min-height: 42dp; padding: 6dp 8dp; display: flex; gap: 6dp; align-items: center; border-bottom: 1dp #596166; }
+.l-m6a-title__copy { flex: 1; min-width: 180dp; }
+.l-m6a-title h2 { margin: 1dp 0 0 0; font-size: 16dp; line-height: 19dp; color: #f1eee6; }
+.l-m6a-title small { color: #c8c7bf; }
+.l-m6a-title .c-button { min-width: 70dp; min-height: 24dp; padding: 2dp 6dp; }
+.l-m6a-toolbar { padding: 8dp 12dp; display: flex; flex-wrap: wrap; gap: 7dp; align-items: center; border-bottom: 1dp #596166; }
+.l-m6a-toolbar input { width: 180dp; min-height: 36dp; color: #f1eee6; background-color: #13191b; border: 1dp #596166; padding: 6dp 8dp; }
+.l-m6a-scroll { flex: 1; padding: 12dp; overflow-y: auto; }
+#workshop_content { display: block; width: 510dp; }
+#stockpile_content { display: block; width: 510dp; }
+#agriculture_content { display: block; width: 510dp; }
+.l-m6a-section { display: block; width: 100%; margin-bottom: 16dp; padding-bottom: 12dp; border-bottom: 1dp #596166; }
+.l-m6a-section h3 { display: block; width: 100%; margin: 0 0 8dp 0; color: #c69456; font-size: 17dp; }
+.l-m6a-section p { display: block; width: 100%; margin: 7dp 0; }
+.l-m6a-grid { display: flex; width: auto; flex-wrap: wrap; gap: 8dp; }
+.l-m6a-grid input { display: block; width: 220dp; min-width: 220dp; min-height: 36dp; flex: 0 0 220dp; color: #f1eee6; background-color: #13191b; border: 1dp #596166; padding: 6dp 8dp; }
+#workshop_summary { display: block; width: 100%; margin: 7dp 0; }
+#stockpile_summary { display: block; width: 100%; margin: 7dp 0; }
+#agriculture_summary { display: block; width: 100%; margin: 7dp 0; }
+.l-m6a-actions { display: flex; width: auto; flex-wrap: wrap; gap: 7dp; margin-top: 8dp; }
+.c-m6a-list { background-color: #13191b; border: 1dp #596166; max-height: 210dp; overflow-y: auto; }
+.c-m6a-row { display: block; padding: 7dp 9dp; border-bottom: 1dp #30373a; color: #c8c7bf; }
+.c-m6a-row-button { display: block; width: 100%; min-height: 36dp; padding: 7dp 9dp; text-align: left; color: #c8c7bf; background-color: #13191b; border-width: 0 0 1dp 0; border-color: #30373a; }
+.c-m6a-row-button:hover { background-color: #344046; }
+.c-m6a-row-button:focus { border: 2dp #ffd27a; color: #f1eee6; }
+.c-m6a-row-button.is-selected { color: #142333; background-color: #f1ca4f; border-left: 3dp #245d87; }
+.c-m6a-filter-depth-0 { padding-left: 9dp; font-weight: bold; }
+.c-m6a-filter-depth-1 { padding-left: 25dp; }
+.c-m6a-filter-depth-2 { padding-left: 41dp; }
+.c-m6a-filter-depth-3 { padding-left: 57dp; }
+.c-m6a-row.is-selected { color: #142333; background-color: #f1ca4f; border-left: 3dp #245d87; }
+.c-check-row { color: #1b344b; }
+.c-check-row:hover { background-color: #d6e8f2; }
+.c-m6a-state { display: block; width: auto; padding: 12dp; color: #c8c7bf; background-color: #13191b; border: 1dp #596166; }
+.c-m6a-state.is-error { color: #e27b70; border-color: #b7554e; }
+.c-m6a-status { display: block; width: auto; min-height: 22dp; color: #e0b45d; }
+.c-m6a-warning { display: block; width: auto; color: #e0b45d; }
+.c-m6a-blocker { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: auto; background-color: rgba(5, 7, 8, 210); }
+.c-m6a-dialog { position: absolute; left: 50%; top: 50%; width: 420dp; margin-left: -210dp; margin-top: -100dp; padding: 18dp; color: #f1eee6; background-color: #252d31; border: 2dp #b7554e; }
+.c-m6a-dialog h3 { margin: 0 0 8dp 0; color: #e0b45d; }
+.is-hidden { display: none; }
+
+/* Classic park-management selection surface. Keep the world visible behind
+   the workbench and make the active row obvious without a black fill. */
+.l-m6a-panel { color: #142333; background-color: #cbd5d9; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #4d6476; border-bottom-color: #4d6476; }
+.l-m6a-title { background-color: #356c9d; border-bottom-color: #214665; }
+.l-m6a-title h2 { color: #ffffff; }
+.l-m6a-title small { color: #e5e9e5; }
+.l-m6a-toolbar { background-color: #aebdc4; border-bottom-color: #718591; }
+.l-m6a-toolbar input { color: #142333; background-color: #f3f5ef; border-color: #4d6476; }
+.l-m6a-scroll { background-color: #cbd5d9; }
+.l-m6a-section { border-bottom-color: #718591; }
+.l-m6a-section h3 { color: #24415a; }
+.l-m6a-section p { color: #29465c; }
+.c-m6a-list { background-color: #f3f5ef; border-top-color: #4d6476; border-left-color: #4d6476; border-right-color: #f7faf8; border-bottom-color: #f7faf8; }
+.c-m6a-row-button { color: #1b344b; background-color: #f3f5ef; border-color: #b3c0c5; }
+.c-m6a-row-button:hover { color: #142333; background-color: #d6e8f2; }
+.c-m6a-row-button:focus { border-color: #245d87; color: #142333; }
+.c-m6a-state { color: #173d59; background-color: #9ed2ed; border-color: #356c9d; }
+.c-m6a-status, .c-m6a-warning { color: #63420a; }

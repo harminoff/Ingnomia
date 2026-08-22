@@ -1,0 +1,25 @@
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    pointer-events: none;
+}
+
+#smoke-panel {
+    position: absolute;
+    right: 24dp;
+    top: 24dp;
+    width: 96dp;
+    height: 96dp;
+    padding: 8dp;
+    pointer-events: auto;
+    background-color: #1f2727ee;
+    border-width: 2dp;
+    border-color: #9e7040;
+    border-radius: 8dp;
+}
+
+#smoke-texture {
+    width: 80dp;
+    height: 80dp;
+}

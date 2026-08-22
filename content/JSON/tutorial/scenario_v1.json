@@ -1,0 +1,41 @@
+{
+  "scenarioId": "scenario_v1",
+  "scenarioVersion": 1,
+  "seed": "ingnomia-tutorial-v1",
+  "world": {
+    "dimensions": { "x": 64, "y": 64, "z": 100 },
+    "ground": 70,
+    "flatness": 20,
+    "oceanSize": 0,
+    "rivers": 0,
+    "peaceful": true,
+    "wildAnimals": 0
+  },
+  "startingGnomes": 5,
+  "landmarks": {
+    "camp": { "x": 32, "y": 32, "z": 98 },
+    "farm": { "x": 40, "y": 32, "z": 98 },
+    "mine": { "x": 24, "y": 32, "z": 98 },
+    "workshop": { "x": 32, "y": 40, "z": 98 },
+    "kitchen": { "x": 36, "y": 40, "z": 98 },
+    "migration": { "x": 48, "y": 32, "z": 98 }
+  },
+  "starterKit": {
+    "items": [
+      { "item": "Pickaxe", "material": "Pine", "amount": 2 },
+      { "item": "FellingAxe", "material": "Pine", "amount": 1 },
+      { "item": "RawWood", "material": "Pine", "amount": 32 },
+      { "item": "RawStone", "material": "Granite", "amount": 16 },
+      { "item": "Bed", "material": "Pine", "componentsMaterial": "Pine", "amount": 5 },
+      { "item": "Chair", "material": "Pine", "amount": 1 },
+      { "item": "Table", "material": "Pine", "amount": 1 },
+      { "item": "Knife", "material": "Granite", "amount": 1 },
+      { "item": "Bread", "material": "Wheat", "amount": 8 },
+      { "item": "Grain", "material": "Wheat", "amount": 16 },
+      { "item": "Seed", "material": "Strawberry", "amount": 16 }
+    ],
+    "matureCrop": "Strawberry"
+  },
+  "ambientEvents": false,
+  "migration": { "amount": 3, "requiresAcceptance": true, "location": "migration" }
+}

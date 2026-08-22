@@ -41,19 +41,36 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <algorithm>
 #include <QFile>
 #include <QImage>
 #include <QMessageBox>
 #include <QTimer>
 #include <QOpenGLContext>
+#include <QTextStream>
+#include <QVector3D>
 
 #include <glad/gl.h>
 
 #include <cstring>
+#include <cmath>
 #include <unordered_map>
 
 namespace
 {
+void traceRender( const QString& message )
+{
+	const QString path = qEnvironmentVariable( "INGNOMIA_LOAD_TRACE_PATH" );
+	if ( path.isEmpty() )
+		return;
+	QFile file( path );
+	if ( file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) )
+	{
+		QTextStream stream( &file );
+		stream << message << Qt::endl;
+	}
+}
+
 /// @brief RAII helper that opens a GL debug-output group on construction and pops it on
 ///        destruction, so debug tools like RenderDoc show hierarchical scopes.
 class DebugScope
@@ -143,7 +160,6 @@ void MainWindowRenderer::initializeGL()
 		if ( type == GL_DEBUG_TYPE_PUSH_GROUP || type == GL_DEBUG_TYPE_POP_GROUP )
 			return;
 		// Rate-limit GL error messages to avoid log spam
-		// Known issue: Noesis GUI generates GL_INVALID_OPERATION errors
 		static int glErrorCount = 0;
 		if ( type == GL_DEBUG_TYPE_ERROR )
 		{
@@ -209,6 +225,10 @@ void MainWindowRenderer::initializeGL()
 	glBindVertexArray( 0 );
 
 	updateRenderParams();
+	initializeCameraPreview();
+	initializeWaterTargets();
+	initializeWaterTextures();
+	m_waterClock.start();
 
 	qDebug() << "initialize GL - done";
 }
@@ -226,10 +246,20 @@ void MainWindowRenderer::cleanup()
 	m_parent->makeCurrent();
 
 	if ( m_worldShader ) { glDeleteProgram( m_worldShader ); m_worldShader = 0; }
+	if ( m_waterShader ) { glDeleteProgram( m_waterShader ); m_waterShader = 0; }
 	if ( m_worldUpdateShader ) { glDeleteProgram( m_worldUpdateShader ); m_worldUpdateShader = 0; }
 	if ( m_thoughtBubbleShader ) { glDeleteProgram( m_thoughtBubbleShader ); m_thoughtBubbleShader = 0; }
 	if ( m_selectionShader ) { glDeleteProgram( m_selectionShader ); m_selectionShader = 0; }
 	if ( m_axleShader ) { glDeleteProgram( m_axleShader ); m_axleShader = 0; }
+	if ( m_waterDuDv ) { glDeleteTextures( 1, &m_waterDuDv ); m_waterDuDv = 0; }
+	if ( m_waterNormal ) { glDeleteTextures( 1, &m_waterNormal ); m_waterNormal = 0; }
+	cleanupWaterTargets();
+	for ( int slot = 0; slot < cameraPreviewSlotCount; ++slot )
+	{
+		if ( m_cameraPreviewDepth[slot] ) { glDeleteRenderbuffers( 1, &m_cameraPreviewDepth[slot] ); m_cameraPreviewDepth[slot] = 0; }
+		if ( m_cameraPreviewTexture[slot] ) { glDeleteTextures( 1, &m_cameraPreviewTexture[slot] ); m_cameraPreviewTexture[slot] = 0; }
+		if ( m_cameraPreviewFbo[slot] ) { glDeleteFramebuffers( 1, &m_cameraPreviewFbo[slot] ); m_cameraPreviewFbo[slot] = 0; }
+	}
 
 	glDeleteBuffers( 1, &m_vbo );
 	glDeleteBuffers( 1, &m_vibo );
@@ -256,15 +286,54 @@ void MainWindowRenderer::cleanupWorld()
 	m_parent->doneCurrent();
 
 	m_pendingUpdates.clear();
+	m_creatureCameraTargets.clear();
 	m_selectionData.clear();
 	m_thoughBubbles = ThoughtBubbleInfo();
 	m_axleData      = AxleDataInfo();
+	m_creatureMotionClock.invalidate();
+	m_lastCreatureMotionStartMs = -1;
+	m_creatureMotionIntervalMs = 50;
+	m_creatureInterpolation = 1.0f;
+	m_lastCreatureMotionTick = 0;
+	m_creatureRenderTick = 0.0f;
 }
 
 /// @brief Slot: enqueues an incoming tile-update batch to be uploaded and applied next frame.
 /// @param updates Batch of per-tile TileDataUpdate packets.
 void MainWindowRenderer::onTileUpdates( const TileDataUpdateInfo& updates )
 {
+	static int traceBatches = 0;
+	if ( traceBatches < 4 )
+		traceRender( QString( "tile batch %1 size=%2" ).arg( ++traceBatches ).arg( updates.updates.size() ) );
+
+	bool containsCreatureMotion = false;
+	for ( const auto& update : updates.updates )
+	{
+		if ( update.tile.creatureOffsetX != 0 || update.tile.creatureOffsetY != 0 || update.tile.creatureOffsetZ != 0 )
+		{
+			containsCreatureMotion = true;
+			break;
+		}
+	}
+	const bool isNewSimulationTick = updates.simulationTick == 0 || updates.simulationTick != m_lastCreatureMotionTick;
+	if ( containsCreatureMotion && isNewSimulationTick )
+	{
+		if ( !m_creatureMotionClock.isValid() )
+			m_creatureMotionClock.start();
+
+		const qint64 now = m_creatureMotionClock.elapsed();
+		if ( m_lastCreatureMotionStartMs >= 0 )
+		{
+			const qint64 elapsed = now - m_lastCreatureMotionStartMs;
+			// Track normal simulation cadence, but ignore long pauses and reload gaps.
+			if ( elapsed >= 10 && elapsed <= 250 )
+				m_creatureMotionIntervalMs = elapsed;
+		}
+		m_lastCreatureMotionStartMs = now;
+		m_creatureInterpolation = 0.0f;
+		m_lastCreatureMotionTick = updates.simulationTick;
+	}
+	m_creatureCameraTargets = updates.creatureCameraTargets;
 	m_pendingUpdates.push_back( updates.updates );
 	emit redrawRequired();
 }
@@ -307,10 +376,10 @@ QString MainWindowRenderer::copyShaderToString( QString name )
 ///        (<name>.vert / <name>.frag under content/shaders).
 /// @param name Shader base filename (without extension).
 /// @return GL program handle, or 0 on compile/link failure.
-GLuint MainWindowRenderer::initShader( QString name )
+GLuint MainWindowRenderer::initShader( QString name, QString fragmentName )
 {
 	QString vs = copyShaderToString( name + "_v" );
-	QString fs = copyShaderToString( name + "_f" );
+	QString fs = copyShaderToString( ( fragmentName.isEmpty() ? name : fragmentName ) + "_f" );
 
 	// Create and compile vertex shader
 	GLuint vertexShader = glCreateShader( GL_VERTEX_SHADER );
@@ -430,8 +499,14 @@ bool MainWindowRenderer::initShaders()
 	m_thoughtBubbleShader = initShader( "thoughtbubble" );
 	m_selectionShader = initShader( "selection" );
 	m_axleShader = initShader( "axle" );
+	m_waterShader = initShader( "water" );
+	if ( !m_waterShader )
+	{
+		qWarning() << "Full water shader unavailable; using flat-water fallback";
+		m_waterShader = initShader( "water", "water_flat" );
+	}
 
-	if ( !m_worldShader || !m_worldUpdateShader || !m_thoughtBubbleShader || !m_selectionShader || !m_axleShader )
+	if ( !m_worldShader || !m_worldUpdateShader || !m_thoughtBubbleShader || !m_selectionShader || !m_axleShader || !m_waterShader )
 	{
 		// Can't proceed, and need to know what happened!
 		abort();
@@ -618,7 +693,9 @@ void MainWindowRenderer::paintWorld()
 		glStencilMask( 0xFFFFFFFF );
 		glClearStencil( 0 );
 		glClearDepth( 1 );
-		glClearColor( 0.0, 0.0, 0.0, 1.0 );
+		// Keep an RCT2-like park-green fallback visible while a world is empty
+		// or still uploading. The world pass overwrites this when available.
+		glClearColor( 0.11f, 0.16f, 0.10f, 1.0f );
 		glColorMask( true, true, true, true );
 		//glClearDepth( 1 );
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
@@ -664,37 +741,58 @@ void MainWindowRenderer::paintWorld()
 	QString msg = "render time: " + QString::number( timer.elapsed() ) + " ms";
 	//emit sendOverlayMessage( 1, msg );
 
+	if ( !m_sceneFbo || m_sceneWidth <= 0 || m_sceneHeight <= 0 )
 	{
-		glEnable( GL_BLEND );
-		glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-		glEnable( GL_DEPTH_TEST );
-		glDepthFunc( GL_LEQUAL );
-		glDisable( GL_STENCIL_TEST );
-
-		glDepthMask( true );
-		glStencilMask( 0xFFFFFFFF );
-		glClearStencil( 0 );
-		glClearDepth( 1 );
-		glClearColor( 0.0, 0.0, 0.0, 1.0 );
-		glColorMask( true, true, true, true );
-		//glClearDepth( 1 );
-		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
-
+		// Keep water visible even if the compositing target cannot be allocated.
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		glViewport( 0, 0, qMax( 1, qRound( m_width * m_parent->devicePixelRatio() ) ), qMax( 1, qRound( m_height * m_parent->devicePixelRatio() ) ) );
 		glBindVertexArray( m_vao );
-
 		paintTiles();
-
+		paintWater( true );
 		paintSelection();
-
 		paintThoughtBubbles();
-
 		if ( Global::showAxles )
-		{
 			paintAxles();
-		}
-
 		glBindVertexArray( 0 );
+		return;
 	}
+
+	// Render the opaque world into a color/depth target first. Water is then
+	// composited against this completed scene, which gives it stable depth
+	// ordering around trees, walls, creatures, and shorelines.
+	glBindFramebuffer( GL_FRAMEBUFFER, m_sceneFbo );
+	glViewport( 0, 0, m_sceneWidth, m_sceneHeight );
+	glEnable( GL_BLEND );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	glEnable( GL_DEPTH_TEST );
+	glDepthFunc( GL_LEQUAL );
+	glDisable( GL_STENCIL_TEST );
+	glDepthMask( true );
+	glClearColor( 0.11f, 0.16f, 0.10f, 1.0f );
+	glColorMask( true, true, true, true );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+	glBindVertexArray( m_vao );
+	paintTiles();
+	glBindVertexArray( 0 );
+
+	// Put the finished scene back on the window framebuffer, including depth,
+	// before drawing water. The water pass can therefore use ordinary depth test.
+	glBindFramebuffer( GL_READ_FRAMEBUFFER, m_sceneFbo );
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
+	glReadBuffer( GL_COLOR_ATTACHMENT0 );
+	glDrawBuffer( GL_BACK );
+	glBlitFramebuffer( 0, 0, m_sceneWidth, m_sceneHeight,
+		0, 0, m_sceneWidth, m_sceneHeight,
+		GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST );
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+	glViewport( 0, 0, m_sceneWidth, m_sceneHeight );
+
+	paintWater();
+	paintSelection();
+	paintThoughtBubbles();
+	if ( Global::showAxles )
+		paintAxles();
 
 	//glFinish();
 
@@ -704,6 +802,363 @@ void MainWindowRenderer::paintWorld()
 	{
 		m_pause = pause;
 	}
+}
+
+void MainWindowRenderer::cleanupWaterTargets()
+{
+	if ( m_sceneFbo ) { glDeleteFramebuffers( 1, &m_sceneFbo ); m_sceneFbo = 0; }
+	if ( m_sceneColor ) { glDeleteTextures( 1, &m_sceneColor ); m_sceneColor = 0; }
+	if ( m_sceneDepth ) { glDeleteTextures( 1, &m_sceneDepth ); m_sceneDepth = 0; }
+	m_sceneWidth = m_sceneHeight = 0;
+}
+
+void MainWindowRenderer::initializeWaterTargets()
+{
+	resizeWaterTargets();
+}
+
+void MainWindowRenderer::resizeWaterTargets()
+{
+	if ( m_width <= 0 || m_height <= 0 )
+		return;
+
+	cleanupWaterTargets();
+	m_sceneWidth = qMax( 1, qRound( m_width * m_parent->devicePixelRatio() ) );
+	m_sceneHeight = qMax( 1, qRound( m_height * m_parent->devicePixelRatio() ) );
+
+	glGenTextures( 1, &m_sceneColor );
+	glBindTexture( GL_TEXTURE_2D, m_sceneColor );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, m_sceneWidth, m_sceneHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr );
+
+	glGenTextures( 1, &m_sceneDepth );
+	glBindTexture( GL_TEXTURE_2D, m_sceneDepth );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, m_sceneWidth, m_sceneHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr );
+
+	glGenFramebuffers( 1, &m_sceneFbo );
+	glBindFramebuffer( GL_FRAMEBUFFER, m_sceneFbo );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_sceneColor, 0 );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_sceneDepth, 0 );
+	const GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers( 1, drawBuffers );
+	if ( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
+	{
+		qWarning() << "Water scene framebuffer is incomplete";
+		cleanupWaterTargets();
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		return;
+	}
+	glBindTexture( GL_TEXTURE_2D, 0 );
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+}
+
+void MainWindowRenderer::initializeWaterTextures()
+{
+	constexpr int size = 64;
+	QVector<unsigned char> dudv( size * size * 4 );
+	QVector<unsigned char> normal( size * size * 4 );
+	constexpr float tau = 6.28318530718f;
+	for ( int y = 0; y < size; ++y )
+	{
+		for ( int x = 0; x < size; ++x )
+		{
+			const float u = static_cast<float>( x ) / size;
+			const float v = static_cast<float>( y ) / size;
+			const float dx = 0.55f * std::sin( tau * ( u * 3.0f + v * 2.0f ) ) + 0.45f * std::sin( tau * ( u * 7.0f - v * 5.0f ) );
+			const float dy = 0.55f * std::cos( tau * ( v * 4.0f - u * 2.0f ) ) + 0.45f * std::sin( tau * ( u * 5.0f + v * 6.0f ) );
+			const int offset = ( x + y * size ) * 4;
+			dudv[offset] = static_cast<unsigned char>( qBound( 0, qRound( ( dx * 0.5f + 0.5f ) * 255.0f ), 255 ) );
+			dudv[offset + 1] = static_cast<unsigned char>( qBound( 0, qRound( ( dy * 0.5f + 0.5f ) * 255.0f ), 255 ) );
+			dudv[offset + 2] = 128;
+			dudv[offset + 3] = 255;
+			const QVector3D n = QVector3D( -dx * 0.32f, -dy * 0.32f, 1.0f ).normalized();
+			normal[offset] = static_cast<unsigned char>( qRound( ( n.x() * 0.5f + 0.5f ) * 255.0f ) );
+			normal[offset + 1] = static_cast<unsigned char>( qRound( ( n.y() * 0.5f + 0.5f ) * 255.0f ) );
+			normal[offset + 2] = static_cast<unsigned char>( qRound( ( n.z() * 0.5f + 0.5f ) * 255.0f ) );
+			normal[offset + 3] = 255;
+		}
+	}
+
+	auto createTexture = [&]( GLuint& texture, const QVector<unsigned char>& pixels ) {
+		if ( texture )
+			glDeleteTextures( 1, &texture );
+		glGenTextures( 1, &texture );
+		glBindTexture( GL_TEXTURE_2D, texture );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, size, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels.constData() );
+		glGenerateMipmap( GL_TEXTURE_2D );
+	};
+	createTexture( m_waterDuDv, dudv );
+	createTexture( m_waterNormal, normal );
+	glBindTexture( GL_TEXTURE_2D, 0 );
+}
+
+void MainWindowRenderer::paintWater( bool forceFlat )
+{
+	if ( !m_waterShader || !m_tileBo )
+		return;
+
+	DebugScope s( "paint water" );
+	const int waterQuality = forceFlat || !m_sceneColor || !m_sceneDepth || !m_waterDuDv || !m_waterNormal
+		? 0
+		: qBound( 0, Global::cfg->get( "waterQuality" ).toInt(), 2 );
+	GLboolean oldDepthMask = GL_TRUE;
+	GLint oldProgram = 0;
+	GLint oldVertexArray = 0;
+	GLint oldActiveTexture = GL_TEXTURE0;
+	glGetBooleanv( GL_DEPTH_WRITEMASK, &oldDepthMask );
+	glGetIntegerv( GL_CURRENT_PROGRAM, &oldProgram );
+	glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &oldVertexArray );
+	glGetIntegerv( GL_ACTIVE_TEXTURE, &oldActiveTexture );
+	const bool blendWasEnabled = glIsEnabled( GL_BLEND );
+	const bool depthWasEnabled = glIsEnabled( GL_DEPTH_TEST );
+	glUseProgram( m_waterShader );
+	setCommonUniforms( m_waterShader );
+	setUniformi( m_waterShader, "uSceneColor", 29 );
+	setUniformi( m_waterShader, "uSceneDepth", 30 );
+	setUniformi( m_waterShader, "uDuDvMap", 27 );
+	setUniformi( m_waterShader, "uNormalMap", 28 );
+	setUniformi( m_waterShader, "uWaterQuality", waterQuality );
+	setUniformf( m_waterShader, "uWaterTime", static_cast<float>( m_waterClock.elapsed() ) / 1000.0f );
+	setUniformf( m_waterShader, "uDaylight", static_cast<float>( m_daylight ) );
+	const GLint viewportLocation = glGetUniformLocation( m_waterShader, "uViewportSize" );
+	if ( viewportLocation >= 0 )
+		glUniform2f( viewportLocation, static_cast<float>( m_sceneWidth ), static_cast<float>( m_sceneHeight ) );
+
+	glActiveTexture( GL_TEXTURE0 + 27 );
+	glBindTexture( GL_TEXTURE_2D, m_waterDuDv );
+	glActiveTexture( GL_TEXTURE0 + 28 );
+	glBindTexture( GL_TEXTURE_2D, m_waterNormal );
+	glActiveTexture( GL_TEXTURE0 + 29 );
+	glBindTexture( GL_TEXTURE_2D, m_sceneColor );
+	glActiveTexture( GL_TEXTURE0 + 30 );
+	glBindTexture( GL_TEXTURE_2D, m_sceneDepth );
+
+	const Position volume = m_volume.size();
+	const GLsizei tiles = volume.x * volume.y * volume.z;
+	glEnable( GL_BLEND );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	glEnable( GL_DEPTH_TEST );
+	glDepthFunc( GL_LEQUAL );
+	glDepthMask( GL_FALSE );
+	// The opaque pass and compute update pass both use binding zero, but the
+	// post-process stages may legally change the active SSBO binding. Rebind the
+	// tile buffer here so the water vertex shader always reads the current world.
+	glBindBufferBase( GL_SHADER_STORAGE_BUFFER, 0, m_tileBo );
+	// paintTiles() releases the shared VAO before the post-process passes. The
+	// water draw uses the floor indices in that VAO, so restore it explicitly
+	// before issuing the indexed instanced draw.
+	glBindVertexArray( m_vao );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_vibo );
+	glDisable( GL_SCISSOR_TEST );
+	glDisable( GL_CULL_FACE );
+	glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+	setUniformi( m_waterShader, "uWaterFace", 0 );
+	glDrawElementsInstanced( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, (void*)( sizeof( GLushort ) * 6 ), tiles );
+	setUniformi( m_waterShader, "uWaterFace", 1 );
+	glDrawElementsInstanced( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr, tiles );
+	setUniformi( m_waterShader, "uWaterFace", 2 );
+	glDrawElementsInstanced( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr, tiles );
+	glBindVertexArray( static_cast<GLuint>( oldVertexArray ) );
+	glDepthMask( oldDepthMask );
+	if ( !blendWasEnabled ) glDisable( GL_BLEND );
+	if ( !depthWasEnabled ) glDisable( GL_DEPTH_TEST );
+	for ( int unit = 27; unit <= 30; ++unit )
+	{
+		glActiveTexture( GL_TEXTURE0 + unit );
+		glBindTexture( GL_TEXTURE_2D, 0 );
+		glBindTexture( GL_TEXTURE_2D_ARRAY, m_textures[unit] );
+	}
+	glActiveTexture( static_cast<GLenum>( oldActiveTexture ) );
+	glUseProgram( static_cast<GLuint>( oldProgram ) );
+}
+
+void MainWindowRenderer::initializeCameraPreview()
+{
+	for ( int slot = 0; slot < cameraPreviewSlotCount; ++slot )
+	{
+		glGenTextures( 1, &m_cameraPreviewTexture[slot] );
+		glBindTexture( GL_TEXTURE_2D, m_cameraPreviewTexture[slot] );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, m_cameraPreviewWidth, m_cameraPreviewHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr );
+		glBindTexture( GL_TEXTURE_2D, 0 );
+
+		glGenRenderbuffers( 1, &m_cameraPreviewDepth[slot] );
+		glBindRenderbuffer( GL_RENDERBUFFER, m_cameraPreviewDepth[slot] );
+		glRenderbufferStorage( GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_cameraPreviewWidth, m_cameraPreviewHeight );
+		glBindRenderbuffer( GL_RENDERBUFFER, 0 );
+
+		glGenFramebuffers( 1, &m_cameraPreviewFbo[slot] );
+		glBindFramebuffer( GL_FRAMEBUFFER, m_cameraPreviewFbo[slot] );
+		glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_cameraPreviewTexture[slot], 0 );
+		glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_cameraPreviewDepth[slot] );
+		if ( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
+		{
+			qWarning() << "Inspector camera framebuffer is incomplete for slot" << slot;
+			glDeleteFramebuffers( 1, &m_cameraPreviewFbo[slot] );
+			glDeleteRenderbuffers( 1, &m_cameraPreviewDepth[slot] );
+			glDeleteTextures( 1, &m_cameraPreviewTexture[slot] );
+			m_cameraPreviewFbo[slot] = m_cameraPreviewDepth[slot] = m_cameraPreviewTexture[slot] = 0;
+		}
+	}
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+}
+
+void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, int slot )
+{
+	if ( !target || slot < 0 || slot >= cameraPreviewSlotCount || !m_cameraPreviewFbo[slot] || !m_texesInitialized || !m_worldShader ) return;
+
+	// Match the preview camera to the creature shader's interpolated position. The
+	// inspector state reports integer tile positions, but the renderer may currently
+	// be drawing the creature between its previous and current tiles.
+	float cameraX = static_cast<float>( target->position.x );
+	float cameraY = static_cast<float>( target->position.y );
+	float cameraZ = static_cast<float>( target->position.z );
+	const auto cameraTarget = m_creatureCameraTargets.constFind( target->creatureID );
+	if ( cameraTarget != m_creatureCameraTargets.constEnd() && cameraTarget->currentPosition == target->position )
+	{
+		const float motionAge = std::max( 0.0f, m_creatureRenderTick - static_cast<float>( cameraTarget->motionTick ) );
+		const float motionDuration = std::max( 1.0f, static_cast<float>( cameraTarget->motionDurationTicks ) );
+		const float previousWeight = 1.0f - std::clamp( motionAge / motionDuration, 0.0f, 1.0f );
+		cameraX += static_cast<float>( cameraTarget->previousPosition.x - cameraTarget->currentPosition.x ) * previousWeight;
+		cameraY += static_cast<float>( cameraTarget->previousPosition.y - cameraTarget->currentPosition.y ) * previousWeight;
+		cameraZ += static_cast<float>( cameraTarget->previousPosition.z - cameraTarget->currentPosition.z ) * previousWeight;
+	}
+
+	// The inspector has its own camera. It renders a small target-centered slice into
+	// a private texture instead of cropping the player's framebuffer, so moving or
+	// rotating the main map camera cannot change what the creature window shows.
+	GLint drawFramebuffer = 0, readFramebuffer = 0, viewport[4] = {}, activeTexture = 0, vertexArray = 0;
+	GLint drawBuffer = 0, readBuffer = 0, depthFunction = GL_LESS;
+	GLboolean blend = GL_FALSE, depth = GL_FALSE, stencil = GL_FALSE, scissor = GL_FALSE, cull = GL_FALSE, depthMask = GL_TRUE;
+	GLboolean colorMask[4] = { GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE };
+	glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &drawFramebuffer );
+	glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &readFramebuffer );
+	glGetIntegerv( GL_VIEWPORT, viewport );
+	glGetIntegerv( GL_ACTIVE_TEXTURE, &activeTexture );
+	glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &vertexArray );
+	glGetIntegerv( GL_DRAW_BUFFER, &drawBuffer );
+	glGetIntegerv( GL_READ_BUFFER, &readBuffer );
+	glGetIntegerv( GL_DEPTH_FUNC, &depthFunction );
+	glGetBooleanv( GL_COLOR_WRITEMASK, colorMask );
+	blend = glIsEnabled( GL_BLEND );
+	depth = glIsEnabled( GL_DEPTH_TEST );
+	stencil = glIsEnabled( GL_STENCIL_TEST );
+	scissor = glIsEnabled( GL_SCISSOR_TEST );
+	cull = glIsEnabled( GL_CULL_FACE );
+	glGetBooleanv( GL_DEPTH_WRITEMASK, &depthMask );
+
+	const auto savedProjection = m_projectionMatrix;
+	const auto savedVolume = m_volume;
+	const auto savedRenderSize = m_renderSize;
+	const auto savedViewLevel = m_viewLevel;
+	const auto savedRotation = m_rotation;
+	const auto savedDaylight = m_daylight;
+
+	// Render a generous target-centered volume. The projection below is anchored
+	// to the selected tile, so edge-of-map targets stay centered instead of being
+	// clipped by a camera that was clamped to the main map viewport.
+	const int radius = 16;
+	m_volume.min = { qMax( 0, target->position.x - radius ), qMax( 0, target->position.y - radius ), qMax( 0, target->position.z - m_renderDepth ) };
+	m_volume.max = { qMin( static_cast<int>( Global::dimX ) - 1, target->position.x + radius ), qMin( static_cast<int>( Global::dimY ) - 1, target->position.y + radius ), qMin( target->position.z, static_cast<int>( Global::dimZ ) - 1 ) };
+	m_viewLevel = target->position.z;
+	m_renderSize = radius * 2 + 1;
+	// The preview camera deliberately uses a stable rotation. It is independent of
+	// the player's camera, while retaining the same isometric projection as the map.
+	m_rotation = 0;
+	// Build the preview projection from its own framebuffer dimensions. Deriving XY from
+	// the main projection makes the inspector inherit the player's viewport aspect, pan,
+	// and zoom; that is exactly what this camera is meant to avoid.
+	const float worldX = 16.f * cameraX - 16.f * cameraY + 16.f;
+	const float worldY = -8.f * cameraY - 8.f * cameraX -
+		( static_cast<float>( m_volume.max.z ) - cameraZ ) * 20.f - 12.f + 32.f;
+	constexpr float previewZoom = 1.6f;
+	const float halfWorldWidth = ( static_cast<float>( m_cameraPreviewWidth ) * 0.5f ) / previewZoom;
+	const float halfWorldHeight = ( static_cast<float>( m_cameraPreviewHeight ) * 0.5f ) / previewZoom;
+	const float previewNear = -( static_cast<float>( Global::dimX - 1 ) +
+		static_cast<float>( Global::dimY - 1 ) + static_cast<float>( m_volume.max.z ) + 1.f );
+	const float previewFar = -static_cast<float>( m_volume.min.z );
+	QMatrix4x4 previewProjection;
+	previewProjection.setToIdentity();
+	// OpenGL framebuffers have their origin at the lower-left, while the RmlUi
+	// image surface is laid out from the upper-left. Reverse the preview camera's
+	// Y range here so the sampled texture is upright in every inspector window.
+	previewProjection.ortho( worldX - halfWorldWidth, worldX + halfWorldWidth,
+		worldY + halfWorldHeight, worldY - halfWorldHeight, previewNear, previewFar );
+	m_projectionMatrix = previewProjection;
+
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, m_cameraPreviewFbo[slot] );
+	glBindFramebuffer( GL_READ_FRAMEBUFFER, m_cameraPreviewFbo[slot] );
+	glDrawBuffer( GL_COLOR_ATTACHMENT0 );
+	glReadBuffer( GL_COLOR_ATTACHMENT0 );
+	glViewport( 0, 0, m_cameraPreviewWidth, m_cameraPreviewHeight );
+	glDisable( GL_SCISSOR_TEST );
+	glDisable( GL_CULL_FACE );
+	glEnable( GL_BLEND );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	glEnable( GL_DEPTH_TEST );
+	glDepthFunc( GL_LEQUAL );
+	glDepthMask( GL_TRUE );
+	glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+	glDisable( GL_STENCIL_TEST );
+	const GLenum previewDrawBuffers[] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers( 1, previewDrawBuffers );
+	glClearColor( 0.11f, 0.16f, 0.10f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
+	glBindVertexArray( m_vao );
+	paintTiles();
+	glBindVertexArray( 0 );
+	const auto previewVolume = m_volume.size();
+
+	// paintTiles updates daylight as part of the main world pass. The preview is a
+	// read-only camera and must not advance simulation/render state a second time.
+	m_daylight = savedDaylight;
+	m_projectionMatrix = savedProjection;
+	m_volume = savedVolume;
+	m_renderSize = savedRenderSize;
+	m_viewLevel = savedViewLevel;
+	m_rotation = savedRotation;
+
+	if ( blend ) glEnable( GL_BLEND ); else glDisable( GL_BLEND );
+	if ( depth ) glEnable( GL_DEPTH_TEST ); else glDisable( GL_DEPTH_TEST );
+	if ( stencil ) glEnable( GL_STENCIL_TEST ); else glDisable( GL_STENCIL_TEST );
+	if ( scissor ) glEnable( GL_SCISSOR_TEST ); else glDisable( GL_SCISSOR_TEST );
+	if ( cull ) glEnable( GL_CULL_FACE ); else glDisable( GL_CULL_FACE );
+	glDepthFunc( static_cast<GLenum>( depthFunction ) );
+	glDepthMask( depthMask );
+	glColorMask( colorMask[0], colorMask[1], colorMask[2], colorMask[3] );
+
+	static bool tracedPreview = false;
+	if ( !tracedPreview )
+	{
+		tracedPreview = true;
+		traceRender( QString( "camera preview own-pass slot=%1 target=%2,%3,%4 volume=%5,%6,%7 fbo=%8" )
+			.arg( slot )
+			.arg( target->position.x ).arg( target->position.y ).arg( target->position.z )
+			.arg( previewVolume.x ).arg( previewVolume.y ).arg( previewVolume.z )
+			.arg( m_cameraPreviewFbo[slot] ) );
+	}
+
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, static_cast<GLuint>( drawFramebuffer ) );
+	glBindFramebuffer( GL_READ_FRAMEBUFFER, static_cast<GLuint>( readFramebuffer ) );
+	glDrawBuffer( static_cast<GLenum>( drawBuffer ) );
+	glReadBuffer( static_cast<GLenum>( readBuffer ) );
+	glViewport( viewport[0], viewport[1], viewport[2], viewport[3] );
+	glActiveTexture( static_cast<GLenum>( activeTexture ) );
+	glBindVertexArray( static_cast<GLuint>( vertexArray ) );
 }
 
 /// @brief Slot invoked when camera parameters change: recomputes render params and emits
@@ -746,6 +1201,16 @@ void MainWindowRenderer::setCommonUniforms( GLuint shader )
 ///        in the render volume.
 void MainWindowRenderer::paintTiles()
 {
+	static bool tracedTiles = false;
+	if ( !tracedTiles )
+	{
+		tracedTiles = true;
+		traceRender( QString( "paintTiles shader=%1 texUsed=%2 volume=%3,%4,%5 move=%6,%7" )
+			.arg( m_worldShader ).arg( m_texesUsed ).arg( m_volume.size().x ).arg( m_volume.size().y ).arg( m_volume.size().z )
+			.arg( m_moveX ).arg( m_moveY ) );
+		traceRender( QString( "paintTiles flags debug=%1 undiscovered=%2 water=%3 wallsLowered=%4" )
+			.arg( Global::debugMode ).arg( Global::undiscoveredUID ).arg( Global::waterSpriteUID ).arg( Global::wallsLowered ) );
+	}
 	DebugScope s( "paint tiles" );
 
 	glUseProgram( m_worldShader );
@@ -762,6 +1227,28 @@ void MainWindowRenderer::paintTiles()
 	setUniformi( m_worldShader, "uShowJobs", Global::showJobs ? 1 : 0 );
 	setUniformi( m_worldShader, "uDebug", m_debug ? 1 : 0 );
 	setUniformi( m_worldShader, "uWallsLowered", Global::wallsLowered ? 1 : 0 );
+	setUniformi( m_worldShader, "uCreatureOnly", 0 );
+
+	if ( m_lastCreatureMotionStartMs >= 0 && m_creatureMotionClock.isValid() )
+	{
+		const qint64 elapsed = m_creatureMotionClock.elapsed() - m_lastCreatureMotionStartMs;
+		m_creatureInterpolation = qBound( 0.0f,
+			static_cast<float>( elapsed ) / qMax<qint64>( 1, m_creatureMotionIntervalMs ), 1.0f );
+	}
+	else
+	{
+		m_creatureInterpolation = 1.0f;
+	}
+	setUniformf( m_worldShader, "uCreatureInterpolation", m_creatureInterpolation );
+	float creatureRenderTick = static_cast<float>( m_lastCreatureMotionTick );
+	if ( m_lastCreatureMotionStartMs >= 0 && m_creatureMotionClock.isValid() )
+	{
+		const qint64 elapsed = m_creatureMotionClock.elapsed() - m_lastCreatureMotionStartMs;
+		creatureRenderTick += static_cast<float>( elapsed ) /
+			static_cast<float>( qMax<qint64>( 1, m_creatureMotionIntervalMs ) );
+	}
+	m_creatureRenderTick = creatureRenderTick;
+	setUniformf( m_worldShader, "uCreatureRenderTick", creatureRenderTick );
 
 	setUniformi( m_worldShader, "uUndiscoveredTex", Global::undiscoveredUID * 4 );
 	setUniformi( m_worldShader, "uWaterTex", Global::waterSpriteUID * 4 );
@@ -794,6 +1281,17 @@ void MainWindowRenderer::paintTiles()
 	glEnable( GL_BLEND );
 	glDrawElementsInstanced( GL_TRIANGLES, 12, GL_UNSIGNED_SHORT, (void*)( sizeof( GLushort ) * 6 ), tiles );
 
+	// Creatures are composited separately so their motion can be interpolated without
+	// moving walls, floors, items, or water with them.
+	if ( m_paintCreatures )
+	{
+		setUniformi( m_worldShader, "uCreatureOnly", 1 );
+		setUniformi( m_worldShader, "uPaintFrontToBack", 0 );
+		glEnable( GL_BLEND );
+		glDrawElementsInstanced( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0, tiles );
+		setUniformi( m_worldShader, "uCreatureOnly", 0 );
+	}
+
 	// All done with depth writes, everything beyond is layered
 	glDepthMask( false );
 
@@ -805,6 +1303,13 @@ void MainWindowRenderer::paintTiles()
 void MainWindowRenderer::paintSelection()
 {
 	// TODO this is a workaround until some transparency solution is implemented
+	GLint oldVertexArray = 0;
+	glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &oldVertexArray );
+	// The water pass is a self-contained post-process and restores the VAO that
+	// was active when it started. In the normal scene path that is VAO 0, so the
+	// selection draw must bind the renderer's placement quad explicitly instead
+	// of relying on whichever pass happened to run immediately before it.
+	glBindVertexArray( m_vao );
 	if( m_selectionNoDepthTest )
 	{
 		glDisable( GL_DEPTH_TEST );
@@ -831,6 +1336,7 @@ void MainWindowRenderer::paintSelection()
 	}
 
 	glUseProgram( 0 );
+	glBindVertexArray( static_cast<GLuint>( oldVertexArray ) );
 	if( m_selectionNoDepthTest )
 	{
 		glEnable( GL_DEPTH_TEST );
@@ -900,6 +1406,10 @@ void MainWindowRenderer::resize( int w, int h )
 {
 	m_width  = w;
 	m_height = h;
+	const int pixelWidth = qMax( 1, qRound( w * m_parent->devicePixelRatio() ) );
+	const int pixelHeight = qMax( 1, qRound( h * m_parent->devicePixelRatio() ) );
+	if ( m_sceneWidth != pixelWidth || m_sceneHeight != pixelHeight )
+		resizeWaterTargets();
 	onRenderParamsChanged();
 }
 
@@ -1015,6 +1525,42 @@ void MainWindowRenderer::updateWorld()
 /// @param tileData Batch of tile-update records.
 void MainWindowRenderer::uploadTileData( const QVector<TileDataUpdate>& tileData )
 {
+	static bool tracedUpload = false;
+	static bool tracedWaterUpload = false;
+	if ( !tracedUpload && !tileData.isEmpty() )
+	{
+		tracedUpload = true;
+		const auto& first = tileData.front();
+		traceRender( QString( "upload tile id=%1 floor=%2 wall=%3 item=%4 creature=%5 flags=%6 levels=%7" )
+			.arg( first.id ).arg( first.tile.floorSpriteUID ).arg( first.tile.wallSpriteUID )
+			.arg( first.tile.itemSpriteUID ).arg( first.tile.creatureSpriteUID )
+			.arg( first.tile.flags ).arg( first.tile.fluidLevel ) );
+		for ( const auto& update : tileData )
+		{
+			if ( update.tile.floorSpriteUID || update.tile.wallSpriteUID || update.tile.itemSpriteUID || update.tile.creatureSpriteUID )
+			{
+				traceRender( QString( "first nonempty id=%1 floor=%2 wall=%3 item=%4 creature=%5 flags=%6" )
+					.arg( update.id ).arg( update.tile.floorSpriteUID ).arg( update.tile.wallSpriteUID )
+					.arg( update.tile.itemSpriteUID ).arg( update.tile.creatureSpriteUID ).arg( update.tile.flags ) );
+				break;
+			}
+		}
+	}
+	if ( !tracedWaterUpload && !tileData.isEmpty() )
+	{
+		int waterTiles = 0;
+		for ( const auto& update : tileData )
+		{
+			if ( ( update.tile.flags & 0x00008000u ) != 0u && update.tile.fluidLevel > 0 )
+				++waterTiles;
+		}
+		if ( waterTiles > 0 )
+		{
+			tracedWaterUpload = true;
+			traceRender( QString( "water tile upload count=%1 firstId=%2 firstLevel=%3 firstFlags=%4" )
+				.arg( waterTiles ).arg( tileData.front().id ).arg( tileData.front().tile.fluidLevel ).arg( tileData.front().tile.flags ) );
+		}
+	}
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, m_tileUpdateBo );
 	glBufferData( GL_SHADER_STORAGE_BUFFER, sizeof( TileDataUpdate ) * tileData.size(), tileData.data(), GL_STREAM_DRAW );
 	glBindBuffer( GL_SHADER_STORAGE_BUFFER, 0 );
@@ -1029,11 +1575,29 @@ void MainWindowRenderer::uploadTileData( const QVector<TileDataUpdate>& tileData
 ///        created (signalled via SpriteFactory::textureAdded/creatureTextureAdded).
 void MainWindowRenderer::updateTextures()
 {
-	if ( Global::eventConnector->game()->sf()->textureAdded() || Global::eventConnector->game()->sf()->creatureTextureAdded() )
+	const bool textureDirty = Global::eventConnector->game()->sf()->textureAdded();
+	const bool creatureDirty = Global::eventConnector->game()->sf()->creatureTextureAdded();
+	if ( textureDirty || creatureDirty )
 	{
 		DebugScope s( "update textures" );
 
 		m_texesUsed = Global::eventConnector->game()->sf()->texesUsed();
+		traceRender( QString( "texture upload dirty=%1 creature=%2 used=%3 bytes0=%4" )
+			.arg( textureDirty ).arg( creatureDirty ).arg( m_texesUsed )
+			.arg( Global::eventConnector->game()->sf()->pixelData( 0 ).size() ) );
+		if ( qEnvironmentVariableIsSet( "INGNOMIA_LOAD_TRACE_PATH" ) )
+		{
+			const auto pixels = Global::eventConnector->game()->sf()->pixelData( 0 );
+			const auto nonZero = std::count_if( pixels.cbegin(), pixels.cend(), []( std::uint8_t value ) { return value != 0; } );
+			traceRender( QString( "texture bytes nonzero=%1 first=%2" ).arg( nonZero ).arg( pixels.isEmpty() ? 0 : pixels.front() ) );
+			for ( const int layer : { 0, 31 * 4, 32 * 4 } )
+			{
+				const auto begin = std::min<std::size_t>( pixels.size(), static_cast<std::size_t>( layer ) * 8192u );
+				const auto end = std::min<std::size_t>( pixels.size(), begin + 8192u );
+				const auto layerNonZero = std::count_if( pixels.cbegin() + static_cast<std::ptrdiff_t>( begin ), pixels.cbegin() + static_cast<std::ptrdiff_t>( end), []( std::uint8_t value ) { return value != 0; } );
+				traceRender( QString( "texture layer=%1 nonzero=%2" ).arg( layer ).arg( layerNonZero ) );
+			}
+		}
 
 		int maxArrayTextures = Global::cfg->get( "MaxArrayTextures" ).toInt();
 
@@ -1093,4 +1657,5 @@ void MainWindowRenderer::updatePositionAfterCWRotation( float& x, float& y )
 void MainWindowRenderer::onSetInMenu( bool value )
 {
 	m_inMenu = value;
+	traceRender( QString( "onSetInMenu %1" ).arg( value ) );
 }

@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -17,8 +17,7 @@
 */
 /** @file aggregatorcreatureinfo.cpp
  *  @brief AggregatorCreatureInfo implementation: fills GuiCreatureInfo for gnomes, monsters,
- *         and animals; encodes per-slot equipment/uniform sprites as PNG byte buffers for the
- *         Noesis view model to consume.
+ *         and animals for the RmlUi view model to consume.
  */
 #include "aggregatorcreatureinfo.h"
 
@@ -29,6 +28,7 @@
 
 #include "../game/game.h"
 #include "../game/creaturemanager.h"
+#include "../game/inventory.h"
 #include "../game/gnomemanager.h"
 #include "../game/militarymanager.h"
 
@@ -41,6 +41,9 @@
 AggregatorCreatureInfo::AggregatorCreatureInfo( QObject* parent ) :
 	QObject(parent)
 {
+	for ( const auto& group : DB::selectRows( "SkillGroups" ) )
+		for ( const auto& skillID : group.value( "SkillID" ).toString().split( "|" ) )
+			if ( !skillID.isEmpty() ) m_skillIds.append( skillID );
 }
 
 /// @brief Binds the aggregator to a Game instance.
@@ -53,25 +56,48 @@ void AggregatorCreatureInfo::init( Game* game )
 /// @brief Re-sends the current creature payload if a creature is currently being displayed.
 void AggregatorCreatureInfo::update()
 {
-	if( m_currentID != 0 )
-	{
-		onRequestCreatureUpdate( m_currentID );
-	}
+	if( m_currentID == 0 )
+		return;
+
+	// This method is called from the game loop. Rebuilding all skills, equipment,
+	// and carried-item designations every tick can starve both simulation and UI.
+	// Creature needs/activity remain live, but four updates per second is enough
+	// for an inspection panel and keeps the work off the critical tick path.
+	constexpr qint64 refreshIntervalMs = 250;
+	if( m_lastUpdate.isValid() && m_lastUpdate.elapsed() < refreshIntervalMs )
+		return;
+
+	m_lastUpdate.restart();
+	onRequestCreatureUpdate( m_currentID );
 }
 
 /// @brief Fills GuiCreatureInfo from the given creature (gnome first, then monster, then
 ///        animal) and emits signalCreatureUpdate. For gnomes it also rebuilds the per-slot
-///        equipment PNG buffers when the equipment has changed or the creature has switched.
+///        equipment data when the equipment has changed or the creature has switched.
 /// @param id Creature UID to display.
 void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 {
 	if( !g ) return;
+	m_lastUpdate.restart();
+	// Rebuild every payload from the selected creature. In particular, a gnome's
+	// equipment/uniform must not leak into a subsequent monster or animal update.
+	m_info = GuiCreatureInfo{};
 	m_currentID = id;
+	const auto reportInventory = [this]( const Creature* creature ) {
+		m_info.inventoryReported = true;
+		if ( !creature || !g || !g->inv() ) return;
+		for ( const auto itemID : creature->inventoryItems() )
+		{
+			const auto designation = g->inv()->designation( itemID );
+			if ( !designation.isEmpty() ) m_info.inventory.append( designation );
+		}
+	};
 	auto gnome = g->gm()->gnome( id );
 	if( gnome )
 	{
 		m_info.name = gnome->name();
 		m_info.id = id;
+		m_info.position = gnome->getPos().toString();
 		m_info.profession = gnome->profession();
 
 		m_info.str = gnome->attribute( "Str" );
@@ -85,52 +111,30 @@ void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 		m_info.thirst = gnome->need( "Thirst" );
 		m_info.sleep = gnome->need( "Sleep" );
 		m_info.happiness = gnome->need( "Happiness" );
+		m_info.needsReported.fill( true );
 
-		m_info.activity = "Doing something. tbi";
+		m_info.activity = gnome->getActivity();
+		for ( const auto& skillID : m_skillIds )
+		{
+			GuiCreatureInfo::Skill skill;
+			skill.id = skillID;
+			skill.name = S::s( "$SkillName_" + skillID );
+			skill.level = gnome->getSkillLevel( skillID );
+			skill.active = gnome->getSkillActive( skillID );
+			m_info.skills.append( skill );
+		}
 
 		if( gnome->roleID() )
 		{
 			m_info.uniform = g->mil()->uniformCopy( gnome->roleID() );
 		}
 		m_info.equipment = gnome->equipment();
-		
+		reportInventory( gnome );
+
 		if( m_previousID != m_currentID || gnome->equipmentChanged() )
 		{
 			m_previousID = m_currentID;
 
-			m_info.itemPics.clear();
-			if( m_info.equipment.head.itemID )
-			{
-				createUniformImg( "ArmorHead", m_info.uniform.parts.value( "HeadArmor" ), m_info.equipment.head );
-			}
-			if( m_info.equipment.chest.itemID )
-			{
-				createUniformImg( "ArmorChest", m_info.uniform.parts.value( "ChestArmor" ), m_info.equipment.chest );
-			}
-			if( m_info.equipment.arm.itemID )
-			{
-				createUniformImg( "ArmorArms", m_info.uniform.parts.value( "ArmArmor" ), m_info.equipment.arm );
-			}
-			if( m_info.equipment.hand.itemID )
-			{
-				createUniformImg( "ArmorHands", m_info.uniform.parts.value( "HandArmor" ), m_info.equipment.hand );
-			}
-			if( m_info.equipment.leg.itemID )
-			{
-				createUniformImg( "ArmorLegs", m_info.uniform.parts.value( "LegArmor" ), m_info.equipment.leg );
-			}
-			if( m_info.equipment.foot.itemID )
-			{
-				createUniformImg( "ArmorFeet", m_info.uniform.parts.value( "FootArmor" ), m_info.equipment.foot );
-			}
-			if( m_info.equipment.leftHandHeld.itemID )
-			{
-				createItemImg( "LeftHandHeld", m_info.equipment.leftHandHeld );
-			}
-			if( m_info.equipment.rightHandHeld.itemID )
-			{
-				createItemImg( "RightHandHeld", m_info.equipment.rightHandHeld );
-			}
 		}
 
 		emit signalCreatureUpdate( m_info );
@@ -143,6 +147,7 @@ void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 		{
 			m_info.name = monster->name();
 			m_info.id = id;
+			m_info.position = monster->getPos().toString();
 			//m_info.profession = monster->profession();
 
 			m_info.str = monster->attribute( "Str" );
@@ -151,13 +156,8 @@ void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 			m_info.intel = monster->attribute( "Int" );
 			m_info.wis = monster->attribute( "Wis" );
 			m_info.cha = monster->attribute( "Cha" );
+			reportInventory( monster );
 
-			m_info.hunger = 100; //monster->need( "Hunger" );
-			m_info.thirst = 100; //monster->need( "Thirst" );
-			m_info.sleep = 100; //monster->need( "Sleep" );
-			m_info.happiness = 100; //monster->need( "Happiness" );
-			
-			m_info.activity = "Doing something. tbi";
 			emit signalCreatureUpdate( m_info );
 			return;
 		}
@@ -168,6 +168,7 @@ void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 			{
 				m_info.name = animal->name();
 				m_info.id = id;
+				m_info.position = animal->getPos().toString();
 				//m_info.profession = animal->profession();
 
 				m_info.str = animal->attribute( "Str" );
@@ -178,18 +179,18 @@ void AggregatorCreatureInfo::onRequestCreatureUpdate( unsigned int id )
 				m_info.cha = animal->attribute( "Cha" );
 
 				m_info.hunger = animal->hunger();
-				m_info.thirst = 100; //animal->need( "Thirst" );
-				m_info.sleep = 100; //animal->need( "Sleep" );
-				m_info.happiness = 100; //animal->need( "Happiness" );
-			
-				m_info.activity = "Doing something. tbi";
+				m_info.needsReported[0] = true;
+				reportInventory( animal );
+
 				emit signalCreatureUpdate( m_info );
 				return;
 			}
 		}
-		
+
 	}
 	m_currentID = 0;
+	m_info = GuiCreatureInfo{};
+	emit signalCreatureCleared();
 }
 
 
@@ -216,126 +217,4 @@ void AggregatorCreatureInfo::onSetProfession( unsigned int gnomeID, QString prof
 			//onUpdateSingleGnome( gnomeID );
 		}
 	}
-}
-
-/// @brief Builds a PNG byte buffer for a held item (sword, shield, etc.) and stores it in
-///        GuiCreatureInfo::itemPics under @p slot. If the sprite cannot be created, the item
-///        is cleared so the GUI draws the empty-slot icon instead.
-/// @param slot  GUI slot key.
-/// @param eItem Equipment item (may be mutated to clear itemID on failure).
-void AggregatorCreatureInfo::createItemImg( QString slot, EquipmentItem& eItem )
-{
-	if( !g ) return;
-	if( eItem.itemID == 0 )
-	{
-		return;
-	}
-	QStringList mats;
-	if( eItem.allMats.size() )
-	{
-		mats = eItem.allMats;
-	}
-	else
-	{
-		mats.append( eItem.material );
-		mats.append( "Pine" );
-	}
-
-	auto sprite = g->sf()->createSprite( "UI" + eItem.item, mats );
-	if( sprite )
-	{
-		QPixmap pm = sprite->pixmap( "Spring", 0, 0 );
-
-		std::vector<unsigned char> buffer;
-
-		Global::util->createBufferForNoesisImage( pm, buffer );
-		m_info.itemPics.insert( slot, buffer );
-	}
-	else
-	{
-		eItem.itemID = 0;
-	}
-}
-
-/// @brief Builds a PNG byte buffer for an armour slot by combining the uniform type prefix
-///        ("UI" + uniform type + slot) with the equipped material, storing the result under
-///        @p slot. Clears the equipment item's itemID on sprite-lookup failure.
-/// @param slot  GUI slot key.
-/// @param uItem Uniform definition for this slot.
-/// @param eItem Currently equipped item (may be mutated to clear itemID on failure).
-void AggregatorCreatureInfo::createUniformImg( QString slot, const UniformItem& uItem, EquipmentItem& eItem )
-{
-	if( !g ) return;
-	if( uItem.item.isEmpty() || eItem.itemID == 0 )
-	{
-		return; 
-	}
-	QStringList mats;
-	mats.append( eItem.material );
-
-	auto sprite = g->sf()->createSprite( "UI" + uItem.type + slot, mats );
-	if( sprite )
-	{
-		QPixmap pm = sprite->pixmap( "Spring", 0, 0 );
-
-		std::vector<unsigned char> buffer;
-
-		Global::util->createBufferForNoesisImage( pm, buffer );
-		m_info.itemPics.insert( slot, buffer );
-	}
-	else
-	{
-		eItem.itemID = 0;
-	}
-}
-
-/// @brief Builds a PNG buffer for the given empty-slot placeholder sprite and stores it in
-///        m_emptyPics. Falls back to a fully-transparent 32×32 buffer if sprite creation fails.
-/// @param spriteID Placeholder sprite ID (e.g. "UIEmptySlotHead").
-void AggregatorCreatureInfo::createEmptyUniformImg( QString spriteID )
-{
-	if( !g ) return;
-	QStringList mats; 
-	mats.append( "any" );
-	
-	auto sprite = g->sf()->createSprite( spriteID, mats );
-	if( sprite )
-	{
-		QPixmap pm = sprite->pixmap( "Spring", 0, 0 );
-
-		std::vector<unsigned char> buffer;
-
-		Global::util->createBufferForNoesisImage( pm, buffer );
-
-		m_emptyPics.insert( spriteID, buffer );
-	}
-	else
-	{
-		std::vector<unsigned char> buffer;
-		buffer.resize( 32 * 32 * 4, 0 );
-		m_emptyPics.insert( spriteID, buffer );
-	}
-}
-
-/// @brief Builds PNG buffers for all empty-slot placeholder sprites (head/chest/arms/hands/
-///        legs/feet/shield/weapon/back/neck/ring) and emits signalEmptyPics.
-void AggregatorCreatureInfo::onRequestEmptySlotImages()
-{
-	if( !g ) return;
-	m_emptyPics.clear();
-
-	createEmptyUniformImg( "UIEmptySlotHead" );
-	createEmptyUniformImg( "UIEmptySlotChest" );
-	createEmptyUniformImg( "UIEmptySlotArms" );
-	createEmptyUniformImg( "UIEmptySlotHands" );
-	createEmptyUniformImg( "UIEmptySlotLegs" );
-	createEmptyUniformImg( "UIEmptySlotFeet" );
-	createEmptyUniformImg( "UIEmptySlotShield" );
-	createEmptyUniformImg( "UIEmptySlotWeapon" );
-	createEmptyUniformImg( "UIEmptySlotBack" );
-	createEmptyUniformImg( "UIEmptySlotNeck" );
-	createEmptyUniformImg( "UIEmptySlotRing" );
-	createEmptyUniformImg( "UIEmptySlotRing" );
-
-	emit signalEmptyPics( m_emptyPics );
 }

@@ -21,8 +21,10 @@
 #pragma once
 
 #include "../base/enums.h"
+#include "tutorialtypes.h"
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QThread>
 
@@ -46,10 +48,11 @@ public:
 	~GameManager();
 
 	void startNewGame();
+	void startTutorial();
 	void setUpNewGame();
 	void continueLastGame();
 	void loadGame( QString folder );
-	void saveGame();
+	[[nodiscard]] bool saveGame();
 
 	void setShowMainMenu( bool value );
 	void endCurrentGame();
@@ -73,7 +76,7 @@ private:
 	QPointer<Game> m_game;
 	
 	void init();
-	void createNewGame();
+	void createNewGame( GameStartMode mode = GameStartMode::Normal, NewGameSettings* settings = nullptr );
 
 	void postCreationInit();
 	

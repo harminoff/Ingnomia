@@ -14,8 +14,10 @@ project(Ingnomia
 	VERSION ${DEFAULT_VERSION}
 	DESCRIPTION "Gnome city builder"
 	HOMEPAGE_URL "https://github.com/rschurade/Ingnomia"
-	LANGUAGES "CXX"
+	LANGUAGES C CXX
 )
+
+include(CTest)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
 
@@ -23,11 +25,7 @@ find_package(Qt6 REQUIRED QUIET COMPONENTS Core Xml Sql Gui Widgets)
 find_package(OpenGL REQUIRED)
 
 find_package(Steam REQUIRED)
-find_package(Noesis REQUIRED)
 find_package(OpenAL REQUIRED)
-# Noesis license
-set(NOESIS_LICENSE_NAME "" CACHE STRING "Name")
-set(NOESIS_LICENSE_KEY "" CACHE STRING "Key")
 
 set(BUGSPLAT_DB "" CACHE STRING "BSDB")
 
@@ -62,7 +60,19 @@ add_custom_command(
 	OUTPUT ${INGNOMIA_CONTENT_STAMP}
 	COMMAND ${CMAKE_COMMAND} -E copy_directory
 		${CMAKE_SOURCE_DIR}/content
-		${CMAKE_BINARY_DIR}/$<CONFIG>/content
+		${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/content
+	# RmlUi's file interface intentionally sandboxes resources under content/rmlui.
+	# Keep the generated DB-backed item crops available inside that root as well as
+	# in the canonical content/tilesheet package used by the game world.
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${CMAKE_SOURCE_DIR}/content/tilesheet
+		${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/content/rmlui/tilesheet
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${CMAKE_SOURCE_DIR}/content
+		${CMAKE_BINARY_DIR}/content
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${CMAKE_SOURCE_DIR}/content/tilesheet
+		${CMAKE_BINARY_DIR}/content/rmlui/tilesheet
 	COMMAND ${CMAKE_COMMAND} -E touch ${INGNOMIA_CONTENT_STAMP}
 	DEPENDS ${INGNOMIA_CONTENT_FILES}
 	COMMENT "Staging content to ${CMAKE_BINARY_DIR}/$<CONFIG>/content"
@@ -105,19 +115,25 @@ target_link_libraries(${PROJECT_NAME}
 		Qt6::Widgets
 		OpenGL::GL
 		glad
+		RmlUi::Core
+		ingnomia_rmlui_gl3
+		$<$<CONFIG:Debug>:RmlUi::Debugger>
 		Steam
-		NoesisApp
 		fastnoise
 		exprtk
 		OpenAL
 )
 
-# Noesis license
-configure_file(
-	${CMAKE_SOURCE_DIR}/src/gui/license.h.in
-	${CMAKE_SOURCE_DIR}/src/gui/license.h
-	@ONLY
+target_compile_definitions(${PROJECT_NAME}
+	PRIVATE
+		$<$<CONFIG:Debug>:INGNOMIA_RMLUI_DEBUGGER=1>
+		$<$<CONFIG:Debug>:INGNOMIA_DEVELOPER_UI=1>
 )
+
+option(INGNOMIA_BUILD_UI_FOUNDATION_TESTS "Build framework-neutral UI foundation tests" ${BUILD_TESTING})
+if(INGNOMIA_BUILD_UI_FOUNDATION_TESTS)
+	add_subdirectory(tests/ui-foundation)
+endif()
 
 configure_file(
 	${CMAKE_SOURCE_DIR}/src/version.h.in
@@ -127,7 +143,6 @@ configure_file(
 
 target_sources(${PROJECT_NAME}
 	PRIVATE
-		${CMAKE_SOURCE_DIR}/src/gui/license.h.in
 		${CMAKE_SOURCE_DIR}/src/version.h.in
 )
 
@@ -181,9 +196,7 @@ install(
 )
 
 get_target_property(STEAM_DLL Steam LOCATION)
-get_target_property(NOESIS_DLL Noesis LOCATION)
 list(APPEND RUNTIME_DLLS ${STEAM_DLL})
-list(APPEND RUNTIME_DLLS ${NOESIS_DLL})
 
 if(WIN32)
 	# On Windows, we want to use bundled OpenAL for guaranteed OpenAL Soft support
@@ -220,6 +233,4 @@ if(WIN32)
 			$<TARGET_FILE_DIR:${PROJECT_NAME}>
 	)
 
-	INCLUDE_EXTERNAL_MSPROJECT("Blend" ${CMAKE_CURRENT_SOURCE_DIR}/gui/gui.csproj)
-	set_target_properties("Blend" PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()

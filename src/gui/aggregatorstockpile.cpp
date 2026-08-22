@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -114,6 +114,8 @@ bool AggregatorStockpile::aggregate( unsigned int stockpileID )
 			{
 				//QIcon icon( Global::util->smallPixmap( Global::sf().createSprite( entry.first, { entry.second } ), season, 0 ) );
 				ItemsSummary is;
+				is.itemSID      = entry.first;
+				is.materialSID  = entry.second;
 				is.itemName     = S::s( "$ItemName_" + entry.first );
 				is.materialName = S::s( "$MaterialName_" + entry.second );
 				is.count        = count;
@@ -157,6 +159,8 @@ void AggregatorStockpile::onUpdateAfterTick()
 			{
 				//QIcon icon( Global::util->smallPixmap( Global::sf().createSprite( entry.first, { entry.second } ), season, 0 ) );
 				ItemsSummary is;
+				is.itemSID      = entry.first;
+				is.materialSID  = entry.second;
 				is.itemName     = S::s( "$ItemName_" + entry.first );
 				is.materialName = S::s( "$MaterialName_" + entry.second );
 				is.count        = count;

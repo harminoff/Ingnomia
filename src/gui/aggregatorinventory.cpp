@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -23,12 +23,128 @@
 #include "aggregatorinventory.h"
 
 #include "../base/db.h"
+#include "../base/dbhelper.h"
 #include "../base/gamestate.h"
 #include "../base/global.h"
 #include "../base/util.h"
 #include "../game/game.h"
 #include "../game/inventory.h"
+#include "../game/itemhistory.h"
 #include "../gui/strings.h"
+
+
+namespace
+{
+// A number of inventory items are represented in the game renderer by a
+// composed sprite (or have a null BaseSprite row).  The inventory list needs
+// one stable thumbnail, so use an authoritative component from the same DB
+// tilesheet rather than leaving the cell blank.
+const QHash<QString, QString> inventoryThumbnailFallbacks {
+	{ "AlarmBell", "AlarmBellBase" },
+	{ "AnimalCorpse", "Meat" },
+	{ "Automaton", "AutomatonTorsoFR" },
+	{ "BallPeenHammer", "HammerHead" },
+	{ "Bed", "StrawBed" },
+	{ "Bellows", "BellowsFL" },
+	{ "Berries", "Blackberry" },
+	{ "BigTorch", "BigTorchBase" },
+	{ "Bookshelf", "BookshelfFR" },
+	{ "Brazier", "BrazierBase" },
+	{ "Corpse", "Meat" },
+	{ "FancyBed", "FancyWoodBedFrameFR" },
+	{ "FellingAxe", "FellingAxeHead" },
+	{ "File", "KnifeBlade" },
+	{ "Fruit", "Strawberry" },
+	{ "GearBox", "GearBoxBaseItem" },
+	{ "GoblinCorpse", "GoblinTorso" },
+	{ "Hammer", "HammerHead" },
+	{ "Knife", "KnifeBlade" },
+	{ "Leaves", "PineTree" },
+	{ "Tree", "PineTree" },
+	{ "Lever", "LeverOffFR" },
+	{ "Painting", "Painting1" },
+	{ "Pickaxe", "PickaxeHead" },
+	{ "Pump", "PumpBase" },
+	{ "SteamEngine", "SteamEngineBoilerFR" },
+	{ "Sword", "SwordBlade" },
+	{ "Torch", "GroundTorchBase" },
+	{ "Vegetable", "Carrot" },
+	{ "VerticalAxle", "Axle" },
+	{ "WallTorch", "WallTorchBaseFR" },
+	{ "Warhammer", "WarhammerHead" }
+};
+
+QVariantMap findBaseSprite( const QString& spriteID )
+{
+
+	if ( spriteID.isEmpty() ) return {};
+	const auto direct = DB::selectRows( "BaseSprites", spriteID );
+	if ( !direct.isEmpty() ) return direct.front();
+
+	// Materialised sprites (Chair, Table, etc.) resolve through the default
+	// Wood mapping in the same way SpriteFactory resolves them in-game.
+	const auto materialRows = DB::selectRows( "Sprites_ByMaterialTypes", "ID", spriteID );
+	for ( const auto& row : materialRows )
+	{
+		if ( row.value( "MaterialType" ).toString() != "Wood" ) continue;
+		const auto mapped = DB::selectRows( "BaseSprites", row.value( "Sprite" ).toString() );
+		if ( !mapped.isEmpty() ) return mapped.front();
+	}
+	for ( const auto& row : materialRows )
+	{
+		const auto mapped = DB::selectRows( "BaseSprites", row.value( "Sprite" ).toString() );
+		if ( !mapped.isEmpty() ) return mapped.front();
+		const auto rotations = DB::selectRows( "Sprites_Rotations", row.value( "Sprite" ).toString() );
+		for ( const auto& rotation : rotations )
+		{
+			const auto rotated = DB::selectRows( "BaseSprites", rotation.value( "BaseSprite" ).toString() );
+			if ( !rotated.isEmpty() ) return rotated.front();
+		}
+	}
+
+	const auto spriteRows = DB::selectRows( "Sprites", spriteID );
+	if ( !spriteRows.isEmpty() )
+	{
+		const auto base = DB::selectRows( "BaseSprites", spriteRows.front().value( "BaseSprite" ).toString() );
+		if ( !base.isEmpty() ) return base.front();
+		const auto rotations = DB::selectRows( "Sprites_Rotations", spriteID );
+		for ( const auto& rotation : rotations )
+		{
+			const auto rotated = DB::selectRows( "BaseSprites", rotation.value( "BaseSprite" ).toString() );
+			if ( !rotated.isEmpty() ) return rotated.front();
+		}
+	}
+	const auto fallback = inventoryThumbnailFallbacks.value( spriteID );
+	if ( !fallback.isEmpty() )
+	{
+		const auto mapped = DB::selectRows( "BaseSprites", fallback );
+		if ( !mapped.isEmpty() ) return mapped.front();
+	}
+	return {};
+}
+
+QPair<int, int> sheetDimensions( const QString& sheet )
+{
+	const auto name = sheet.toLower();
+	if ( name == "furniture.png" ) return { 512, 576 };
+	if ( name == "workshops.png" ) return { 416, 540 };
+	if ( name == "terrain.png" || name == "default.png" ) return { 1024, 1152 };
+	if ( name == "multitrees.png" ) return { 640, 576 };
+	if ( name == "plants.png" ) return { 1024, 1152 };
+	if ( name == "seasonalgrass.png" ) return { 416, 1116 };
+	if ( name == "animals.png" ) return { 512, 576 };
+	if ( name == "automatons.png" ) return { 256, 108 };
+	if ( name == "goblin.png" ) return { 480, 288 };
+	if ( name == "mushrooms.png" ) return { 1056, 108 };
+	if ( name == "mushroom_biome_grass.png" ) return { 256, 288 };
+	if ( name == "windmill.png" ) return { 256, 324 };
+	if ( name == "food_drink_ingredients.png" ) return { 384, 144 };
+	if ( name == "weapons_armour.png" ) return { 384, 288 };
+	if ( name == "traps_mechanism.png" ) return { 576, 432 };
+	if ( name == "gnomes.png" ) return { 768, 540 };
+	return {};
+}
+}
 
 /// @brief Constructs the AggregatorInventory and seeds the BuildSelection → string/BuildItemType
 ///        lookup maps used to route build-menu requests.
@@ -36,6 +152,8 @@
 AggregatorInventory::AggregatorInventory( QObject* parent ) :
 	QObject( parent )
 {
+	qRegisterMetaType<GuiInventoryHistoryPoint>();
+	qRegisterMetaType<QList<GuiInventoryHistoryPoint>>();
 
 	m_buildSelection2String.insert( BuildSelection::Workshop, "Workshop" );
 	m_buildSelection2String.insert( BuildSelection::Wall, "Wall" );
@@ -54,7 +172,7 @@ AggregatorInventory::AggregatorInventory( QObject* parent ) :
 	m_buildSelection2buildItem.insert( BuildSelection::Stairs, BuildItemType::Terrain );
 	m_buildSelection2buildItem.insert( BuildSelection::Ramps, BuildItemType::Terrain );
 	m_buildSelection2buildItem.insert( BuildSelection::Fence, BuildItemType::Terrain );
-	
+
 	m_buildSelection2buildItem.insert( BuildSelection::Containers, BuildItemType::Item );
 	m_buildSelection2buildItem.insert( BuildSelection::Furniture, BuildItemType::Item );
 	m_buildSelection2buildItem.insert( BuildSelection::Utility, BuildItemType::Item );
@@ -141,6 +259,7 @@ void AggregatorInventory::onRequestCategories()
 				gii.cat = cat;
 				gii.group = group;
 				gii.watched = m_watchedItems.contains( cat + group + item );
+				setInventoryItemSprite( gii );
 
 				for ( const auto& mat : g->inv()->materials( cat, group, item ) )
 				{
@@ -154,13 +273,20 @@ void AggregatorInventory::onRequestCategories()
 						gim.group = group;
 						gim.item = item;
 						gim.watched = m_watchedItems.contains( cat + group + item + mat );
-						gim.countTotal = result.total; 
-						gim.countInJob = result.inJob; 
+						gim.countTotal = result.total;
+						gim.countInJob = result.inJob;
 						gim.countInStockpiles = result.inStockpile;
 						gim.countEquipped = result.equipped;
 						gim.countConstructed = result.constructed;
-						gim.countLoose = result.loose; 
+						gim.countLoose = result.loose;
 						gim.totalValue = result.totalValue;
+						gim.spriteSheet = gii.spriteSheet;
+						gim.spriteX = gii.spriteX;
+						gim.spriteY = gii.spriteY;
+						gim.spriteWidth = gii.spriteWidth;
+						gim.spriteHeight = gii.spriteHeight;
+						gim.spriteSheetWidth = gii.spriteSheetWidth;
+						gim.spriteSheetHeight = gii.spriteSheetHeight;
 
 						gii.countTotal += result.total;
 						gii.countInStockpiles += result.inStockpile;
@@ -179,11 +305,67 @@ void AggregatorInventory::onRequestCategories()
 
 			gic.groups.append( gig );
 		}
-	
+
 		m_categories.append( gic );
 	}
 
 	emit signalInventoryCategories( m_categories );
+}
+
+void AggregatorInventory::onRequestHistory( QString itemSID, QString materialSID, int dayCount )
+{
+	if ( !g || itemSID.isEmpty() )
+		return;
+
+	const auto history = g->ih()->getHistory( itemSID );
+	QString key = materialSID.isEmpty() ? QStringLiteral( "all" ) : materialSID;
+	if ( !history.contains( key ) )
+		key = QStringLiteral( "all" );
+	const auto values = history.value( key );
+	const int begin = dayCount > 0 ? qMax( 0, values.size() - dayCount ) : 0;
+	QList<GuiInventoryHistoryPoint> points;
+	points.reserve( values.size() - begin );
+	for ( int i = begin; i < values.size(); ++i )
+	{
+		const auto& value = values.at( i );
+		points.push_back( GuiInventoryHistoryPoint { i, value.total, value.plus, value.minus } );
+	}
+	signalInventoryHistory( itemSID, materialSID, points );
+}
+
+void AggregatorInventory::setInventoryItemSprite( GuiInventoryItem& item )
+{
+	const auto base = findBaseSprite( DBH::spriteID( item.id ) );
+	if ( base.isEmpty() ) return;
+	const auto sheet = base.value( "Tilesheet" ).toString().toLower();
+	const auto rect = base.value( "SourceRectangle" ).toString().split( " ", Qt::SkipEmptyParts );
+	if ( rect.size() != 4 ) return;
+	bool ok = false;
+	const int x = rect[0].toInt( &ok ); if ( !ok || x < 0 ) return;
+	const int y = rect[1].toInt( &ok ); if ( !ok || y < 0 ) return;
+	const int width = rect[2].toInt( &ok ); if ( !ok || width <= 0 ) return;
+	const int height = rect[3].toInt( &ok ); if ( !ok || height <= 0 ) return;
+	const auto dimensions = sheetDimensions( sheet );
+	if ( dimensions.first <= 0 || dimensions.second <= 0 || x + width > dimensions.first || y + height > dimensions.second ) return;
+	// Inventory thumbnails are generated from every DB-backed BaseSprite by
+	// scripts/generate_build_icons.py.  Use the cropped TGA for plant/food
+	// entries as well; rendering the complete plants sheet and relying on CSS
+	// clipping is not reliable across RmlUi layout paths and can leak a sprite
+	// strip into the neighbouring statistic columns.
+	const bool hasCroppedTga = sheet == "default.png" || sheet == "furniture.png" || sheet == "workshops.png" || sheet == "terrain.png" || sheet == "plants.png" || sheet == "food_drink_ingredients.png" || sheet == "weapons_armour.png" || sheet == "windmill.png" || sheet == "traps_mechanism.png" || sheet == "automatons.png" || sheet == "gnomes.png" || sheet == "animals.png" || sheet == "mushroom_biome_grass.png" || sheet == "goblin.png" || sheet == "mushrooms.png" || sheet == "multitrees.png" || sheet == "seasonalgrass.png";
+	if ( hasCroppedTga )
+	{
+		// These legacy build icons are already cropped to the DB rectangle.
+		item.spriteSheet = "build_" + base.value( "ID" ).toString() + ".tga";
+		item.spriteX = 0;
+		item.spriteY = 0;
+		item.spriteSheetWidth = width;
+		item.spriteSheetHeight = height;
+	}
+	else
+		return;
+	item.spriteWidth = width;
+	item.spriteHeight = height;
 }
 
 /// @brief Collects the buildable entries for the given BuildSelection / category combination
@@ -194,6 +376,7 @@ void AggregatorInventory::onRequestCategories()
 void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QString category )
 {
 	if( !g ) return;
+	Q_UNUSED( category );
 	m_buildItems.clear();
 	if ( m_buildSelection2String.contains( buildSelection ) )
 	{
@@ -206,10 +389,17 @@ void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QS
 			case BuildSelection::Stairs:
 			case BuildSelection::Ramps:
 			case BuildSelection::Fence:
-				rows = DB::selectRows( "Constructions", "Type", m_buildSelection2String.value( buildSelection ), "Category", category );
+				rows = DB::selectRows( "Constructions", "Type", m_buildSelection2String.value( buildSelection ) );
+				// These construction types are valid build targets but do not have
+				// dedicated toolbar buttons. Keep them with their closest terrain
+				// family instead of silently dropping them from the catalog.
+				if ( buildSelection == BuildSelection::Wall )
+					rows += DB::selectRows( "Constructions", "Type", "WallFloor" );
+				else if ( buildSelection == BuildSelection::Ramps )
+					rows += DB::selectRows( "Constructions", "Type", "RampCorner" );
 				break;
 			case BuildSelection::Workshop:
-				rows = DB::selectRows( "Workshops", "Tab", category );
+				rows = DB::selectRows( "Workshops" );
 				prefix = "$WorkshopName_";
 				break;
 			case BuildSelection::Containers:
@@ -217,15 +407,15 @@ void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QS
 				prefix = "$ItemName_";
 				break;
 			case BuildSelection::Furniture:
-				rows = DB::selectRows( "Items", "Category", "Furniture", "ItemGroup", category );
+				rows = DB::selectRows( "Items", "Category", "Furniture" );
 				prefix = "$ItemName_";
 				break;
 			case BuildSelection::Utility:
-				rows = DB::selectRows( "Items", "Category", "Utility", "ItemGroup", category );
+				rows = DB::selectRows( "Items", "Category", "Utility" );
 				prefix = "$ItemName_";
 				break;
 		}
-		 
+
 		//qDebug() << "Type:" << m_buildSelection2String.value( buildSelection )<< "Category" << category << rows.size();
 		for ( auto row : rows )
 		{
@@ -234,12 +424,98 @@ void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QS
 			gbi.name = S::s( prefix + row.value( "ID" ).toString() );
 			gbi.biType = m_buildSelection2buildItem.value( buildSelection );
 
+			setBuildItemSprite( gbi, buildSelection );
 			setBuildItemValues( gbi, buildSelection );
 
 			m_buildItems.append( gbi );
 		}
 	}
 	emit signalBuildItems( m_buildItems );
+}
+
+void AggregatorInventory::setBuildItemSprite( GuiBuildItem& gbi, BuildSelection selection )
+{
+	QString spriteID;
+	switch ( selection )
+	{
+		case BuildSelection::Wall:
+		case BuildSelection::Floor:
+		case BuildSelection::Stairs:
+		case BuildSelection::Ramps:
+		case BuildSelection::Fence:
+		{
+			const auto rows = DB::selectRows( "Constructions_Sprites", "ID", gbi.id );
+			for ( const auto& row : rows )
+			{
+				if ( !row.value( "SpriteID" ).toString().isEmpty() )
+				{
+					spriteID = row.value( "SpriteID" ).toString();
+					break;
+				}
+			}
+		}
+		break;
+		case BuildSelection::Workshop:
+			spriteID = DB::select( "Icon", "Workshops", gbi.id ).toString();
+			if ( spriteID.isEmpty() )
+			{
+				for ( const auto& row : DB::selectRows( "Workshops_Components", gbi.id ) )
+				{
+					if ( !row.value( "SpriteID" ).toString().isEmpty() )
+					{
+						spriteID = row.value( "SpriteID" ).toString();
+						break;
+					}
+				}
+			}
+			break;
+		case BuildSelection::Containers:
+		{
+			const auto rows = DB::selectRows( "Containers_Tiles", gbi.id );
+			for ( const auto& row : rows )
+			{
+				if ( !row.value( "SpriteID" ).toString().isEmpty() )
+				{
+					spriteID = row.value( "SpriteID" ).toString();
+					break;
+				}
+			}
+			if ( spriteID.isEmpty() ) spriteID = DBH::spriteID( gbi.id );
+		}
+		break;
+		case BuildSelection::Furniture:
+		case BuildSelection::Utility:
+			spriteID = DBH::spriteID( gbi.id );
+			break;
+	}
+
+	const auto base = findBaseSprite( spriteID );
+	if ( base.isEmpty() ) return;
+	const auto rect = base.value( "SourceRectangle" ).toString().split( " ", Qt::SkipEmptyParts );
+	if ( rect.size() != 4 ) return;
+	bool ok = false;
+	const int x = rect[0].toInt( &ok ); if ( !ok ) return;
+	const int y = rect[1].toInt( &ok ); if ( !ok ) return;
+	const int width = rect[2].toInt( &ok ); if ( !ok || width <= 0 ) return;
+	const int height = rect[3].toInt( &ok ); if ( !ok || height <= 0 ) return;
+	const auto dimensions = sheetDimensions( base.value( "Tilesheet" ).toString() );
+	if ( dimensions.first <= 0 || dimensions.second <= 0 ) return;
+	const auto pngSheet = base.value( "Tilesheet" ).toString();
+	const auto sheetName = pngSheet.toLower();
+	// RmlUi's pinned GL3 backend deliberately supports uncompressed TGA only.
+	// These four sheets cover the construction palette; other world-only sheets
+	// safely retain the text/glyph fallback until a preview is requested for them.
+	if ( sheetName != "default.png" && sheetName != "furniture.png" && sheetName != "workshops.png" && sheetName != "terrain.png" ) return;
+	// Per-entry crops keep the RmlUi document small and avoid relying on
+	// renderer-specific background-position support. The files are generated
+	// from these same DB rectangles and retain the original pixel art.
+	gbi.spriteSheet = "build_" + base.value( "ID" ).toString() + ".tga";
+	gbi.spriteX = 0;
+	gbi.spriteY = 0;
+	gbi.spriteWidth = width;
+	gbi.spriteHeight = height;
+	gbi.spriteSheetWidth = width;
+	gbi.spriteSheetHeight = height;
 }
 
 /// @brief Populates a GuiBuildItem with required components and a PNG-encoded preview icon,
@@ -266,14 +542,6 @@ void AggregatorInventory::setBuildItemValues( GuiBuildItem& gbi, BuildSelection 
 				}
 			}
 
-			QStringList mats;
-			for ( int i = 0; i < 25; ++i )
-				mats.push_back( "None" );
-
-			QPixmap pm = Global::util->createWorkshopImage( gbi.id, mats );
-			Global::util->createBufferForNoesisImage( pm, gbi.buffer );
-			gbi.iconWidth = pm.width();
-			gbi.iconHeight = pm.height();
 		}
 		break;
 		case BuildItemType::Terrain:
@@ -288,15 +556,6 @@ void AggregatorInventory::setBuildItemValues( GuiBuildItem& gbi, BuildSelection 
 
 			}
 
-			QStringList mats;
-			for ( int i = 0; i < 25; ++i )
-				mats.push_back( "None" );
-
-			QPixmap pm = Global::util->createConstructionImage( gbi.id, mats );
-
-			Global::util->createBufferForNoesisImage( pm, gbi.buffer );
-			gbi.iconWidth = pm.width();
-			gbi.iconHeight = pm.height();
 		}
 		break;
 		case BuildItemType::Item:
@@ -324,14 +583,6 @@ void AggregatorInventory::setBuildItemValues( GuiBuildItem& gbi, BuildSelection 
 			}
 
 
-			QStringList mats;
-			for ( int i = 0; i < 25; ++i )
-				mats.push_back( "None" );
-
-			QPixmap pm = Global::util->createItemImage( gbi.id, mats );
-			Global::util->createBufferForNoesisImage( pm, gbi.buffer );
-			gbi.iconWidth = pm.width();
-			gbi.iconHeight = pm.height();
 		}
 		break;
 	}
@@ -403,7 +654,7 @@ void AggregatorInventory::onSetActive( bool active, const GuiWatchedItem& gwi )
 	//onRequestCategories();
 }
 
-    
+
 /// @brief Live-update hook invoked when an item is added to the world. Refreshes any watched
 ///        rows whose path contains this (item, material) pair.
 /// @param itemSID     Item string ID.
@@ -483,7 +734,7 @@ void AggregatorInventory::updateWatchedItem( QString cat )
 	}
 	emit signalWatchList( GameState::watchedItemList );
 }
-    
+
 /// @brief Recomputes the count for a group-level watch entry and emits signalWatchList.
 /// @param cat   Category ID.
 /// @param group Group ID within @p cat.

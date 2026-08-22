@@ -1,0 +1,37 @@
+<rml>
+<head>
+    <title>Ingnomia RmlUi Qt/OpenGL spike</title>
+    <link type="text/rcss" href="spike.rcss" />
+</head>
+<body data-model="spike">
+    <div id="world-label">WORLD RENDERER: moving amber bar behind this UI</div>
+    <main class="panel">
+        <h1>RmlUi / Qt / OpenGL 4.3</h1>
+        <p class="status">Document, font, texture, data binding, clipping, and input proof.</p>
+
+        <div class="proof-row">
+            <img src="spike.tga" class="proof-image" />
+            <div>
+                <button id="counter-button" data-event-click="increment()">Click proof</button>
+                <p>Button count: <strong data-rml="click_count">0</strong></p>
+                <input id="text-input" type="text" data-value="input_text" value="Type UTF-8 here" />
+            </div>
+        </div>
+
+        <div class="clip-frame">
+            <div class="clip-content">
+                <h2>Wheel and clipping proof</h2>
+                <p>Hover this region and use the wheel. Its contents are intentionally taller than the viewport.</p>
+                <button>Focusable row A</button>
+                <button>Focusable row B</button>
+                <button>Focusable row C</button>
+                <button>Focusable row D</button>
+                <div class="transformed-clip">rounded + transformed clip mask</div>
+            </div>
+        </div>
+
+        <footer>F6: 100 load/unload cycles | F7: debugger | F9/F10: UI scale</footer>
+    </main>
+</body>
+</rml>
+

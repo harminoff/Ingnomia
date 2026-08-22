@@ -26,7 +26,9 @@
 #include "../base/global.h"
 #include "../base/selection.h"
 #include "../base/util.h"
+#include "../game/creaturemanager.h"
 #include "../game/game.h"
+#include "../game/gnomemanager.h"
 #include "../game/world.h"
 #include "../gfx/spritefactory.h"
 #include "eventconnector.h"
@@ -51,6 +53,21 @@ AggregatorSelection::~AggregatorSelection()
 void AggregatorSelection::onActionChanged( const QString action )
 {
 	emit signalAction( action );
+
+	// Selection::setAction() clears the current tile list before publishing the
+	// new action. The old path only forwarded this signal to the UI, so the
+	// renderer stayed empty until a later mouse move happened. Re-evaluate the
+	// cursor immediately when we have a pointer sample, which keeps tool
+	// activation and the world preview in sync even with a stationary cursor.
+	if ( action.isEmpty() )
+	{
+		m_selectionData.clear();
+		emit signalUpdateSelection( m_selectionData, false );
+	}
+	else if ( m_hasMousePosition )
+	{
+		onMouse( m_mouseX, m_mouseY, m_mouseShift, m_mouseCtrl );
+	}
 }
 
 /// @brief Relays the current cursor position string to the GUI.
@@ -100,6 +117,12 @@ void AggregatorSelection::onRenderParams( int width, int height, int moveX, int 
 /// @param ctrl   True if Ctrl is held (selection modifier).
 void AggregatorSelection::onMouse( int mouseX, int mouseY, bool shift, bool ctrl )
 {
+	m_mouseX = mouseX;
+	m_mouseY = mouseY;
+	m_mouseShift = shift;
+	m_mouseCtrl = ctrl;
+	m_hasMousePosition = true;
+
 	if ( Global::sel )
 	{
 		m_cursorPos = calcCursor( mouseX, mouseY, Global::sel->isFloor(), shift );
@@ -128,6 +151,25 @@ void AggregatorSelection::onLeftClick( bool shift, bool ctrl )
 		else
 		{
 			unsigned int tileID = m_cursorPos.toInt();
+			if ( Global::eventConnector && Global::eventConnector->game() )
+			{
+				auto* game = Global::eventConnector->game();
+				if ( const auto gnomes = game->gm()->gnomesAtPosition( m_cursorPos ); !gnomes.isEmpty() )
+				{
+					emit signalSelectCreature( gnomes.front()->id() );
+					return;
+				}
+				if ( const auto animals = game->cm()->animalsAtPosition( m_cursorPos ); !animals.isEmpty() )
+				{
+					emit signalSelectCreature( animals.front()->id() );
+					return;
+				}
+				if ( const auto monsters = game->cm()->monstersAtPosition( m_cursorPos ); !monsters.isEmpty() )
+				{
+					emit signalSelectCreature( monsters.front()->id() );
+					return;
+				}
+			}
 			emit signalSelectTile( tileID );
 		}
 	}
@@ -140,7 +182,17 @@ void AggregatorSelection::onRightClick()
 	{
 		Global::sel->rightClick( m_cursorPos );
 		updateSelection();
-	}
+    }
+}
+
+/// @brief Fully clears a UI-requested tool cancel without changing world right-click anchor semantics.
+void AggregatorSelection::onCancelSelection()
+{
+    if ( Global::sel )
+    {
+        Global::sel->clear();
+        updateSelection();
+    }
 }
 
 /// @brief Rotates the active Selection 90° and refreshes the preview grid.
@@ -561,7 +613,6 @@ void AggregatorSelection::updateSelection()
 			}
 		}
 		bool noDepthTest = ( action == "DigStairsDown" || action == "DigRampDown" );
-
 		emit signalUpdateSelection( m_selectionData, noDepthTest );
 	}
 }

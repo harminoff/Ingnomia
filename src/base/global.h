@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -24,8 +24,6 @@
 #include "../base/enums.h"
 #include "../base/logger.h"
 
-#include <NsGui/InputEnums.h>
-
 #include <QDomElement>
 #include <QMap>
 #include <QSet>
@@ -44,7 +42,7 @@ class Config;
  * @brief Static-only class holding shared global state for the entire application.
  *
  * Provides access to major subsystems (Config, EventConnector, Util, Selection),
- * world dimensions, rendering flags, behavior trees, key mappings, and debug settings.
+ * world dimensions, rendering flags, behavior trees, and debug settings.
  * Cannot be instantiated — all members are static.
  */
 class Global
@@ -90,12 +88,9 @@ public:
 
 	static bool addBehaviorTree( QString id, QString path );
 
-	static QHash<Qt::Key, Noesis::Key> keyConvertMap; ///< Qt key to Noesis key mapping table.
-
 	static QMap<QString, CreaturePart> creaturePartLookUp;  ///< String to CreaturePart enum lookup.
 	static QMap<CreaturePart, QString> creaturePartToString; ///< CreaturePart enum to string lookup.
 
-	static Noesis::Key keyConvert( Qt::Key key );
 
 	static QSet<QString> craftable; ///< Set of item SIDs that can be crafted.
 
@@ -111,5 +106,4 @@ private:
 	static QMap<QString, QDomElement> m_behaviorTrees; ///< Loaded behavior tree XML elements by ID.
 
 	static bool loadBehaviorTrees();
-	static void initKeyConvert();
 };

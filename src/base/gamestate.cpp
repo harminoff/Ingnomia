@@ -89,6 +89,7 @@ int GameState::rivers       = 0;
 QString GameState::seed     = "uninitialized";
 
 QVariantList GameState::startingItems;
+QVariantMap GameState::tutorial;
 
 unsigned int GameState::startingZone = 0;
 
@@ -128,6 +129,7 @@ bool GameState::init()
 	GameState::materialID2SID.clear();
 
 	GameState::watchedItemList.clear();
+	tutorial.clear();
 
 	nextID = 1000000;
 	return true;
@@ -200,6 +202,7 @@ void GameState::serialize( QVariantMap& out )
 	out.insert( "seed", seed );
 
 	out.insert( "startingItems", startingItems );
+	out.insert( "tutorial", tutorial );
 
 	out.insert( "startingZone", startingZone );
 	
@@ -362,6 +365,7 @@ void GameState::load( QVariantMap& vals )
 	seed         = tmp.value( "seed" ).toString();
 
 	startingItems = tmp.value( "startingItems" ).toList();
+	tutorial = tmp.value( "tutorial" ).toMap();
 
 	startingZone = tmp.value( "startingZone" ).toInt();
 

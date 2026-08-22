@@ -1,0 +1,13 @@
+<template name="inspector-section" content="inspector-content">
+<head>
+    <link type="text/rcss" href="../styles/base.rcss" />
+    <link type="text/rcss" href="../styles/components.rcss" />
+</head>
+<body class="c-inspector-section">
+    <div class="c-inspector-section__header">
+        <div class="c-inspector-section__mark"></div>
+        <div class="c-inspector-section__title">Inspector section</div>
+    </div>
+    <div id="inspector-content" class="c-inspector-section__body"></div>
+</body>
+</template>

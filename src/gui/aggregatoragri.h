@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -17,8 +17,8 @@
 */
 /** @file aggregatoragri.h
  *  @brief Data transfer types and aggregator that collates farm/pasture/grove state for the
- *         Agriculture XAML window. Lives on the GUI side and marshals game-thread data into
- *         Qt signals the Noesis view models can consume.
+ *         Agriculture RmlUi window. Lives on the GUI side and marshals game-thread data into
+ *         Qt signals the RmlUi view models can consume.
  */
 #pragma once
 
@@ -169,7 +169,7 @@ struct GuiGroveInfo
 };
 Q_DECLARE_METATYPE( GuiGroveInfo )
 
-/// @brief Bridges the Agriculture XAML window with the game-side farm/pasture/grove managers.
+/// @brief Bridges the Agriculture RmlUi window with the game-side farm/pasture/grove managers.
 ///        Handles user actions (priority, product, harvest toggles, butchering) and emits
 ///        refreshed Gui*Info payloads back to the view models.
 class AggregatorAgri : public QObject

@@ -1,0 +1,117 @@
+cmake_minimum_required(VERSION 3.16)
+get_filename_component(ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+set(MILITARY "${ROOT}/content/rmlui/windows/military_manager.rml")
+set(DIPLOMACY "${ROOT}/content/rmlui/windows/diplomacy_missions.rml")
+set(STYLE "${ROOT}/content/rmlui/windows/management6c.rcss")
+set(BINDING "${ROOT}/src/gui/ui/screens/management6c/Management6CRmlBinding.cpp")
+set(TEXT "${ROOT}/src/gui/ui/screens/management6c/Management6CText.h")
+
+foreach(path IN LISTS MILITARY DIPLOMACY STYLE BINDING TEXT)
+  if(NOT EXISTS "${path}")
+    message(FATAL_ERROR "Missing management 6C artifact: ${path}")
+  endif()
+endforeach()
+
+file(READ "${MILITARY}" military)
+file(READ "${DIPLOMACY}" diplomacy)
+file(READ "${STYLE}" style)
+file(READ "${BINDING}" binding)
+file(READ "${TEXT}" text_catalog)
+
+if(NOT military MATCHES "<body id=\"military_root\" class=\"[^\"]*is-hidden")
+  message(FATAL_ERROR "military_root must initialize hidden")
+endif()
+if(NOT diplomacy MATCHES "<body id=\"diplomacy_root\" class=\"[^\"]*is-hidden")
+  message(FATAL_ERROR "diplomacy_root must initialize hidden")
+endif()
+
+if(military MATCHES "on(click|change|keydown)[ \t]*=" OR diplomacy MATCHES "on(click|change|keydown)[ \t]*=")
+  message(FATAL_ERROR "RML-authored actions are forbidden; callbacks must be native")
+endif()
+if(NOT binding MATCHES "applyRmlText.*military_" OR NOT binding MATCHES "applyRmlText.*diplomacy_")
+  message(FATAL_ERROR "Both released management 6C documents must receive localized text")
+endif()
+foreach(document IN ITEMS military diplomacy)
+  string(REGEX MATCHALL "data-l10n(-placeholder)?=\"[A-Za-z0-9_.-]+\"" localized_attributes "${${document}}")
+  foreach(attribute IN LISTS localized_attributes)
+    string(REGEX REPLACE "data-l10n(-placeholder)?=\"([^\"]+)\"" "\\2" key "${attribute}")
+    string(FIND "${text_catalog}" "\"${key}\"" found_key)
+    if(found_key LESS 0)
+      message(FATAL_ERROR "${document} localization key is absent from the owned management 6C catalog: ${key}")
+    endif()
+  endforeach()
+endforeach()
+if(NOT military MATCHES "_loading" OR NOT military MATCHES "_empty" OR NOT military MATCHES "_error"
+    OR NOT diplomacy MATCHES "_loading" OR NOT diplomacy MATCHES "_empty" OR NOT diplomacy MATCHES "_error")
+  message(FATAL_ERROR "Each management document needs loading, empty, and error states")
+endif()
+
+string(FIND "${style}" ".m6c-root" root_style)
+string(FIND "${style}" ".is-hidden { display: none; }" hidden_style)
+string(FIND "${style}" "pointer-events: none" root_pointer)
+string(FIND "${style}" ".m6c-workbench" workbench_style)
+string(FIND "${style}" "pointer-events: auto" workbench_pointer)
+if(hidden_style LESS 0 OR root_style LESS 0 OR root_pointer LESS root_style OR workbench_style LESS 0 OR workbench_pointer LESS workbench_style)
+  message(FATAL_ERROR "Workbench root must preserve map ownership outside interactive chrome")
+endif()
+
+foreach(required IN ITEMS
+    "military_squad_rows" "military_role_rows" "military_member_rows" "military_priority_rows"
+    "military_uniform_rows" "military_search" "military_confirm_layer"
+    "diplomacy_neighbor_rows" "diplomacy_mission_rows" "diplomacy_gnome_rows" "diplomacy_search")
+  if(NOT military MATCHES "id=\"${required}\"" AND NOT diplomacy MATCHES "id=\"${required}\"")
+    message(FATAL_ERROR "Missing required keyboard/delegation surface: ${required}")
+  endif()
+endforeach()
+
+foreach(surface IN ITEMS Squads Roles Members Unassigned Priorities UniformSlots UniformTypes UniformMaterials Neighbors Missions Gnomes)
+  if(NOT binding MATCHES "RowSurface::${surface}" OR NOT binding MATCHES "appendWindowControls[^\n]*RowSurface::${surface}")
+    message(FATAL_ERROR "Generated list ${surface} is not explicitly DOM-window bounded")
+  endif()
+endforeach()
+if(NOT binding MATCHES "handleWindowPage" OR NOT binding MATCHES "data-window-start")
+  message(FATAL_ERROR "Bounded dynamic lists require real native paging controls")
+endif()
+if(NOT binding MATCHES "renderedRml_\.try_emplace" OR NOT binding MATCHES "cached->second == value")
+  message(FATAL_ERROR "Unchanged bounded row windows must not reconstruct their DOM")
+endif()
+
+if(NOT military MATCHES "id=\"military_confirm_layer\" class=\"c-modal-scrim"
+    OR NOT binding MATCHES "military_confirm_cancel[^\n]*Focus\(\)"
+    OR NOT binding MATCHES "lastDestructiveKind_"
+    OR NOT binding MATCHES "squad_remove[^\n]*role_remove")
+  message(FATAL_ERROR "Destructive confirmation must own a real blocker, safe initial focus, and trigger focus restoration")
+endif()
+
+foreach(required IN ITEMS
+    "data-squad" "data-role" "data-creature" "data-priority" "data-uniform-slot"
+    "data-neighbor" "data-mission" "data-gnome" "keydown" "Focus\(\)"
+    "openMilitary" "openDiplomacy" "closeRoute" "FocusToken")
+  if(NOT binding MATCHES "${required}")
+    message(FATAL_ERROR "Native binding is missing stable-ID/keyboard/route proof: ${required}")
+  endif()
+endforeach()
+
+if(diplomacy MATCHES "Alerts|notification history|relationship history[ \t]*</h")
+  message(FATAL_ERROR "Unsupported alert/history surfaces must remain absent")
+endif()
+if(diplomacy MATCHES "mission_type_explore")
+  message(FATAL_ERROR "Targeted Explore is not a currently exposed neighbor action")
+endif()
+
+function(assert_unique_ids path)
+  file(READ "${path}" source)
+  string(REGEX MATCHALL "id=\"[A-Za-z0-9_-]+\"" matches "${source}")
+  set(seen "")
+  foreach(match IN LISTS matches)
+    list(FIND seen "${match}" existing)
+    if(NOT existing LESS 0)
+      message(FATAL_ERROR "Duplicate static RML ID in ${path}: ${match}")
+    endif()
+    list(APPEND seen "${match}")
+  endforeach()
+endfunction()
+assert_unique_ids("${MILITARY}")
+assert_unique_ids("${DIPLOMACY}")
+
+message(STATUS "Management 6C RML contract verified")

@@ -1,0 +1,17 @@
+<rml>
+<head>
+    <title>Load game</title>
+    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+</head>
+<body class="l-shell-screen l-shell-screen--centered">
+    <main class="c-shell-chamber c-shell-chamber--wide">
+        <header class="c-shell-title-row"><h1>Load game</h1><button id="shell-back">Back</button></header>
+        <section class="c-shell-split">
+            <div class="c-shell-pane"><h2>Kingdoms</h2><div id="load-kingdoms" class="c-list" tab-index="auto"></div><div id="load-kingdoms-empty" class="c-state-panel u-hidden"><div class="c-state-panel__title">No kingdoms found</div><p>Start a new kingdom or refresh the save list.</p></div></div>
+            <div class="c-shell-pane"><h2>Saves</h2><div id="load-saves" class="c-list" tab-index="auto"></div><div id="load-saves-empty" class="c-state-panel u-hidden"><div class="c-state-panel__title">No saves for this kingdom</div><p>Select another kingdom or refresh.</p></div></div>
+        </section>
+        <section id="load-error" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Save list unavailable</span><span id="load-error-detail" class="c-alert-row__detail"></span></span></section>
+        <footer class="c-shell-actions c-shell-actions--row"><button id="load-refresh">Refresh</button><button id="load-selected" class="c-button c-button--primary">Load selected save</button></footer>
+    </main>
+</body>
+</rml>

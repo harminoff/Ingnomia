@@ -1,0 +1,10 @@
+<template name="state-panel" content="state-content">
+<head>
+    <link type="text/rcss" href="../styles/base.rcss" />
+    <link type="text/rcss" href="../styles/components.rcss" />
+</head>
+<body class="c-state-panel">
+    <div class="c-state-panel__mark">&#9671;</div>
+    <div id="state-content"></div>
+</body>
+</template>

@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.16)
+project(IngnomiaUiManagement6CTests LANGUAGES CXX)
+
+include(CTest)
+get_filename_component(ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+
+add_executable(ui_management6c_controller
+  controller_tests.cpp
+  "${ROOT}/src/gui/ui/screens/management6c/Management6CController.cpp")
+target_compile_features(ui_management6c_controller PRIVATE cxx_std_20)
+target_include_directories(ui_management6c_controller PRIVATE "${ROOT}/src")
+if(MSVC)
+  target_compile_options(ui_management6c_controller PRIVATE /W4 /WX /permissive-)
+else()
+  target_compile_options(ui_management6c_controller PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+add_test(NAME ui_management6c_controller COMMAND ui_management6c_controller)
+add_test(NAME ui_management6c_rml_contract
+  COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-management6c-rml.cmake")
+add_test(NAME ui_management6c_integration_contract
+  COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-management6c-integration.cmake")
+

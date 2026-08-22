@@ -50,6 +50,16 @@ private:
     float m_scale = 1.0;   ///< Camera zoom factor.
     int m_rotation = 0;    ///< Camera rotation index (0–3).
 
+    // Keep the latest pointer sample so a newly selected tool can immediately
+    // rebuild its placement preview. Without this, selecting Mine/Build after
+    // the mouse has stopped moving leaves the renderer with an empty preview
+    // until another mouse event arrives.
+    bool m_hasMousePosition = false;
+    int m_mouseX = 0;
+    int m_mouseY = 0;
+    bool m_mouseShift = false;
+    bool m_mouseCtrl = false;
+
     Position m_cursorPos;  ///< Current world-space cursor tile.
 
     QMap<unsigned int, SelectionData> m_selectionData; ///< Per-tile preview grid keyed by encoded tile+rot ID.
@@ -64,6 +74,7 @@ public slots:
     void onMouse( int mouseX, int mouseY, bool shift, bool ctrl );
     void onLeftClick( bool shift, bool ctrl );
     void onRightClick();
+    void onCancelSelection();
     void onRotateSelection();
 
 signals:
@@ -72,7 +83,8 @@ signals:
     void signalFirstClick( const QString pos );
     void signalSize( const QString size );
 
-    void signalSelectTile( unsigned int );
+	void signalSelectTile( unsigned int );
+	void signalSelectCreature( unsigned int );
 
     void signalUpdateSelection( const QMap<unsigned int, SelectionData>& data, bool noDepthTest );
 };

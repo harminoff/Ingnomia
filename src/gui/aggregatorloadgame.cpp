@@ -55,6 +55,7 @@ void AggregatorLoadGame::onRequestKingdoms()
 	QString sfolder = IO::getDataFolder() + "/save";
 
 	m_kingdomList.clear();
+	bool unreadable = false;
 
 	QDir dir( sfolder );
 	dir.setFilter( QDir::Dirs | QDir::NoDotAndDotDot );
@@ -76,13 +77,29 @@ void AggregatorLoadGame::onRequestKingdoms()
 			for( const auto& gdir : gdirs )
 			{
 				QString gameFolder = kingdomFolder + "/" + gdir;
+				if( !QFileInfo::exists( gameFolder + "/game.json" ) ) continue;
 				QJsonDocument jd;
-				IO::loadFile( gameFolder + "/game.json", jd );
+				if( !IO::loadFile( gameFolder + "/game.json", jd ) )
+				{
+					unreadable = true;
+					continue;
+				}
+
+				if ( !jd.isArray() )
+				{
+					unreadable = true;
+					continue;
+				}
 
 				if ( jd.isArray() )
 				{
 					QJsonArray ja = jd.array();
 					auto vl = ja.toVariantList();
+					if( vl.size() == 0 )
+					{
+						unreadable = true;
+						continue;
+					}
 					if( vl.size() > 0 )
 					{
 						QVariantMap vm = vl.first().toMap();
@@ -108,6 +125,7 @@ void AggregatorLoadGame::onRequestKingdoms()
 	} );
 
 	emit signalKingdoms( m_kingdomList );
+	if( unreadable ) emit signalLoadError( true );
 }
 
 /// @brief Enumerates save directories under @p path, parses each game.json to extract the
@@ -118,8 +136,15 @@ void AggregatorLoadGame::onRequestKingdoms()
 void AggregatorLoadGame::onRequestSaveGames( const QString path )
 {
 	m_gameList.clear();
+	bool unreadable = false;
 
 	QDir dir( path );
+	if( !dir.exists() )
+	{
+		emit signalSaveGames( {} );
+		emit signalLoadError( false );
+		return;
+	}
 	dir.setFilter( QDir::Dirs | QDir::NoDotAndDotDot );
 
 	auto sdirs = dir.entryList();
@@ -131,13 +156,29 @@ void AggregatorLoadGame::onRequestSaveGames( const QString path )
 		gsi.folder = path + "/" + sdir;
 		gsi.dir    = sdir;
 
+		if( !QFileInfo::exists( gsi.folder + "/game.json" ) ) continue;
 		QJsonDocument jd;
-		IO::loadFile( gsi.folder + "/game.json", jd );
+		if( !IO::loadFile( gsi.folder + "/game.json", jd ) )
+		{
+			unreadable = true;
+			continue;
+		}
+
+		if( !jd.isArray() )
+		{
+			unreadable = true;
+			continue;
+		}
 
 		if( jd.isArray() )
 		{
 			QJsonArray ja  = jd.array();
 			auto vl = ja.toVariantList();
+			if( vl.size() == 0 )
+			{
+				unreadable = true;
+				continue;
+			}
 			if( vl.size() > 0 )
 			{
 				QVariantMap vm = vl.first().toMap();
@@ -167,4 +208,5 @@ void AggregatorLoadGame::onRequestSaveGames( const QString path )
 	} );
 
 	emit signalSaveGames( m_gameList );
+	if( unreadable ) emit signalLoadError( false );
 }

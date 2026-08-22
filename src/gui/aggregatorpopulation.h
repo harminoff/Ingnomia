@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorpopulation.h
- *  @brief Data types and aggregator feeding the Population XAML window with per-gnome skills,
+ *  @brief Data types and aggregator feeding the Population RmlUi window with per-gnome skills,
  *         schedules, and profession management.
  */
 #pragma once
@@ -76,7 +76,7 @@ Q_DECLARE_METATYPE( GuiScheduleInfo )
 
 
 
-/// @brief Bridges the Population XAML window with the game: builds the gnome grid, handles
+/// @brief Bridges the Population RmlUi window with the game: builds the gnome grid, handles
 ///        skill/profession edits, and manages per-gnome daily schedules.
 class AggregatorPopulation : public QObject
 {

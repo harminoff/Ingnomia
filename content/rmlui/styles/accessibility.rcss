@@ -1,0 +1,51 @@
+/* Root semantic variants. Controllers may apply these classes only when a
+   backed platform/config preference exists; no dead Settings toggle is implied. */
+
+.is-high-contrast,
+.is-high-contrast .c-fixture-page {
+    color: #ffffff;
+    background-color: #000000;
+}
+.is-high-contrast .c-panel,
+.is-high-contrast .c-window,
+.is-high-contrast .c-modal,
+.is-high-contrast .c-popover {
+    color: #ffffff;
+    background-color: #161616;
+    border-width: 2dp;
+    border-color: #bfbfbf;
+    box-shadow: none;
+}
+.is-high-contrast button,
+.is-high-contrast input,
+.is-high-contrast select,
+.is-high-contrast textarea,
+.is-high-contrast .c-list__row,
+.is-high-contrast .c-table td,
+.is-high-contrast .c-tree__row {
+    color: #ffffff;
+    background-color: #161616;
+    border-color: #bfbfbf;
+}
+.is-high-contrast button:focus-visible,
+.is-high-contrast input:focus-visible,
+.is-high-contrast select:focus-visible,
+.is-high-contrast [tab-index]:focus-visible {
+    border-width: 3dp;
+    border-color: #ffde59;
+}
+.is-high-contrast .is-selected {
+    background-color: #242424;
+    border-width: 3dp;
+    border-color: #ffde59;
+}
+.is-high-contrast .c-modal-scrim { background-color: #000000e8; }
+
+.is-reduced-motion *,
+.is-reduced-motion button {
+    transition: none;
+    animation: none;
+}
+
+.is-reduced-motion .c-loading-step { background-color: #7a858a; }
+.is-reduced-motion .c-loading-step.is-active { background-color: #ffd27a; }

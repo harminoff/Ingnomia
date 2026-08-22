@@ -1,0 +1,7 @@
+<rml>
+<head>
+    <title>Lifecycle probe</title>
+    <link type="text/rcss" href="spike.rcss" />
+</head>
+<body><p>load and unload lifecycle probe</p></body>
+</rml>

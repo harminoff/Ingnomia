@@ -56,4 +56,7 @@ public slots:
 signals:
 	void signalKingdoms( const QList<GuiSaveInfo>& kingdoms );
 	void signalSaveGames( const QList<GuiSaveInfo>& kingdoms );
+	// True when the kingdom list failed; false when a selected kingdom's save
+	// list could not be read. The detail stays localized at the UI boundary.
+	void signalLoadError( bool kingdoms );
 };

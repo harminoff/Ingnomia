@@ -30,11 +30,29 @@
 
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPainter>
 #include <QPixmap>
+#include <QTextStream>
+
+namespace
+{
+void traceSpriteReplay( const QString& message )
+{
+	const QString path = qEnvironmentVariable( "INGNOMIA_LOAD_TRACE_PATH" );
+	if ( path.isEmpty() )
+		return;
+	QFile file( path );
+	if ( file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) )
+	{
+		QTextStream stream( &file );
+		stream << message << Qt::endl;
+	}
+}
+}
 
 /// @brief Constructs the factory and calls init() to load sources and sprite definitions.
 SpriteFactory::SpriteFactory()
@@ -115,11 +133,17 @@ bool SpriteFactory::init()
 			if ( !loaded )
 			{
 				loaded = pm.load( tilesheet );
-				if ( !loaded )
-				{
-					qDebug() << "SpriteFactory: failed to load " << tilesheet;
-					return false;
-				}
+			if ( !loaded )
+			{
+				// A save may reference optional creature/content sheets that are not
+				// distributed with the base package. Keep loading the definitions that
+				// are available (terrain/default/etc.) instead of aborting the entire
+				// factory and leaving every world tile black. Sprite rows backed by this
+				// sheet are skipped below; callers can still render the remaining world
+				// and the UI reports the missing asset through the normal log.
+				qWarning() << "SpriteFactory: optional tilesheet unavailable" << tilesheet;
+				continue;
+			}
 			}
 			m_pixmapSources.insert( tilesheet, pm );
 			/*
@@ -646,7 +670,10 @@ Sprite* SpriteFactory::createSprite2( const QString itemSID, QStringList materia
 /// @return Pointer to the cached or newly created Sprite.
 Sprite* SpriteFactory::createAnimalSprite( const QString spriteSID, const QMap<int, int>& random )
 {
+	const bool traceAnimal = spriteSID == "BlackBear";
+	if ( traceAnimal ) traceSpriteReplay( "animal BlackBear begin" );
 	QMutexLocker ml( &m_mutex );
+	if ( traceAnimal ) traceSpriteReplay( "animal BlackBear lock" );
 	QString key = spriteSID;
 	m_randomNumbers.clear();
 	if ( random.isEmpty() )
@@ -676,13 +703,17 @@ Sprite* SpriteFactory::createAnimalSprite( const QString spriteSID, const QMap<i
 	}
 	else
 	{
+		if ( traceAnimal ) traceSpriteReplay( "animal BlackBear create material" );
 		sprite = createSpriteMaterial( spriteSID, { "None" }, key );
+		if ( traceAnimal ) traceSpriteReplay( "animal BlackBear material complete" );
 
 		sprite->uID = m_sprites.size();
+		if ( traceAnimal ) traceSpriteReplay( "animal BlackBear uid" );
 		m_spriteIDs.insert( key, m_sprites.size() );
 		m_sprites.append( sprite );
 
 		addPixmapToPixelData( sprite );
+		if ( traceAnimal ) traceSpriteReplay( "animal BlackBear pixmap complete" );
 
 		m_creatureTextureAdded = true;
 
@@ -704,6 +735,7 @@ bool SpriteFactory::containsRandom( const QString itemSID, const QStringList mat
 	{
 		spriteSID = itemSID;
 	}
+	if ( itemSID == "BlackBear" ) traceSpriteReplay( "BlackBear fallback SID " + spriteSID + " contains " + QString::number( m_spriteDefinitions.contains( spriteSID ) ) + " size " + QString::number( m_spriteDefinitions.size() ) );
 	return DBH::spriteIsRandom( spriteSID );
 }
 
@@ -765,7 +797,10 @@ QString SpriteFactory::createSpriteMaterialDryRun( const QString itemSID, const 
 /// @return Newly allocated Sprite, or nullptr if the definition is missing.
 Sprite* SpriteFactory::createSpriteMaterial( const QString itemSID, const QStringList materialSIDs, const QString key )
 {
+	const bool traceTarget = itemSID == "AppleTreeMiddleWithFruit" || itemSID == "BlackBear";
+	if ( traceTarget ) traceSpriteReplay( "target createSpriteMaterial begin" );
 	QString spriteSID = DBH::spriteID( itemSID );
+	if ( itemSID == "BlackBear" ) traceSpriteReplay( "BlackBear spriteSID " + spriteSID + " contains " + QString::number( m_spriteDefinitions.contains( spriteSID ) ) );
 	if ( spriteSID.isEmpty() )
 	{
 		// every item needs a SpriteID
@@ -784,7 +819,9 @@ Sprite* SpriteFactory::createSpriteMaterial( const QString itemSID, const QStrin
 	{
 		m_offset = "";
 
+		if ( traceTarget ) traceSpriteReplay( "target getBaseSprite begin" );
 		sprite = getBaseSprite( dn, itemSID, materialSIDs );
+		if ( traceTarget ) traceSpriteReplay( "target getBaseSprite complete" );
 
 		if ( !m_offset.isEmpty() )
 		{
@@ -804,6 +841,27 @@ Sprite* SpriteFactory::createSpriteMaterial( const QString itemSID, const QStrin
 		sprite->opacity       = m_opacity;
 		sprite->randomNumbers = m_randomNumbers;
 		sprite->anim          = DBH::spriteHasAnim( spriteSID );
+	}
+	else if ( itemSID == "BlackBear" )
+	{
+		traceSpriteReplay( "BlackBear definition null" );
+	}
+	if ( !sprite )
+	{
+		// Older saves can contain creature sprite IDs whose composite definition
+		// was removed from the current database. Keep the load usable by falling
+		// back to the matching base tile (or the standard placeholder) instead of
+		// dereferencing a null sprite in createAnimalSprite().
+		const QPixmap base = m_baseSprites.value( spriteSID );
+		if ( !base.isNull() )
+			sprite = new SpritePixmap( base );
+		else
+			sprite = new SpritePixmap( m_baseSprites.value( "SolidSelectionWall" ) );
+		sprite->xOffset = 0;
+		sprite->yOffset = 0;
+		sprite->opacity = m_opacity;
+		sprite->randomNumbers = m_randomNumbers;
+		sprite->anim = false;
 	}
 	return sprite;
 }
@@ -1286,13 +1344,20 @@ void SpriteFactory::printDebug()
 /// @param scl List of SpriteCreation records in original creation order.
 void SpriteFactory::createSprites( QList<SpriteCreation> scl )
 {
+	traceSpriteReplay( "sprite replay begin " + QString::number( scl.size() ) );
 	//m_sprites.clear();
 	//m_spriteIDs.clear();
 
 	//createStandardSprites();
 
+	int replayIndex = 0;
 	for ( auto sc : scl )
 	{
+		if ( ( replayIndex++ % 25 ) == 0 )
+			traceSpriteReplay( "sprite replay index " + QString::number( replayIndex ) + " uid " + QString::number( sc.uID ) + " item " + sc.itemSID );
+		const bool traceWindow = replayIndex >= 395 && replayIndex <= 430;
+		if ( traceWindow )
+			traceSpriteReplay( "sprite item begin " + QString::number( replayIndex ) + " " + sc.itemSID );
 		if ( sc.uID > 30 )
 		{
 			if ( sc.uID != static_cast<unsigned int>( m_sprites.size() ) )
@@ -1330,7 +1395,10 @@ void SpriteFactory::createSprites( QList<SpriteCreation> scl )
 				createSprite2( sc.itemSID, sc.materialSIDs, sc.random );
 			}
 		}
+		if ( traceWindow )
+			traceSpriteReplay( "sprite item complete " + QString::number( replayIndex ) + " " + sc.itemSID );
 	}
+	traceSpriteReplay( "sprite replay complete" );
 	qDebug() << "Used" << m_texesUsed << "array textures";
 	m_spriteCreations = scl;
 }

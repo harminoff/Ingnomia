@@ -17,6 +17,7 @@
 #define TF_ROOM                 0x00002000u
 #define TF_LAVA                 0x00004000u
 #define TF_WATER                0x00008000u
+#define TF_OCCUPIED             0x04000000u
 #define TF_JOB_FLOOR            0x00010000u
 #define TF_JOB_WALL             0x00020000u
 #define TF_JOB_BUSY_FLOOR       0x00040000u
@@ -28,12 +29,6 @@
 #define TF_INDIRECT_SUNLIGHT    0x01000000u
 #define TF_TRANSPARENT          0x40000000u
 #define TF_OVERSIZE             0x80000000u
-
-#define WATER_TOP               0x01u
-#define WATER_EDGE              0x02u
-#define WATER_WALL              0x10u
-#define WATER_FLOOR             0x20u
-#define WATER_ONFLOOR           0x40u
 
 layout(location = 0) in vec3 aPos;
 
@@ -66,8 +61,15 @@ struct TileData {
 	uint jobSpriteFloorUID;
 	uint jobSpriteWallUID;
 
-	// fluidLevel=0:8, lightLevel=0:8, vegetationLevel=8:16
+	// fluidLevel=0:8, lightLevel=8:16, vegetationLevel=16:24, waterFlow=24:32
 	uint packedLevels;
+
+	// Render-only previous creature position delta, in world tiles.
+	int creatureOffsetX;
+	int creatureOffsetY;
+	int creatureOffsetZ;
+	uint creatureMotionTick;
+	uint creatureMotionDurationTicks;
 };
 
 layout(std430, binding = 0) readonly restrict buffer tileData1
@@ -77,6 +79,9 @@ layout(std430, binding = 0) readonly restrict buffer tileData1
 
 uniform bool uWallsLowered;
 uniform bool uPaintFrontToBack;
+uniform bool uCreatureOnly;
+uniform float uCreatureInterpolation;
+uniform float uCreatureRenderTick;
 
 uvec3 rotate(uvec3 pos)
 {
@@ -102,18 +107,33 @@ uvec3 rotate(uvec3 pos)
 	return ret;
 }
 
-uvec3 rotateOffset(uvec3 offset)
+ivec3 rotateOffset( ivec3 offset )
 {
 	switch ( uWorldRotation % 4 )
 	{
 		default:
 			return offset;
 		case 1:
-			return uvec3( offset.y, -offset.x, offset.z );
+			return ivec3( offset.y, -offset.x, offset.z );
 		case 2:
-			return uvec3( -offset.x, -offset.y, offset.z );
+			return ivec3( -offset.x, -offset.y, offset.z );
 		case 3:
-			return uvec3( -offset.y, offset.x, offset.z );
+			return ivec3( -offset.y, offset.x, offset.z );
+	}
+}
+
+vec3 rotateCreatureDelta( vec3 delta )
+{
+	switch ( uWorldRotation % 4 )
+	{
+		default:
+			return delta;
+		case 1:
+			return vec3( -delta.y, delta.x, delta.z );
+		case 2:
+			return vec3( -delta.x, -delta.y, delta.z );
+		case 3:
+			return vec3( delta.y, -delta.x, delta.z );
 	}
 }
 
@@ -130,6 +150,17 @@ vec3 project(uvec3 pos, vec2 offset, bool isWall)
 uint tileID(uvec3 pos)
 {
 	return pos.x + pos.y * uWorldSize.x + pos.z * uWorldSize.x * uWorldSize.y;
+}
+
+uint tileID( ivec3 pos )
+{
+	return uint( pos.x + pos.y * int( uWorldSize.x ) + pos.z * int( uWorldSize.x * uWorldSize.y ) );
+}
+
+bool inWorld( ivec3 pos )
+{
+	const ivec3 worldSize = ivec3( uWorldSize );
+	return all( greaterThanEqual( pos, ivec3( 0 ) ) ) && all( lessThan( pos, worldSize ) );
 }
 
 void main()
@@ -173,90 +204,34 @@ void main()
 	uint jobFloorSprite = 0;
 	uint jobWallSprite = 0;
 	uint creatureSprite = 0;
-	// Render in first pass if no transparency effects, and in second pass otherwise
 	bool containsTransparency;
 	if( uIsWall )
 	{
-		containsTransparency = ( vFlags & TF_TRANSPARENT ) != 0 || ( tileData.data[index].packedLevels & 0xff ) >= 3;
+		containsTransparency = ( vFlags & TF_TRANSPARENT ) != 0;
 	}
 	else
 	{
-		containsTransparency = ( vFlags & TF_TRANSPARENT ) != 0 || ( tileData.data[index].packedLevels & 0xff ) != 0;
+		containsTransparency = ( vFlags & TF_TRANSPARENT ) != 0;
 	}
-	const bool renderingEnabled = uPaintFrontToBack ^^ containsTransparency;
+	const bool renderingEnabled = uCreatureOnly ? uIsWall : ( uPaintFrontToBack ^^ containsTransparency );
 	if( renderingEnabled )
 	{
-		floorSprite = tileData.data[index].floorSpriteUID;
-		wallSprite = tileData.data[index].wallSpriteUID;
-		itemSprite = tileData.data[index].itemSpriteUID;
-		jobFloorSprite = tileData.data[index].jobSpriteFloorUID;
-		jobWallSprite = tileData.data[index].jobSpriteWallUID;
-		creatureSprite = tileData.data[index].creatureSpriteUID;
+		if ( uCreatureOnly )
+		{
+			creatureSprite = tileData.data[index].creatureSpriteUID;
+		}
+		else
+		{
+			floorSprite = tileData.data[index].floorSpriteUID;
+			wallSprite = tileData.data[index].wallSpriteUID;
+			itemSprite = tileData.data[index].itemSpriteUID;
+			jobFloorSprite = tileData.data[index].jobSpriteFloorUID;
+			jobWallSprite = tileData.data[index].jobSpriteWallUID;
+		}
 	}
 	
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-	//
-	// water related calculations
-	//
-	////////////////////////////////////////////////////////////////////////////////////////////////////
 	uint vFluidLevelPacked1 = 0;
 	uint vFluidFlags = 0;
-
-	if( !uPaintFrontToBack )
-	{
-		const uvec3 above = uvec3(tile.xy, tile.z + 1);
-		const uvec3 offsetLeft = rotateOffset( uvec3( 0, 1, 0 ) );
-		const uvec3 offsetRight = rotateOffset( uvec3( 1, 0, 0 ) );
-
-		const uint indexAbove = tileID( above );		
-		const uint indexL = tileID( tile + offsetLeft );
-		const uint indexR = tileID( tile + offsetRight );
-
-		const uint vFluidLevel = tileData.data[index].packedLevels & 0xff;
-
-		const uint vFluidLevelAbove = tileData.data[indexAbove].packedLevels & 0xff;
-		const uint vFluidLevelLeft = tileData.data[indexL].packedLevels & 0xff;
-		const uint vFluidLevelRight = tileData.data[indexR].packedLevels & 0xff;
-
-		if( vFluidLevel >= 3 )
-		{
-			if( vFluidLevel < 10 || tile.z == uRenderMax.z || vFluidLevelAbove == 0 )
-			{
-				vFluidFlags |= WATER_TOP;
-			}
-			if(vFluidLevelLeft < vFluidLevel)
-			{
-				vFluidFlags |= WATER_WALL;
-			}
-			if(vFluidLevelRight < vFluidLevel)
-			{
-				vFluidFlags |= WATER_WALL;
-			}
-		}
-
-		if( vFluidLevel >= 1 )
-		{
-			if(vFluidLevel <= 2)
-			{
-				vFluidFlags |= WATER_FLOOR;
-				if(tileData.data[index].floorSpriteUID != 0)
-				{
-					// Edge case when water would render "half height inside floor"
-					vFluidFlags |= WATER_ONFLOOR;
-				}
-			}
-			if(vFluidLevelLeft < 2 &&  vFluidLevelLeft < vFluidLevel)
-			{
-				vFluidFlags |= WATER_EDGE;
-			}
-			if(vFluidLevelRight < 2 && vFluidLevelRight < vFluidLevel)
-			{
-				vFluidFlags |= WATER_EDGE;
-			}
-		}
-
-		vFluidLevelPacked1 = (vFluidLevel << 0) | (vFluidLevelLeft << 8) | (vFluidLevelRight << 16) | (vFluidFlags << 24);
-	}
 
 	// Check if rendering is applicable at all for the current tile and rendering pass...
 	if(
@@ -265,7 +240,6 @@ void main()
 			!uIsWall
 			&& floorSprite == 0
 			&& jobFloorSprite == 0
-			&& (vFluidFlags & ( WATER_FLOOR | WATER_EDGE )) == 0
 		)
 		|| (
 			uIsWall
@@ -273,7 +247,6 @@ void main()
 			&& jobWallSprite == 0
 			&& itemSprite == 0
 			&& creatureSprite == 0
-			&& ( vFluidFlags & ( WATER_TOP | WATER_WALL ) ) == 0
 		)
 	)
 	{
@@ -301,6 +274,22 @@ void main()
 		block3 = uvec4(vFlags, vFlags2, vLightLevel, vVegetationLevel);
 
 		vec3 worldPos = project( rotate( tile ), vVertexCoords.xy, uIsWall );
+		if ( uCreatureOnly && creatureSprite != 0 )
+		{
+			vec3 creatureDelta = vec3(
+				float( tileData.data[index].creatureOffsetX ),
+				float( tileData.data[index].creatureOffsetY ),
+				float( tileData.data[index].creatureOffsetZ )
+			);
+			const float motionAge = uCreatureRenderTick - float( tileData.data[index].creatureMotionTick );
+			const float motionDuration = max( 1.0, float( tileData.data[index].creatureMotionDurationTicks ) );
+			const float motionProgress = clamp( motionAge / motionDuration, 0.0, 1.0 );
+			creatureDelta *= 1.0 - motionProgress;
+			creatureDelta = rotateCreatureDelta( creatureDelta );
+			worldPos.x += 16.0 * ( creatureDelta.x - creatureDelta.y );
+			worldPos.y += -8.0 * ( creatureDelta.x + creatureDelta.y ) + 20.0 * creatureDelta.z;
+			worldPos.z += creatureDelta.x + creatureDelta.y + creatureDelta.z;
+		}
 		gl_Position = uTransform * vec4( worldPos, 1.0 );
 	}
 }

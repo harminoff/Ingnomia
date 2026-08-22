@@ -1,0 +1,14 @@
+<template name="framed-window" content="window-content">
+<head>
+    <link type="text/rcss" href="../styles/base.rcss" />
+    <link type="text/rcss" href="../styles/components.rcss" />
+</head>
+<body class="c-window">
+    <div class="c-title-bar">
+        <div class="c-title-bar__mark"></div>
+        <div class="c-title-bar__title">Framed window</div>
+        <button class="c-icon-button" title="Close"><span class="c-icon-button__glyph">&#215;</span></button>
+    </div>
+    <div id="window-content" class="c-window__body"></div>
+</body>
+</template>

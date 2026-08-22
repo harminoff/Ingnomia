@@ -1,0 +1,11 @@
+<rml>
+<head>
+    <title>Ingnomia RmlUi foundation smoke document</title>
+    <link type="text/rcss" href="smoke.rcss" />
+</head>
+<body>
+    <div id="smoke-panel">
+        <img id="smoke-texture" src="smoke.tga" />
+    </div>
+</body>
+</rml>
