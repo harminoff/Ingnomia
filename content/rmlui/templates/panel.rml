@@ -1,0 +1,9 @@
+<template name="cave-panel" content="panel-content">
+<head>
+    <link type="text/rcss" href="../styles/base.rcss" />
+    <link type="text/rcss" href="../styles/components.rcss" />
+</head>
+<body class="c-panel">
+    <div id="panel-content"></div>
+</body>
+</template>

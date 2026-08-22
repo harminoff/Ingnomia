@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -59,10 +59,26 @@
 #include "../gui/aggregatorcreatureinfo.h"
 
 #include <QDebug>
+#include <QFile>
 #include <QElapsedTimer>
+#include <QDateTime>
+#include <QTextStream>
 #include <QTimer>
 
 #include <time.h>
+
+namespace
+{
+void simulationTrace( const QString& message )
+{
+	const auto path = qEnvironmentVariable( "INGNOMIA_LIFECYCLE_TRACE_PATH" );
+	if ( path.isEmpty() ) return;
+	QFile file( path );
+	if ( !file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) ) return;
+	QTextStream stream( &file );
+	stream << QDateTime::currentDateTime().toString( Qt::ISODateWithMs ) << " " << message << "\n";
+}
+}
 
 /**
  * @brief Constructs the Game, initializing all manager subsystems, game clock, and sprite factory.
@@ -72,11 +88,11 @@ Game::Game( QObject* parent ) :
 	QObject( parent )
 {
 	qDebug() << "init game...";
-	
+
 	m_upsTimer.start();
 
 	m_sf.reset( new SpriteFactory() );
-	
+
 	#pragma region initStuff
 	DB::select( "Value_", "Time", "MillisecondsSlow" );
 
@@ -104,25 +120,26 @@ Game::Game( QObject* parent ) :
 	}
 #pragma endregion
 	m_inv   			= new Inventory( this );
-	
+
 	m_spm				= new StockpileManager( this );
 	m_farmingManager	= new FarmingManager( this );
 	m_workshopManager	= new WorkshopManager( this );
 	m_roomManager		= new RoomManager( this );
 
 	m_jobManager		= new JobManager( this );
-	
+
 	m_creatureManager	= new CreatureManager( this );
 	m_gnomeManager		= new GnomeManager( this );
 	m_militaryManager	= new MilitaryManager( this );
 
 	m_mechanismManager	= new MechanismManager( this );
 	m_fluidManager		= new FluidManager( this );
-	
+
 	m_neighborManager	= new NeighborManager( this );
 	m_eventManager		= new EventManager( this );
-	
+
 	m_soundManager	= new SoundManager( this );
+	m_tutorialManager = new TutorialManager( this );
 
 	qDebug() << "init game done";
 }
@@ -136,16 +153,27 @@ Game::~Game()
  * @brief Generates the world from new-game settings, including terrain topology and life.
  * @param ngs New game settings containing world size, seed, species filters, etc.
  */
-void Game::generateWorld( NewGameSettings* ngs )
+void Game::generateWorld( NewGameSettings* ngs, GameStartMode mode )
 {
+	m_startMode = mode;
 	m_inv->loadFilter();
 
 	WorldGenerator wg( ngs, this );
 	connect( &wg, &WorldGenerator::signalStatus, dynamic_cast<GameManager*>( parent() ), &GameManager::onGeneratorMessage );
-	m_world.reset( wg.generateTopology() );	
+	m_world.reset( wg.generateTopology() );
 	wg.addLife();
 
 	m_pf.reset( new PathFinder( m_world.get(), this ) );
+	if( mode == GameStartMode::InteractiveTutorial )
+	{
+		Position stagedCrop = GameState::origin;
+		stagedCrop.x += 8;
+		m_world->getFloorLevelBelow( stagedCrop, false );
+		m_world->addPlant( Plant( stagedCrop, "Strawberry", true, this ) );
+		m_tutorialManager->start();
+		GameState::tutorial.clear();
+		m_tutorialManager->serialize( GameState::tutorial );
+	}
 }
 
 /**
@@ -207,8 +235,10 @@ void Game::loop()
 	timer.start();
 	if (m_guiHeartbeat <= m_guiHeartbeatResponse+20)
 	{
+		if ( !m_paused && ( GameState::tick < 5 || GameState::tick % 20 == 0 ) )
+			simulationTrace( QString( "tick=%1 heartbeat=%2 response=%3" ).arg( GameState::tick ).arg( m_guiHeartbeat ).arg( m_guiHeartbeatResponse ) );
 		m_upsCounter1++;
-		if ( m_upsTimer.elapsed() > 1000 ) 
+		if ( m_upsTimer.elapsed() > 1000 )
 		{
 			m_upsTimer.restart();
 			//printf(" gameloop ups %d avg ms %d\n", m_upsCounter1, m_avgLoopTime/m_upsCounter1);
@@ -217,14 +247,14 @@ void Game::loop()
 			m_avgLoopTime = 0;
 		}
 		int ms2 = 0;
-		
+
 		if ( !m_paused )
 		{
-			
-			
+
+
 			emit sendOverlayMessage( 6, "tick " + QString::number( GameState::tick ) );
 			//printf("   game tick %d\n",GameState::tick );
-			
+
 			sendClock();
 
 			// process grass
@@ -253,9 +283,10 @@ void Game::loop()
 			m_mechanismManager->onTick( GameState::tick, GameState::seasonChanged, GameState::dayChanged, GameState::hourChanged, GameState::minuteChanged );
 			m_fluidManager->onTick( GameState::tick, GameState::seasonChanged, GameState::dayChanged, GameState::hourChanged, GameState::minuteChanged );
 			m_neighborManager->onTick( GameState::tick, GameState::seasonChanged, GameState::dayChanged, GameState::hourChanged, GameState::minuteChanged );
+			m_tutorialManager->tick();
 
 			m_soundManager->onTick( GameState::tick );
-			
+
 			m_world->processWater();
 
 			m_pf->findPaths();
@@ -269,41 +300,42 @@ void Game::loop()
 		//
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	
+
 		auto updates = m_world->updatedTiles();
 		if ( !updates.empty() )
 		{
 			signalUpdateTileInfo( std::move( updates ) );
 		}
 		emit signalUpdateStockpile();
-	
+
 		Global::eventConnector->aggregatorCreatureInfo()->update();
-	
+
 		int ms        = timer.elapsed();
 		m_maxLoopTime = qMax( ms2, m_maxLoopTime );
-	
+
 		auto numString = QString::number( ms );
 		while ( numString.size() < 5 )
 			numString.prepend( '0' );
-	
+
 		QString msg = "game loop time: " + numString;
 		if ( Global::debugMode )
 			msg += " ms (max gnome time:" + QString::number( m_maxLoopTime ) + "ms)";
 		emit sendOverlayMessage( 3, msg );
-	
-		
-		emit signalKingdomInfo( GameState::kingdomName, 
-			"Gnomes: " + QString::number( gm()->numGnomes() ), 
+
+
+		emit signalKingdomInfo( GameState::kingdomName,
+			"Gnomes: " + QString::number( gm()->numGnomes() ),
 			"Animals: " + QString::number( fm()->countAnimals() ),
 			"Items: "  + QString::number( inv()->numItems() ) );
+		emit signalHudSettlement( GameState::kingdomName, gm()->numGnomes(), fm()->countAnimals(), inv()->numItems() );
 
 		m_guiHeartbeat = m_guiHeartbeat + 1;
 		emit signalHeartbeat(m_guiHeartbeat);
 	}
 
-	
+
 	m_avgLoopTime += timer.elapsed();
-	
+
 }
 
 /**
@@ -391,6 +423,8 @@ void Game::sendClock()
 	GameState::currentDayTime = dt;
 	GameState::currentYearAndSeason = "Year " + QString::number( GameState::year ) + ", " + S::s( "$SeasonName_" + GameState::seasonString );
 	emit signalTimeAndDate( GameState::minute, GameState::hour, GameState::day, S::s( "$SeasonName_" + GameState::seasonString ), GameState::year, sunStatus );
+	emit signalHudClock( GameState::minute, GameState::hour, GameState::day, GameState::seasonString,
+		GameState::year, GameState::daylight, currentTimeInt < GameState::sunrise ? GameState::sunrise : currentTimeInt < GameState::sunset ? GameState::sunset : GameState::nextSunrise );
 }
 
 /**
@@ -399,6 +433,8 @@ void Game::sendClock()
 void Game::sendTime()
 {
 	emit signalTimeAndDate( GameState::minute, GameState::hour, GameState::day, S::s( "$SeasonName_" + GameState::seasonString ), GameState::year, "" );
+	emit signalHudClock( GameState::minute, GameState::hour, GameState::day, GameState::seasonString,
+		GameState::year, GameState::daylight, GameState::daylight ? GameState::sunset : GameState::sunrise );
 }
 
 /**
@@ -534,7 +570,7 @@ void Game::save()
 	}
 }
 
-	
+
 /**
  * @brief Returns the current game speed setting.
  * @return Current GameSpeed value.
@@ -574,7 +610,9 @@ bool Game::paused()
 void Game::setPaused( bool value )
 {
 	m_paused = value;
-	if (m_paused) 
+	if( m_tutorialManager ) m_tutorialManager->onPauseChanged( value );
+	if( !m_timer ) return;
+	if (m_paused)
 	{
 		m_timer->setInterval( m_millisecondsSlow*2 );
 	}
@@ -589,7 +627,7 @@ void Game::setPaused( bool value )
 				break;
 		}
 	}
-	
+
 }
 void Game::setHeartbeatResponse( int value )
 {
@@ -614,5 +652,6 @@ FluidManager*		Game::flm(){ return m_fluidManager; }
 NeighborManager*	Game::nm(){ return m_neighborManager; }
 MilitaryManager*	Game::mil(){ return m_militaryManager; }
 SoundManager*		Game::sm(){ return m_soundManager; }
+TutorialManager*		Game::tutorial(){ return m_tutorialManager; }
 PathFinder*			Game::pf(){ return m_pf.get(); }
 World*				Game::world() { return m_world.get(); }

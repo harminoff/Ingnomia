@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatordebug.h
- *  @brief Aggregator exposing debug/cheat commands to the XAML debug window: spawn creatures
+ *  @brief Aggregator exposing debug/cheat commands to the RmlUi debug window: spawn creatures
  *         and items, set needs, kill gnomes, and tune need-decay multipliers.
  */
 #pragma once

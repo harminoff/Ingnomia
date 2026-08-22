@@ -18,8 +18,15 @@ struct TileData {
 	uint jobSpriteFloorUID;
 	uint jobSpriteWallUID;
 
-	// fluidLevel=0:8, lightLevel=0:8, vegetationLevel=8:16
+	// fluidLevel=0:8, lightLevel=8:16, vegetationLevel=16:24, waterFlow=24:32
 	uint packedLevels;
+
+	// Render-only previous creature position delta, in world tiles.
+	int creatureOffsetX;
+	int creatureOffsetY;
+	int creatureOffsetZ;
+	uint creatureMotionTick;
+	uint creatureMotionDurationTicks;
 };
 
 struct TileDataUpdate {

@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatortileinfo.h
- *  @brief Data types and aggregator feeding the Tile Info XAML window: flags, terrain, items,
+ *  @brief Data types and aggregator feeding the Tile Info RmlUi window: flags, terrain, items,
  *         creatures, active jobs, room membership, mechanism status, and tennant assignment.
  */
 #pragma once
@@ -79,6 +79,8 @@ struct GuiTileInfo
 	QString requiredSkill;           ///< Required skill for the job.
 	QString requiredTool;            ///< Required tool name.
 	QString requiredToolAvailable;   ///< Availability label for the tool.
+	bool canRaisePriority = false;   ///< True while the active job priority is below the engine maximum.
+	bool canLowerPriority = false;   ///< True while the active job priority is above the engine minimum.
 	QList<GuiItemInfo> requiredItems;///< Required component items.
 	QString workPositions;           ///< Work position descriptor.
 
@@ -104,7 +106,7 @@ struct GuiTileInfo
 
 Q_DECLARE_METATYPE( GuiTileInfo )
 
-/// @brief Bridges the Tile Info XAML window with the game: inspects a clicked tile and
+/// @brief Bridges the Tile Info RmlUi window with the game: inspects a clicked tile and
 ///        exposes terrain, jobs, creatures, items, rooms, and mechanism state.
 class AggregatorTileInfo : public QObject
 {

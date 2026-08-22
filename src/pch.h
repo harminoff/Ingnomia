@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -18,8 +18,6 @@
 #pragma once
 
 #include "base/global.h"
-
-#include <NoesisPCH.h>
 
 #include <QWidget>
 #include <QtCore>

@@ -1,0 +1,71 @@
+<rml>
+<head>
+  <title data-l10n="management.diplomacy.title">Neighbors and Missions</title>
+  <link type="text/rcss" href="/styles/base.rcss" />
+  <link type="text/rcss" href="/styles/components.rcss" />
+  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <link type="text/rcss" href="/windows/management6c.rcss" />
+</head>
+<body id="diplomacy_root" class="m6c-root is-hidden">
+  <div id="diplomacy_workbench" class="c-window m6c-workbench">
+    <div class="c-title-bar">
+      <handle class="c-title-bar__drag-handle" move_target="diplomacy_workbench" edge_margin="64dp 12dp 52dp 12dp"><div class="c-title-bar__mark"></div>
+      <h1 class="c-title-bar__title" data-l10n="management.diplomacy.heading">Neighbors &amp; Missions</h1></handle>
+      <button id="diplomacy_close" data-l10n="management.diplomacy.close">Close</button>
+    </div>
+    <div id="diplomacy_body" class="c-window__body m6c-body">
+      <div id="diplomacy_tabs" class="c-tabs"><button id="diplomacy_tab_neighbors" class="c-tabs__tab" data-l10n="management.diplomacy.neighbors">Neighbors</button><button id="diplomacy_tab_missions" class="c-tabs__tab" data-l10n="management.diplomacy.mission_activity">Mission activity</button></div>
+      <div id="diplomacy_primary_toolbar" class="c-toolbar m6c-primary-toolbar">
+        <input id="diplomacy_search" class="text m6c-search" type="text" placeholder="Filter discovered names or mission types" data-l10n-placeholder="management.diplomacy.search_placeholder" autofocus="true" />
+        <button id="diplomacy_sort_source" class="c-dropdown-button" data-l10n="management.diplomacy.source_order">Source order v</button><button id="diplomacy_sort_name" class="c-dropdown-button" data-l10n="management.diplomacy.name_type_order">Name/type order v</button><button id="diplomacy_refresh" data-l10n="management.diplomacy.refresh">Refresh</button>
+      </div>
+
+      <div id="diplomacy_loading" class="c-state-panel is-hidden"><div class="c-state-panel__mark">...</div><h2 class="c-state-panel__title" data-l10n="management.diplomacy.loading_title">Loading neighbors and missions</h2><p class="c-state-panel__detail" data-l10n="management.diplomacy.loading_detail">Waiting for masked neighbor data and current mission records.</p></div>
+      <div id="diplomacy_empty" class="c-state-panel is-hidden"><div class="c-state-panel__mark">0</div><h2 class="c-state-panel__title" data-l10n="management.diplomacy.empty_title">No current rows</h2><p class="c-state-panel__detail" data-l10n="management.diplomacy.empty_detail">The authoritative neighbor or mission collection is empty.</p></div>
+      <div id="diplomacy_error" class="c-state-panel is-hidden"><div class="c-state-panel__mark">!</div><h2 class="c-state-panel__title" data-l10n="management.diplomacy.error_title">Diplomacy data unavailable</h2><p class="c-state-panel__detail" data-l10n="management.diplomacy.error_detail">The payload was rejected or the bridge is unavailable.</p><button id="diplomacy_error_retry" data-l10n="management.diplomacy.retry">Retry</button></div>
+
+      <div id="diplomacy_main" class="m6c-layout is-hidden">
+        <section class="m6c-list-pane">
+          <div class="c-toolbar"><button id="diplomacy_previous" data-l10n="management.diplomacy.previous_row">Previous row</button><button id="diplomacy_next" data-l10n="management.diplomacy.next_row">Next row</button></div>
+          <p id="diplomacy_selection_status" class="m6c-status"></p>
+          <div id="diplomacy_neighbor_rows" class="c-list m6c-scroll"></div>
+          <div id="diplomacy_mission_rows" class="c-list m6c-scroll is-hidden"></div>
+        </section>
+
+        <section id="diplomacy_neighbor_detail" class="m6c-detail-pane">
+          <h2 id="neighbor_name" data-l10n="management.diplomacy.neighbor">Neighbor</h2>
+          <div id="neighbor_discovered_detail">
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.distance">Distance</span><span id="neighbor_distance" class="m6c-field__value"></span></div>
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.type">Type</span><span id="neighbor_type" class="m6c-field__value"></span></div>
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.attitude">Attitude</span><span id="neighbor_attitude" class="m6c-field__value"></span></div>
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.wealth">Wealth</span><span id="neighbor_wealth" class="m6c-field__value"></span></div>
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.economy">Economy</span><span id="neighbor_economy" class="m6c-field__value"></span></div>
+            <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.military">Military</span><span id="neighbor_military" class="m6c-field__value"></span></div>
+          </div>
+          <div id="neighbor_undiscovered_detail" class="c-state-panel is-hidden"><div class="c-state-panel__mark">?</div><h3 class="c-state-panel__title" data-l10n="management.diplomacy.undiscovered_neighbor">Undiscovered neighbor</h3><p class="c-state-panel__detail" data-l10n="management.diplomacy.masked_detail">Details remain masked by the game.</p></div>
+          <div id="mission_builder" class="m6c-section is-hidden">
+            <h3 data-l10n="management.diplomacy.start_supported_mission">Start one supported mission</h3>
+            <div class="c-toolbar"><button id="mission_type_spy" class="c-dropdown-button" data-l10n="management.diplomacy.spy">Spy ▾</button><button id="mission_type_emissary" class="c-dropdown-button" data-l10n="management.diplomacy.emissary">Emissary ▾</button><button id="mission_type_raid" class="c-dropdown-button" data-l10n="management.diplomacy.raid">Raid ▾</button><button id="mission_type_sabotage" class="c-dropdown-button" data-l10n="management.diplomacy.sabotage">Sabotage ▾</button></div>
+            <div id="mission_action_group" class="c-toolbar"><button id="mission_action_improve" class="c-dropdown-button" data-l10n="management.diplomacy.improve_relations">Improve relations ▾</button><button id="mission_action_insult" class="c-dropdown-button" data-l10n="management.diplomacy.insult">Insult ▾</button><button id="mission_action_trader" class="c-dropdown-button" data-l10n="management.diplomacy.invite_trader">Invite trader ▾</button><button id="mission_action_ambassador" class="c-dropdown-button" data-l10n="management.diplomacy.invite_ambassador">Invite ambassador ▾</button></div>
+            <h3 data-l10n="management.diplomacy.eligible_gnome">Eligible gnome</h3><div id="diplomacy_gnome_rows" class="c-list m6c-scroll"></div>
+            <button id="mission_start" class="c-button c-button--primary" data-l10n="management.diplomacy.start_mission">Start mission</button>
+          </div>
+        </section>
+
+        <section id="diplomacy_mission_detail" class="m6c-detail-pane is-hidden">
+          <h2 id="mission_title" data-l10n="management.diplomacy.mission">Mission</h2>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.stable_mission_id">Stable mission ID</span><span id="mission_id" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.action">Action</span><span id="mission_action" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.step">Step</span><span id="mission_step" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.target">Target</span><span id="mission_target" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.participants">Participants</span><span id="mission_participants" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.current_timing">Current timing</span><span id="mission_timing" class="m6c-field__value"></span></div>
+          <div class="m6c-field"><span class="m6c-field__label" data-l10n="management.diplomacy.result_reported">Result, when reported</span><span id="mission_result" class="m6c-field__value"></span></div>
+          <p data-l10n="management.diplomacy.unsupported_history">Cancel, reassignment, and historical relationship records are not reported.</p>
+        </section>
+      </div>
+      <div class="c-toolbar m6c-footer"><span id="diplomacy_revision" class="c-status-chip c-status-chip--info"></span><span id="diplomacy_status"></span></div>
+    </div>
+  </div>
+</body>
+</rml>

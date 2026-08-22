@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -57,9 +57,30 @@ struct GuiInventoryMaterial
 	unsigned int countConstructed = 0;     ///< Items built into structures/furniture.
 	unsigned int countLoose = 0;           ///< Items lying on the ground unclaimed.
 	unsigned int totalValue = 0;           ///< Sum of per-item values.
-    bool watched = false;                  ///< True if this entry is on the watch list.
-};
+	bool watched = false;                  ///< True if this entry is on the watch list.
+	QString spriteSheet;
+	int spriteX = 0;
+	int spriteY = 0;
+	int spriteWidth = 0;
+	int spriteHeight = 0;
+	int spriteSheetWidth = 0;
+	int spriteSheetHeight = 0;
+	};
 Q_DECLARE_METATYPE( GuiInventoryMaterial )
+
+/// @brief Authoritative daily creation/destruction values for one inventory item.
+///
+/// The history graph deliberately carries values rather than a pre-rendered
+/// image so the RmlUi surface can remain DPI/scale independent.
+struct GuiInventoryHistoryPoint
+{
+	int dayIndex = 0;
+	int total = 0;
+	int created = 0;
+	int destroyed = 0;
+};
+Q_DECLARE_METATYPE( GuiInventoryHistoryPoint )
+Q_DECLARE_METATYPE( QList<GuiInventoryHistoryPoint> )
 
 /// @brief Inventory totals for a single item, broken down per material.
 struct GuiInventoryItem
@@ -76,6 +97,13 @@ struct GuiInventoryItem
 	unsigned int countLoose = 0;           ///< Aggregated loose count.
 	unsigned int totalValue = 0;           ///< Aggregated value.
     bool watched = false;                  ///< True if the whole item row is watched.
+    QString spriteSheet;
+    int spriteX = 0;
+    int spriteY = 0;
+    int spriteWidth = 0;
+    int spriteHeight = 0;
+    int spriteSheetWidth = 0;
+    int spriteSheetHeight = 0;
     QList<GuiInventoryMaterial> materials; ///< Per-material breakdown.
 };
 Q_DECLARE_METATYPE( GuiInventoryItem )
@@ -134,9 +162,17 @@ struct GuiBuildItem
     QString id;                              ///< Build entry string ID.
     QString name;                            ///< Localised display name.
     BuildItemType biType;                    ///< Build category (workshop, wall, floor, …).
-    std::vector<unsigned char> buffer;       ///< PNG-encoded preview icon for the GUI.
-    int iconWidth = 0;                       ///< Preview width in pixels.
-    int iconHeight = 0;                      ///< Preview height in pixels.
+
+    // The source rectangle is kept as data, rather than turning it into a
+    // Qt pixmap.  RmlUi can then crop the authoritative tilesheet in
+    // the build palette without reintroducing the removed image bridge.
+    QString spriteSheet;                     ///< Tilesheet filename, e.g. furniture.png.
+    int spriteX = 0;
+    int spriteY = 0;
+    int spriteWidth = 0;
+    int spriteHeight = 0;
+    int spriteSheetWidth = 0;
+    int spriteSheetHeight = 0;
 
     QList<GuiBuildRequiredItem> requiredItems; ///< List of required components.
 };
@@ -170,6 +206,8 @@ private:
     QMap<BuildSelection, BuildItemType> m_buildSelection2buildItem; ///< BuildSelection enum → BuildItemType.
 
     void setBuildItemValues( GuiBuildItem& gbi, BuildSelection selection );
+    void setBuildItemSprite( GuiBuildItem& gbi, BuildSelection selection );
+    void setInventoryItemSprite( GuiInventoryItem& item );
     void setAvailableMats( GuiBuildRequiredItem& gbri );
 
     QHash<QString, QString> m_itemToGroupCache;     ///< Item ID → group ID lookup cache.
@@ -182,9 +220,13 @@ private:
 
 public slots:
 	void onRequestCategories();
-   
+
+	/// Request the authoritative item-history series for an item/material pair.
+	/// `dayCount` is a bounded presentation hint; zero means all recorded days.
+	void onRequestHistory( QString itemSID, QString materialSID, int dayCount );
+
     void onRequestBuildItems( BuildSelection buildSelection, QString category );
-	
+
     void onSetActive( bool active, const GuiWatchedItem& gwi );
 
     void onAddItem( QString itemSID, QString materialSID );
@@ -192,7 +234,10 @@ public slots:
 
 signals:
 	void signalInventoryCategories( const QList<GuiInventoryCategory>& categories );
-    
+
+	void signalInventoryHistory( const QString& itemSID, const QString& materialSID,
+		const QList<GuiInventoryHistoryPoint>& points );
+
     void signalBuildItems( const QList<GuiBuildItem>& items );
 
     void signalWatchList( const QList<GuiWatchedItem>& watchedItemList );

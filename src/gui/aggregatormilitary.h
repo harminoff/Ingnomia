@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatormilitary.h
- *  @brief Data types and aggregator feeding the Military XAML window with squads, roles,
+ *  @brief Data types and aggregator feeding the Military RmlUi window with squads, roles,
  *         target priorities, and uniform configuration.
  */
 #pragma once
@@ -93,7 +93,7 @@ Q_DECLARE_METATYPE( GuiMilRole )
 
 
 
-/// @brief Bridges the Military XAML window with the game-side MilitaryManager. Produces
+/// @brief Bridges the Military RmlUi window with the game-side MilitaryManager. Produces
 ///        GuiSquad/GuiMilRole lists for display and routes squad/role edits back to the game.
 class AggregatorMilitary : public QObject
 {
@@ -111,7 +111,7 @@ private:
 	QList<GuiSquad> m_squads;                 ///< Cached squad list for the GUI.
 	QList<GuiTargetPriority> m_tmpPriorities; ///< Scratch buffer reused when emitting priority updates.
 	QList<GuiMilRole> m_roles;                ///< Cached military role list for the GUI.
-	
+
 	void sendSquadUpdate();
 	void sendPriorityUpdate( unsigned int squadID );
 	void sendRoleUpdate();

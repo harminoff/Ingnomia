@@ -1,0 +1,93 @@
+#pragma once
+
+#include "RmlUiQtInputAdapter.h"
+
+#include <QSize>
+#include <QString>
+#include <QStringList>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+class QWindow;
+namespace Rml { class Context; class ElementDocument; }
+
+namespace ingnomia::ui
+{
+namespace shell { class ShellController; class ShellRmlBinding; }
+namespace hud { class HudRmlBinding; }
+namespace inspector { class InspectorRmlBinding; }
+namespace management6b { class Management6BRmlBinding; }
+#if defined(INGNOMIA_DEVELOPER_UI)
+namespace debug { class DebugRmlBinding; }
+#endif
+class IngnomiaRmlUiRenderer;
+class QtRmlFileInterface;
+class QtRmlSystemInterface;
+
+class RmlUiHost final
+{
+public:
+    struct Config
+    {
+        QWindow* window = nullptr;
+        QString assetRoot;
+        QString contextName = "ingnomia-primary-ui";
+        QSize physicalSize = {1, 1};
+        float densityIndependentPixelRatio = 1.0f;
+        QStringList fontFiles;
+        bool enableDebugger = false;
+    };
+
+    RmlUiHost();
+    ~RmlUiHost();
+
+    RmlUiHost( const RmlUiHost& ) = delete;
+    RmlUiHost& operator=( const RmlUiHost& ) = delete;
+
+    bool initialize( const Config& config );
+    bool shutdown();
+    bool initialized() const noexcept;
+
+    bool resize( QSize physicalSize, float densityIndependentPixelRatio );
+    void setCameraPreviewTexture( unsigned int texture, int width, int height );
+    void setCameraPreviewTexture( const std::string& source, unsigned int texture, int width, int height );
+    bool update();
+    bool render();
+    double nextUpdateDelay() const;
+
+    Rml::ElementDocument* loadDocument( const QString& logicalPath, bool show = true );
+    bool unloadDocument( Rml::ElementDocument* document );
+    Rml::Context* context() const noexcept;
+    RmlUiQtInputAdapter& input() noexcept;
+    shell::ShellRmlBinding* createShellBinding();
+    hud::HudRmlBinding* createHudBinding();
+    inspector::InspectorRmlBinding* createInspectorBinding();
+    inspector::InspectorRmlBinding* createCreatureInspectorBinding( int cameraSlot, int windowIndex );
+    management6b::Management6BRmlBinding* createManagement6BBinding();
+#if defined(INGNOMIA_DEVELOPER_UI)
+    debug::DebugRmlBinding* createDebugBinding();
+#endif
+
+private:
+    bool requireGuiThread( const char* operation ) const;
+    bool requireCurrentContext( const char* operation ) const;
+
+    QString m_contextName;
+    std::unique_ptr<QtRmlSystemInterface> m_system;
+    std::unique_ptr<QtRmlFileInterface> m_files;
+    std::unique_ptr<IngnomiaRmlUiRenderer> m_renderer;
+    Rml::Context* m_context = nullptr;
+    RmlUiQtInputAdapter m_input;
+    std::unique_ptr<shell::ShellRmlBinding> m_shellBinding;
+    std::unique_ptr<hud::HudRmlBinding> m_hudBinding;
+    std::unique_ptr<inspector::InspectorRmlBinding> m_inspectorBinding;
+    std::vector<std::unique_ptr<inspector::InspectorRmlBinding>> m_creatureInspectorBindings;
+    std::unique_ptr<management6b::Management6BRmlBinding> m_management6bBinding;
+#if defined(INGNOMIA_DEVELOPER_UI)
+    std::unique_ptr<debug::DebugRmlBinding> m_debugBinding;
+#endif
+    bool m_coreInitialized = false;
+};
+} // namespace ingnomia::ui

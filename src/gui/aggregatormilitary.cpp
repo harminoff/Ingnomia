@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -17,7 +17,7 @@
 */
 /** @file aggregatormilitary.cpp
  *  @brief AggregatorMilitary implementation: builds squad, role, and priority payloads for
- *         the Military XAML window, and forwards edits (add/remove/reorder, armor setup,
+ *         the Military RmlUi window, and forwards edits (add/remove/reorder, armor setup,
  *         attitude changes) to MilitaryManager.
  */
 #include "aggregatormilitary.h"
@@ -86,7 +86,7 @@ void AggregatorMilitary::sendSquadUpdate()
 			gtp.attitude = prio.attitude;
 			gs.priorities.append( gtp );
 		}
-		
+
 		for( auto gnomeID : squad.gnomes )
 		{
 			GuiSquadGnome gsg;
@@ -137,7 +137,7 @@ void AggregatorMilitary::sendRoleUpdate()
 		{
 			gmr.uniform.append( createUniformItem( slot, items.value( slot ).toMap() ) );
 		}
-		
+
 
 		m_roles.append( gmr );
 	}

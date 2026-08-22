@@ -1,0 +1,76 @@
+<rml>
+<head>
+    <title>Set up a kingdom</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+</head>
+<body class="l-shell-screen l-new-game-screen">
+    <main class="c-shell-chamber c-shell-chamber--wide l-new-game-chamber">
+        <header class="c-shell-title-row l-new-game-titlebar">
+            <div class="l-new-game-heading">
+                <span class="l-new-game-eyebrow">WORLD GENERATOR</span>
+                <h1>Set up a kingdom</h1>
+                <p>Shape the world, choose your starting settlement, then review the draft before you begin.</p>
+            </div>
+            <button id="shell-back">Back</button>
+        </header>
+
+        <div class="l-new-game-layout">
+            <aside class="l-new-game-nav">
+                <div class="l-new-game-nav-title">Setup steps</div>
+                    <nav id="new-sections" class="l-new-game-tabs" role="tablist" aria-label="Setup steps">
+                    <button id="new-tab-world" class="l-new-game-tab is-selected" role="tab" data-new-tab="world" aria-controls="new-panel-world" aria-selected="true" tab-index="0"><span class="l-new-game-tab__number">01</span><span class="l-new-game-tab__copy"><span class="l-new-game-tab__label">World</span><span class="l-new-game-tab__hint">Map size and depth</span></span></button>
+                    <button id="new-tab-settlement" class="l-new-game-tab" role="tab" data-new-tab="settlement" aria-controls="new-panel-settlement" aria-selected="false" tab-index="-1"><span class="l-new-game-tab__number">02</span><span class="l-new-game-tab__copy"><span class="l-new-game-tab__label">Settlement</span><span class="l-new-game-tab__hint">Name and starting crew</span></span></button>
+                    <button id="new-tab-terrain" class="l-new-game-tab" role="tab" data-new-tab="terrain" aria-controls="new-panel-terrain" aria-selected="false" tab-index="-1"><span class="l-new-game-tab__number">03</span><span class="l-new-game-tab__copy"><span class="l-new-game-tab__label">Terrain &amp; life</span><span class="l-new-game-tab__hint">Nature and wildlife</span></span></button>
+                    <button id="new-tab-review" class="l-new-game-tab" role="tab" data-new-tab="review" aria-controls="new-panel-review" aria-selected="false" tab-index="-1"><span class="l-new-game-tab__number">04</span><span class="l-new-game-tab__copy"><span class="l-new-game-tab__label">Review &amp; start</span><span class="l-new-game-tab__hint">Check the final draft</span></span></button>
+                </nav>
+                <div class="l-new-game-nav-note"><span class="l-new-game-nav-note__mark">?</span><div><strong>How it works</strong><p>Changes are kept in your draft while you move between steps.</p></div></div>
+            </aside>
+
+            <section class="l-new-game-content">
+                <section id="new-loading" class="c-state-panel u-hidden"><div class="c-state-panel__title">Loading setup choices</div><p>Catalog-backed choices will appear when ready.</p></section>
+                <section id="new-form" class="l-new-game-panels">
+                    <section id="new-panel-world" class="l-new-game-panel" role="tabpanel" aria-labelledby="new-tab-world">
+                        <header class="l-new-game-panel__header"><div><span class="l-new-game-step">STEP 1 OF 4</span><h2>World foundation</h2><p>Set the scale and vertical shape of the map.</p></div><span class="l-new-game-badge">Required</span></header>
+                        <div class="l-new-game-card-grid">
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">World size</span><strong id="new-value-world-size" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">How much ground your kingdom can claim.</span><input id="new-world-size" class="range c-slider" type="range" min="1" max="300" step="1" /><span class="l-new-game-range-scale"><span>1 · compact</span><span>300 · expansive</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Z levels</span><strong id="new-value-z-levels" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">Vertical layers for mines and caverns. At least 71 levels are required for the underground biome.</span><input id="new-z-levels" class="range c-slider" type="range" min="71" max="200" step="1" /><span class="l-new-game-range-scale"><span>71 · supported minimum</span><span>200 · deep</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Ground level</span><strong id="new-value-ground" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">The surface height. Leave at least 8 levels above it for sunlight and trees.</span><input id="new-ground" class="range c-slider" type="range" min="7" max="192" step="1" /><span class="l-new-game-range-scale"><span>7 · low surface</span><span>192 · high surface</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Flatness</span><strong id="new-value-flatness" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">More flat ground means easier building.</span><input id="new-flatness" class="range c-slider" type="range" min="0" max="20" step="1" /><span class="l-new-game-range-scale"><span>0 · natural</span><span>20 · very flat</span></span></label></div>
+                        </div>
+                    </section>
+
+                    <section id="new-panel-settlement" class="l-new-game-panel u-hidden" role="tabpanel" aria-labelledby="new-tab-settlement">
+                        <header class="l-new-game-panel__header"><div><span class="l-new-game-step">STEP 2 OF 4</span><h2>Settlement</h2><p>Give your kingdom an identity and a strong first foothold.</p></div><span class="l-new-game-badge">Required</span></header>
+                        <div class="l-new-game-card-grid">
+                            <div class="l-new-game-card l-new-game-card--wide"><h3>Kingdom identity</h3><div class="c-field"><span class="c-field__label">Kingdom name</span><span class="l-new-game-field-help">This name appears in the world and save list.</span><span class="l-new-game-input-row"><input id="new-kingdom-name" class="text c-field__control" type="text" /><button id="new-random-name" class="c-button l-new-game-secondary-action">Randomize name</button></span><span id="new-kingdom-name-error" class="c-field__error"></span></div><div class="c-field"><span class="c-field__label">Seed</span><span class="l-new-game-field-help">Use a memorable seed to recreate this world.</span><span class="l-new-game-input-row"><input id="new-seed" class="text c-field__control" type="text" /><button id="new-random-seed" class="c-button l-new-game-secondary-action">Randomize seed</button></span></div></div>
+                            <div class="l-new-game-card l-new-game-card--wide"><h3>Starting settlement</h3><div class="l-new-game-card-grid l-new-game-card-grid--nested"><div class="l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Gnomes</span><strong id="new-value-gnomes" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">The number of settlers who arrive first.</span><input id="new-gnomes" class="range c-slider" type="range" min="1" max="100" step="1" /><span class="l-new-game-range-scale"><span>1 · small crew</span><span>100 · large crew</span></span></label></div><div class="l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Starting zone</span><strong id="new-value-start-zone" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">Distance from the world center.</span><input id="new-start-zone" class="range c-slider" type="range" min="0" max="20" step="1" /><span class="l-new-game-range-scale"><span>0 · center</span><span>20 · outer edge</span></span></label></div></div><label class="c-toggle l-new-game-toggle"><input id="new-peaceful" class="checkbox" type="checkbox" /><span class="c-toggle__copy"><span class="c-toggle__label">Peaceful beginning</span><span class="c-toggle__description">Use the current game-backed peaceful setting for this draft.</span></span></label></div>
+                        </div>
+                    </section>
+
+                    <section id="new-panel-terrain" class="l-new-game-panel u-hidden" role="tabpanel" aria-labelledby="new-tab-terrain">
+                        <header class="l-new-game-panel__header"><div><span class="l-new-game-step">STEP 3 OF 4</span><h2>Terrain &amp; life</h2><p>Balance water, vegetation, and wildlife for the kind of world you want to explore.</p></div><span class="l-new-game-badge">Optional</span></header>
+                        <div class="l-new-game-card-grid">
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Ocean size</span><strong id="new-value-ocean-size" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">How much of the edge becomes water.</span><input id="new-ocean-size" class="range c-slider" type="range" min="0" max="15" step="1" /><span class="l-new-game-range-scale"><span>0 · no ocean</span><span>15 · broad edge</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Rivers</span><strong id="new-value-rivers" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">The number of rivers crossing the map.</span><input id="new-rivers" class="range c-slider" type="range" min="0" max="10" step="1" /><span class="l-new-game-range-scale"><span>0 · dry</span><span>10 · many rivers</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">River size</span><strong id="new-value-river-size" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">The width and reach of each river.</span><input id="new-river-size" class="range c-slider" type="range" min="0" max="20" step="1" /><span class="l-new-game-range-scale"><span>0 · narrow</span><span>20 · wide</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Tree density</span><strong id="new-value-tree-density" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">Forest cover and available wood.</span><input id="new-tree-density" class="range c-slider" type="range" min="0" max="100" step="1" /><span class="l-new-game-range-scale"><span>0% · bare</span><span>100% · dense</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Plant density</span><strong id="new-value-plant-density" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">Wild plants available for gathering.</span><input id="new-plant-density" class="range c-slider" type="range" min="0" max="100" step="1" /><span class="l-new-game-range-scale"><span>0% · sparse</span><span>100% · abundant</span></span></label></div>
+                            <div class="l-new-game-card l-new-game-range-card"><label class="c-field"><span class="l-new-game-range-heading"><span class="c-field__label">Wild animals</span><strong id="new-value-wild-animals" class="l-new-game-range-value">—</strong></span><span class="l-new-game-field-help">The amount of wildlife in the world.</span><input id="new-wild-animals" class="range c-slider" type="range" min="0" max="500" step="1" /><span class="l-new-game-range-scale"><span>0 · none</span><span>500 · abundant</span></span></label></div>
+                        </div>
+                    </section>
+
+                    <section id="new-panel-review" class="l-new-game-panel u-hidden" role="tabpanel" aria-labelledby="new-tab-review">
+                        <header class="l-new-game-panel__header"><div><span class="l-new-game-step">STEP 4 OF 4</span><h2>Review &amp; start</h2><p>Make sure the draft feels right, then begin generating your kingdom.</p></div><span class="l-new-game-badge l-new-game-badge--ready">Ready when you are</span></header>
+                        <div class="l-new-game-review-grid"><div class="l-new-game-review-card"><h3>Kingdom identity</h3><div class="l-new-game-summary-row"><span>Name</span><strong id="new-summary-kingdom">—</strong></div><div class="l-new-game-summary-row"><span>Seed</span><strong id="new-summary-seed">—</strong></div><div class="l-new-game-summary-row"><span>Beginning</span><strong id="new-summary-settlement">—</strong></div></div><div class="l-new-game-review-card"><h3>World profile</h3><div class="l-new-game-summary-row"><span>Foundation</span><strong id="new-summary-world">—</strong></div><div class="l-new-game-summary-row"><span>Terrain &amp; life</span><strong id="new-summary-life">—</strong></div><p class="l-new-game-review-note">You can return to any step before starting. The final button uses this draft exactly as shown.</p></div></div>
+                    </section>
+                </section>
+            </section>
+        </div>
+
+        <footer class="l-new-game-footer"><div class="l-new-game-footer__status"><span class="l-new-game-footer__title">Draft setup</span><span class="l-new-game-footer__hint">Review your choices before starting the world.</span><div id="new-validation" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Review the highlighted fields</span><span id="new-validation-detail" class="c-alert-row__detail"></span></span></div></div><button id="new-start" class="c-button c-button--primary l-new-game-start">Start kingdom</button></footer>
+    </main>
+</body>
+</rml>

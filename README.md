@@ -2,7 +2,7 @@
 
 Just looking for the game itself?
 
-Prebuilt binaries are available in the [release section](https://github.com/rschurade/Ingnomia/releases) or on 
+Prebuilt binaries are available in the [release section](https://github.com/rschurade/Ingnomia/releases) or on
 [Steam](https://store.steampowered.com/app/709240/Ingnomia/).
 
 The active community for this game can be found on our [Discord server](https://discord.gg/y5GygwY).
@@ -19,6 +19,20 @@ Not all game components have been implemented yet and some bugs are to be expect
 
 Ingnomia is a pure hobby project, and true free-to-play. With "free" spelled as in "free beer".
 
+## Current fork development ##
+
+This fork is based on the original Ingnomia project and currently focuses on a modernized, testable game interface while preserving the existing simulation and renderer seams.
+
+The current development branch includes:
+
+* A Qt 6/OpenGL application shell with RmlUi screens, overlays, draggable popup windows, and a unified game HUD.
+* Reworked management screens for population, inventory, military, stockpiles, workshops, agriculture, missions, designations, and jobs.
+* A shared UI foundation for navigation, actions, localization, accessibility checks, tutorials, and controller-level tests.
+* Water rendering and simulation work, including dedicated water shaders, seeded world generation support, and flow-focused tests.
+* A local Ingnomia MCP server and smoke-test tools under `tools/mcp/` for repeatable UI and runtime inspection.
+
+This work is still in active development. The migration is being validated incrementally, so some screens and simulation systems may remain experimental between builds.
+
 ## How do I get set up for development? ##
 
 The following steps describe how to compile the code locally and get the game running on Windows and Linux.
@@ -28,15 +42,14 @@ Note! Building on Mac is currently not possible. Certain features in the rendere
 ### Dependencies ###
 
 #### Windows specific ####
-* Microsoft Visual Studio 2019, the community edition is free
-* Qt [vs addin](http://download.qt.io/official_releases/vsaddin/2.5.2/) (optional)
+* Microsoft Visual Studio 2022, the community edition is free
+* Qt 6.9 desktop (MSVC 2022 on Windows)
 #### All Platforms ####
 * OpenGL 4.3 - Mac is not a supported compilation platform since it has deprecated OpenGL
-* Qt 5.14.1 or newer
-* [Noesis Gui](https://www.noesisengine.com/developers/downloads.php) 3.0.12\
-  For using Noesis in a local development build, you need to get a [trial license](https://www.noesisengine.com/trial/).
+* Qt 6.9 or newer
+* RmlUi (resolved by the repository CMake dependency manifest; no external SDK or license is required)
 * [Steam SDK](https://partner.steamgames.com/doc/sdk)
-* [SFML 2.5.1](https://www.sfml-dev.org/download/sfml/2.5.1/)
+* OpenAL 1.25.1
 * CMake 3.16 or newer
 
 ### Build ###
@@ -45,12 +58,9 @@ Note! Building on Mac is currently not possible. Certain features in the rendere
 cp -r "<EXISTING_INGOMIA_INSTALLATION>/content/tilesheet" content/
 
 cmake -S . -B "<BUILD_DIR>" \
--DQt5_DIR="<QTINSTALLDIR>/<ARCH>/lib/cmake/Qt5" \
+-DQt6_DIR="<QTINSTALLDIR>/<ARCH>/lib/cmake/Qt6" \
 -DSTEAM_SDK_ROOT="<STEAMSDKDIR>/sdk" \
--DNOESIS_ROOT="<NOESISDIR>" \
--DNOESIS_LICENSE_NAME="<NOESIS_TRIAL_LICENSE_NAME>" \
--DNOESIS_LICENSE_KEY="<NOESIS_TRIAL_LICENSE_KEY>"
--DSFML_DIR="<SFMLDIR>/lib/cmake/SFML"
+-DOPENAL_ROOT="<OPENALSDKDIR>"
 ```
 
 If no errors have occured, proceed by building the project with the chosen build system or open the generated project in an IDE of your choice.
@@ -80,7 +90,7 @@ Generation will fail when the output directory exists. Use the `--overwrite` opt
 
 ### Forks on Github ###
 
-When forking the project on Github, you should add `NOESIS_LICENSE_KEY` and `NOESIS_LICENSE_NAME` as secrets in your repositories configuration under Settings/Secrets. If not provided, CI builds will fail for your fork.
+The Windows CI build uses the public Qt, Steamworks, OpenAL, tile, and audio dependency archives listed in the workflow. No proprietary UI SDK or license secrets are required for forks.
 
 Ingnomia comes with automatic builds via GitHub Actions, triggered on push to repository.
 As long as you have forked Ingnomia as a **public** repository, these are expected to be free-of-charge for your GitHub account.
@@ -105,7 +115,7 @@ If you prefer, you may also try to reproduce bugs reported by other users. The m
 
 ### Code contributions ###
 
-If you know any of C++ or XAML you can help right away! Feel free to check for open bugs, and hop over to our [Discord](https://discord.gg/DCSmxVD) channel to get you sorted in.
+If you know C++ or RmlUi/HTML/CSS you can help right away! Feel free to check for open bugs, and hop over to our [Discord](https://discord.gg/DCSmxVD) channel to get you sorted in.
 
 Please provide your contributions in the form of a pull request, rebased onto the current head of development.
 

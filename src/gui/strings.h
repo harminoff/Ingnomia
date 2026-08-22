@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -25,8 +25,8 @@
 #include <QMap>
 
 /// @brief Localisation singleton. Use via `S::s("$ItemName_IronSword")` or
-///        `S::gi().numberWord(3)`. The table is populated from the language .xaml files
-///        in content/xaml/localization/.
+///        `S::gi().numberWord(3)`. The table is populated from language resources
+///        in the content localization tree.
 class Strings
 {
 private:

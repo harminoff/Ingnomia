@@ -4,13 +4,17 @@ file(
 	"*.xml"
 	"*.json"
 	"*.glsl"
-	"*.xaml"
 	"*.ttf"
 	"*.otf"
 	"*.png"
 	"*.sql"
 	"*.wav"
+	"*.rml"
+	"*.rcss"
+	"*.tga"
 	"*License*"
+	"*.txt"
+	"*.TXT"
 )
 
 target_sources(${PROJECT_NAME}
@@ -26,3 +30,10 @@ foreach ( FILE ${SOURCE_LIST} )
 		DESTINATION "${CMAKE_INSTALL_BINDIR}/content/${DIR}"
 	)
 endforeach()
+
+# RmlUi runs with content/rmlui as its sandboxed asset root. Install the
+# generated DB-backed crops there as well as in the canonical tilesheet folder.
+install(
+	DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tilesheet/"
+	DESTINATION "${CMAKE_INSTALL_BINDIR}/content/rmlui/tilesheet"
+)

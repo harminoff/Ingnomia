@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -61,6 +61,13 @@ AggregatorTileInfo::~AggregatorTileInfo()
 void AggregatorTileInfo::init( Game* game )
 {
 	g = game;
+	// A loaded world can reuse the same tile ID as the retired world.  Do not
+	// carry the old selection/cache across that boundary: the next inspector
+	// request must be treated as a fresh authoritative snapshot for this Game.
+	m_currentTileID = 0;
+	m_tileInfoDirty = true;
+	m_tileInfo      = {};
+	m_spInfo        = {};
 }
 
 /// @brief Opens the Tile Info window for the given tile, emitting signalShowTileInfo to the
@@ -115,6 +122,8 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 		m_tileInfo.floor       = "";
 		m_tileInfo.embedded    = "";
 		m_tileInfo.plant       = "";
+		m_tileInfo.plantIsTree = false;
+		m_tileInfo.plantIsHarvestable = false;
 		m_tileInfo.water       = "";
 		m_tileInfo.constructed = "";
 
@@ -166,7 +175,7 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 			{
 				QString itext = "";
 				QString info = S::s( "$MaterialName_" + g->inv()->materialSID( item ) ) + " " + S::s( "$ItemName_" + g->inv()->itemSID( item ) );
-				
+
 				if( g->inv()->isInStockpile( item ) )
 				{
 					itext += "s";
@@ -290,6 +299,8 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 		m_tileInfo.jobPriority           = "";
 		m_tileInfo.requiredTool          = "";
 		m_tileInfo.requiredToolAvailable = ""; // currently just 'exists'
+		m_tileInfo.canRaisePriority      = false;
+		m_tileInfo.canLowerPriority      = false;
 		m_tileInfo.requiredItems.clear();      // exists & is reachable
 		m_tileInfo.workPositions = "";
 		if ( job )
@@ -310,6 +321,8 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 			m_tileInfo.jobPriority           = QString::number( job->priority() );
 			m_tileInfo.requiredSkill         = job->requiredSkill();
 			m_tileInfo.requiredToolAvailable = rt.available ? "Yes" : "No";
+			m_tileInfo.canRaisePriority      = job->priority() < 9;
+			m_tileInfo.canLowerPriority      = job->priority() > 0;
 
 			for ( auto rim : job->requiredItems() )
 			{
@@ -398,7 +411,7 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 					m_tileInfo.hasRoof      = ro->roofed();
 					m_tileInfo.hasAlarmBell = ro->hasAlarmBell();
 					m_tileInfo.alarm        = GameState::alarm;
-					m_tileInfo.roomValue    = ro->value();              
+					m_tileInfo.roomValue    = ro->value();
 
 					int totalBeds = ro->numBeds();
 					Position freeBed = ro->findFreeBed( 0 ); // 0 = any creature
@@ -538,7 +551,7 @@ void AggregatorTileInfo::onToggleMechActive( unsigned int id )
 {
 	g->mcm()->changeActive( id );
 }
-	
+
 /// @brief Flips the "inverted" flag of a mechanism (swaps on/off interpretation).
 /// @param id Mechanism UID.
 void AggregatorTileInfo::onToggleMechInvert( unsigned int id )
@@ -557,7 +570,7 @@ void AggregatorTileInfo::onSetAutomatonRefuel( unsigned int id, bool refuel )
 		automat->setRefuelFlag( refuel );
 	}
 }
-	
+
 /// @brief Swaps the core item in an automaton (determines its behaviour).
 /// @param id   Automaton UID.
 /// @param core New core item string ID.

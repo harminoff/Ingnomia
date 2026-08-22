@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -72,8 +72,23 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
 #include <QJsonDocument>
 #include <QStandardPaths>
+#include <QTextStream>
+
+namespace
+{
+void lifecycleTrace( const QString& message )
+{
+	const auto path = qEnvironmentVariable( "INGNOMIA_LIFECYCLE_TRACE_PATH" );
+	if ( path.isEmpty() ) return;
+	QFile file( path );
+	if ( !file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) ) return;
+	QTextStream stream( &file );
+	stream << QDateTime::currentDateTime().toString( Qt::ISODateWithMs ) << " " << message << "\n";
+}
+}
 
 /** @brief Constructs the GameManager, initializes event connector, utility, and new game settings.
  *  @param parent The parent QObject.
@@ -85,6 +100,14 @@ GameManager::GameManager( QObject* parent ) :
 
 	m_eventConnector = new EventConnector( this );
 	Global::eventConnector = m_eventConnector;
+	// Keep the simulation heartbeat acknowledged while the Qt/RmlUi frontend is
+	// active.  The legacy frontend used to provide this acknowledgement from
+	// its view layer; after that layer was removed, the loop stopped after 20
+	// heartbeats even though Game::m_paused had already become false.  The
+	// EventConnector lives with GameManager on the game thread, so a direct
+	// self-connection is safe and preserves the existing signal for observers.
+	connect( m_eventConnector, &EventConnector::signalHeartbeat,
+		m_eventConnector, &EventConnector::onHeartbeatResponse, Qt::DirectConnection );
 	Global::util = new Util( nullptr );
 
 	Global::newGameSettings = new NewGameSettings( this );
@@ -117,7 +140,7 @@ void GameManager::setShowMainMenu( bool value )
 {
 	m_eventConnector->emitPause( true );
 	m_eventConnector->emitInMenu( value );
-	
+
 	if( m_game )
 	{
 		m_game->setPaused( true );
@@ -127,30 +150,97 @@ void GameManager::setShowMainMenu( bool value )
 /** @brief Ends the current game session, cleaning up the game instance and resetting globals. */
 void GameManager::endCurrentGame()
 {
+	lifecycleTrace( "endCurrentGame begin" );
+	// Put every GUI projection back into menu mode before destroying the world.
+	// This is intentionally emitted synchronously by the MainWindow connection so
+	// queued RmlUi/aggregator updates cannot observe a half-destroyed Game.
+	m_eventConnector->emitInMenu( true );
+	lifecycleTrace( "endCurrentGame menu entered" );
 	m_eventConnector->emitStopGame();
+	lifecycleTrace( "endCurrentGame stop emitted" );
 
 	if ( m_game )
 	{
+		// Stop the heartbeat timer explicitly and clear the connector's raw pointer
+		// before QObject destruction.  The old path left m_game dangling, causing a
+		// subsequent load to double-delete it and allowing late commands to target
+		// the retired world.
+		m_game->stop();
+		lifecycleTrace( "endCurrentGame game stopped" );
+		m_eventConnector->setGamePtr( nullptr );
+		lifecycleTrace( "endCurrentGame connector cleared" );
 		delete m_game;
+		lifecycleTrace( "endCurrentGame game deleted" );
+		m_game = nullptr;
 		Global::sel = nullptr;
 		Global::util = new Util( nullptr );
 	}
+	lifecycleTrace( "endCurrentGame complete" );
 }
 
 /** @brief Starts a new game: saves settings, creates the world, and resumes. */
 void GameManager::startNewGame()
 {
 	qDebug() << "GameManger: New game";
+	lifecycleTrace( "startNewGame begin" );
+	m_eventConnector->emitWorldTransitionStarted( true );
 
 	// create new random kingdom name
 
 	// save current settings for fast create new game
 	Global::newGameSettings->save();
-	
+	lifecycleTrace( "startNewGame settings saved" );
+
 	// check if folder exists, set new save folder name if yes
 	createNewGame();
-	
+	lifecycleTrace( "startNewGame createNewGame complete" );
+
 	m_eventConnector->sendResume();
+	lifecycleTrace( "startNewGame resume sent" );
+}
+
+void GameManager::startTutorial()
+{
+	qDebug() << "GameManager: Interactive tutorial";
+	lifecycleTrace( "startTutorial begin" );
+	m_eventConnector->emitWorldTransitionStarted( true );
+	auto* settings = new NewGameSettings( this );
+	settings->setKingdomName( "Tutorial Valley" );
+	settings->setSeed( "ingnomia-tutorial-v1" );
+	settings->setWorldSize( 64 );
+	settings->setZLevels( 100 );
+	settings->setGround( 70 );
+	settings->setFlatness( 20 );
+	settings->setOceanSize( 0 );
+	settings->setRivers( 0 );
+	settings->setRiverSize( 0 );
+	settings->setNumGnomes( 5 );
+	settings->setStartZone( 8 );
+	settings->setTreeDensity( 0 );
+	settings->setPlantDensity( 0 );
+	settings->setNumWildAnimals( 0 );
+	settings->setPeaceful( true );
+	settings->addStartingItem( "Pickaxe", "Pine", "Pine", 2 );
+	settings->addStartingItem( "FellingAxe", "Pine", "Pine", 1 );
+	settings->addStartingItem( "RawWood", "Pine", QString(), 32 );
+	settings->addStartingItem( "RawStone", "Granite", QString(), 16 );
+	settings->addStartingItem( "Bed", "Pine", "Pine", 5 );
+	settings->addStartingItem( "Chair", "Pine", QString(), 1 );
+	settings->addStartingItem( "Table", "Pine", QString(), 1 );
+	settings->addStartingItem( "Knife", "Granite", QString(), 1 );
+	settings->addStartingItem( "Bread", "Wheat", QString(), 8 );
+	settings->addStartingItem( "Grain", "Wheat", QString(), 16 );
+	settings->addStartingItem( "Seed", "Strawberry", QString(), 16 );
+	createNewGame( GameStartMode::InteractiveTutorial, settings );
+	settings->deleteLater();
+	// The first lesson is intentionally presented paused.  The player can use
+	// the normal pause control to begin, while the normal new-game path still
+	// resumes immediately.
+	if( !m_game || !m_game->tutorial() || !m_game->tutorial()->active() )
+		m_eventConnector->sendResume();
+	else
+		m_eventConnector->emitPause( true );
+	lifecycleTrace( "startTutorial complete" );
 }
 
 /** @brief Placeholder for new game setup logic (checking save folder existence). */
@@ -193,6 +283,7 @@ void GameManager::continueLastGame()
 /** @brief Resets global state and reinitializes GameState and translation strings. */
 void GameManager::init()
 {
+	lifecycleTrace( "init begin" );
 	m_eventConnector->emitStopGame();
 
 	if ( m_game )
@@ -201,14 +292,17 @@ void GameManager::init()
 	}
 	// reset everything and initialize components;
 	Global::reset();
-	
+	lifecycleTrace( "init global reset complete" );
+
 	GameState::init();
+	lifecycleTrace( "init gamestate complete" );
 
 	if ( !S::gi().init() )
 	{
 		qDebug() << "Failed to init translation.";
 		abort();
 	}
+	lifecycleTrace( "init complete" );
 }
 
 /** @brief Loads a saved game from the specified folder.
@@ -216,8 +310,9 @@ void GameManager::init()
  */
 void GameManager::loadGame( QString folder )
 {
+	m_eventConnector->emitWorldTransitionStarted( false );
 	init();
-	
+
 	m_game = new Game( this );
 	m_eventConnector->setGamePtr( m_game );
 
@@ -225,39 +320,49 @@ void GameManager::loadGame( QString folder )
 	connect( &io, &IO::signalStatus, this, &GameManager::onGeneratorMessage );
 	if ( io.load( folder ) )
 	{
+		m_game->tutorial()->deserialize( GameState::tutorial );
 		Global::util = new Util( m_game );
 		Global::sel = new Selection( m_game );
 
 		postCreationInit();
 		m_eventConnector->sendLoadGameDone( true );
+		m_eventConnector->emitWorldTransitionFinished( true );
 	}
 	else
 	{
 		qDebug() << "failed to load";
 		m_eventConnector->sendLoadGameDone( false );
+		m_eventConnector->emitWorldTransitionFinished( false );
 	}
 }
 
 /** @brief Creates a new game: initializes state, generates the world, and sets up globals. */
-void GameManager::createNewGame()
+void GameManager::createNewGame( GameStartMode mode, NewGameSettings* settings )
 {
+	lifecycleTrace( "createNewGame begin" );
 	init();
+	lifecycleTrace( "createNewGame after init" );
 	m_game = new Game( this );
 	m_eventConnector->setGamePtr( m_game );
-	m_game->generateWorld( Global::newGameSettings );
-	
+	lifecycleTrace( "createNewGame game allocated" );
+	m_game->generateWorld( settings ? settings : Global::newGameSettings, mode );
+	lifecycleTrace( "createNewGame generateWorld complete" );
+
 	Global::util = new Util( m_game );
 	Global::sel = new Selection( m_game );
 
-	GameState::peaceful = Global::newGameSettings->isPeaceful();
+	GameState::peaceful = ( settings ? settings : Global::newGameSettings )->isPeaceful();
 
 	postCreationInit();
+	lifecycleTrace( "createNewGame postCreationInit complete" );
+	m_eventConnector->emitWorldTransitionFinished( true );
 }
 
 
 /** @brief Post-creation initialization: connects signals between game subsystems and GUI aggregators. */
 void GameManager::postCreationInit()
 {
+	lifecycleTrace( "postCreationInit begin" );
 	m_game->mil()->init();
 
 	m_eventConnector->aggregatorAgri()->init( m_game );
@@ -290,25 +395,26 @@ void GameManager::postCreationInit()
 
 	connect( m_game, &Game::signalTimeAndDate, m_eventConnector, &EventConnector::onTimeAndDate );
 	connect( m_game, &Game::signalKingdomInfo, m_eventConnector, &EventConnector::onKingdomInfo );
+	connect( m_game, &Game::signalHudSettlement, m_eventConnector, &EventConnector::onHudSettlement );
+	connect( m_game, &Game::signalHudClock, m_eventConnector, &EventConnector::onHudClock );
 	connect( m_game, &Game::signalHeartbeat, m_eventConnector, &EventConnector::onHeartbeat );
+	connect( m_game->tutorial(), &TutorialManager::signalSnapshot, m_eventConnector, &EventConnector::onTutorialSnapshot, Qt::QueuedConnection );
+	m_eventConnector->onTutorialSnapshot( m_game->tutorial()->snapshot() );
+	if( m_game->startMode() == GameStartMode::InteractiveTutorial )
+		m_eventConnector->aggregatorRenderer()->onCenterCamera( GameState::origin );
 
-	
+
 	Global::util->initAllowedInContainer();
 	m_eventConnector->onViewLevel( GameState::viewLevel );
-	if ( !GameState::initialCameraTarget.isZero() )
-	{
-		m_eventConnector->aggregatorRenderer()->onCenterCamera( GameState::initialCameraTarget );
-		GameState::initialCameraTarget = Position();
-	}
-	else
-	{
-		m_eventConnector->emitInitView();
-	}
+	// The GUI consumes initialCameraTarget in its queued view initialization.  Keep
+	// it available until that restore has completed so a fresh world cannot fall
+	// back to the previous game's origin camera.
+	m_eventConnector->emitInitView();
 	m_eventConnector->emitInMenu( false );
 
 	connect( m_eventConnector, &EventConnector::stopGame, m_eventConnector->aggregatorRenderer(), &AggregatorRenderer::onWorldParametersChanged );
 	connect( m_eventConnector, &EventConnector::startGame, m_game, &Game::start );
-	
+
 	connect( m_eventConnector, &EventConnector::signalCameraPosition, m_eventConnector->aggregatorSound(), &AggregatorSound::onCameraPosition, Qt::QueuedConnection );
 
 
@@ -317,12 +423,15 @@ void GameManager::postCreationInit()
 	connect( m_game, &Game::signalUpdateStockpile, m_eventConnector->aggregatorStockpile(), &AggregatorStockpile::onUpdateAfterTick );
 	connect( m_game, &Game::signalUpdateTileInfo,  m_eventConnector->aggregatorRenderer(), &AggregatorRenderer::onUpdateAnyTileInfo );
 	connect( m_game, &Game::signalTimeAndDate,     m_eventConnector, &EventConnector::onTimeAndDate );
+	connect( m_game, &Game::signalHudSettlement,  m_eventConnector, &EventConnector::onHudSettlement );
+	connect( m_game, &Game::signalHudClock,       m_eventConnector, &EventConnector::onHudClock );
 	m_game->sendTime();
 
 	connect( Global::sel, &Selection::signalActionChanged, m_eventConnector->aggregatorSelection(), &AggregatorSelection::onActionChanged, Qt::QueuedConnection );
 	connect( Global::sel, &Selection::signalFirstClick, m_eventConnector->aggregatorSelection(), &AggregatorSelection::onUpdateFirstClick, Qt::QueuedConnection );
 	connect( Global::sel, &Selection::signalSize, m_eventConnector->aggregatorSelection(), &AggregatorSelection::onUpdateSize, Qt::QueuedConnection );
 	Global::sel->updateGui();
+	lifecycleTrace( "postCreationInit complete" );
 
 	m_eventConnector->aggregatorInventory()->update();
 
@@ -336,21 +445,26 @@ void GameManager::postCreationInit()
 void GameManager::onGeneratorMessage( QString message )
 {
 	qDebug() << message;
+	m_eventConnector->emitWorldTransitionProgress( message );
 }
 
-/** @brief Saves the current game to disk, pausing while saving and resuming afterward. */
-void GameManager::saveGame()
+/** @brief Saves the current game to disk, pausing while saving and resuming afterward.
+ *  @return True when the newly-created save contains the authoritative world and game files.
+ */
+bool GameManager::saveGame()
 {
 	if( m_game )
 	{
 		bool paused = m_game->paused();
 		m_game->setPaused( true );
 		IO io( m_game, this );
-		io.save();
+		const QString folder = io.save();
 		m_game->setPaused( paused );
 
 		m_eventConnector->sendResume();
+		return !folder.isEmpty() && QFile::exists( folder + "world.dat" ) && QFile::exists( folder + "game.json" );
 	}
+	return false;
 }
 
 /** @brief Returns the current game speed.
@@ -396,13 +510,26 @@ bool GameManager::paused()
  */
 void GameManager::setPaused( bool value )
 {
+	lifecycleTrace( QString( "setPaused request=%1 before=%2" ).arg( value ? "true" : "false", paused() ? "true" : "false" ) );
 	if( m_game )
 	{
 		if( m_game->paused() != value )
 		{
 			m_game->setPaused( value );
-			m_eventConnector->emitPause( value );
+			lifecycleTrace( QString( "setPaused applied=%1" ).arg( value ? "true" : "false" ) );
 		}
+		else
+		{
+			lifecycleTrace( "setPaused no_change" );
+		}
+		// Always refresh the GUI projection.  This also repairs a stale HUD
+		// label if an earlier lifecycle signal was missed while the state itself
+		// was already at the requested value.
+		m_eventConnector->emitPause( m_game->paused() );
+	}
+	else
+	{
+		lifecycleTrace( "setPaused ignored_no_game" );
 	}
 }
 /** @brief Forwards a heartbeat response value to the game (used for tick synchronization).
@@ -420,6 +547,6 @@ void GameManager::setHeartbeatResponse( int value )
  *  @return Pointer to the Game, or nullptr if no game is active.
  */
 Game* GameManager::game()
-{ 
-	return m_game; 
+{
+	return m_game;
 }

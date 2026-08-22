@@ -72,7 +72,7 @@
                 "Key1": {
                     "Alt": false,
                     "Ctrl": false,
-                    "Key": ",",
+                    "Key": "Q",
                     "Shift": false
                 },
                 "Key2": {
@@ -88,7 +88,7 @@
                 "Key1": {
                     "Alt": false,
                     "Ctrl": false,
-                    "Key": ".",
+                    "Key": "E",
                     "Shift": false
                 },
                 "Key2": {
@@ -254,7 +254,7 @@
                 "Key1": {
                     "Alt": false,
                     "Ctrl": false,
-                    "Key": "Q",
+                    "Key": "",
                     "Shift": false
                 },
                 "Key2": {

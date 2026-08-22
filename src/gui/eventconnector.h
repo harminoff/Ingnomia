@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -22,7 +22,11 @@
  */
 #pragma once
 
+#include "../base/enums.h"
 #include <QObject>
+#include <QPointer>
+#include <QVariant>
+#include "../game/tutorialmanager.h"
 
 class GameManager;
 
@@ -44,6 +48,30 @@ class AggregatorSound;
 
 
 class Game;
+
+// A value-only snapshot used by the RmlUi shell.  The settings object itself
+// remains owned by GameManager on the simulation thread; only these copied
+// values cross into the GUI thread.
+struct NewGameSettingsSnapshot
+{
+	QString kingdomName;
+	QString seed;
+	int worldSize{};
+	int zLevels{};
+	int ground{};
+	int flatness{};
+	int oceanSize{};
+	int rivers{};
+	int riverSize{};
+	int numGnomes{};
+	int startZone{};
+	int treeDensity{};
+	int plantDensity{};
+	int numWildAnimals{};
+	bool peaceful{};
+};
+
+Q_DECLARE_METATYPE( NewGameSettingsSnapshot )
 
 /// @brief Central event-routing object accessible as Global::eventConnector. Holds one
 ///        instance of every Aggregator and exposes them to the GUI; acts as the glue between
@@ -124,6 +152,12 @@ public:
 	void emitStopGame();
 	void emitInitView();
 	void emitInMenu( bool value );
+	/// Announces an authoritative world transition before generation/loading starts.
+	void emitWorldTransitionStarted( bool generating );
+	/// Publishes the current generator/load status without exposing Game pointers.
+	void emitWorldTransitionProgress( QString message );
+	/// Announces the authoritative result of a world transition.
+	void emitWorldTransitionFinished( bool success );
 
 	void emitPause( bool paused );
 	void emitGameSpeed( GameSpeed speed );
@@ -159,8 +193,10 @@ public slots:
 
 	void onTimeAndDate( int minute, int hour, int day, QString season, int year, QString sunStatus );
 	void onKingdomInfo( QString name, QString info1, QString info2, QString info3 );
+	void onHudSettlement( QString name, unsigned int gnomes, unsigned int animals, unsigned int items );
+	void onHudClock( int minute, int hour, int day, QString seasonId, int year, bool daylight, int nextSunMinute );
 	void onViewLevel( int level );
-	
+
 	void onHeartbeat( int value);
 	void onHeartbeatResponse( int value);
 
@@ -180,6 +216,18 @@ public slots:
 	void onUpdateRenderOptions();
 
 	void onStartNewGame();
+	void onStartTutorial();
+	void onTutorialAdvance();
+	void onTutorialSkip();
+	void onTutorialRestart();
+	void onTutorialToggleHints();
+	void onTutorialFinish();
+	void onTutorialFact( unsigned int fact );
+	void onTutorialSnapshot( TutorialSnapshot snapshot );
+	void onRequestNewGameSettings();
+	void onSetNewGameField( QString field, QVariant value );
+	void onRandomizeNewGameName();
+	void onRandomizeNewGameSeed();
 	void onContinueLastGame();
 	void onLoadGame( QString folder );
 	void onSaveGame();
@@ -194,7 +242,7 @@ public slots:
 
 	void onAnswer( unsigned int id, bool answer );
 	void onEvent( unsigned int id, QString title, QString msg, bool pause, bool yesno );
-	
+
 	void onPlayEffect( QVariantMap effect);
 	void onCameraPosition( float x, float y, float z, int r, float scale );
 
@@ -203,6 +251,8 @@ signals:
 	void signalWindowSize( int w, int h );
 	void signalTimeAndDate( int minute, int hour, int day, QString season, int year, QString sunStatus );
 	void signalKingdomInfo( QString name, QString info1, QString info2, QString info3 );
+	void signalHudSettlement( QString name, unsigned int gnomes, unsigned int animals, unsigned int items );
+	void signalHudClock( int minute, int hour, int day, QString seasonId, int year, bool daylight, int nextSunMinute );
 	void signalViewLevel( int level );
 	void signalUpdatePause( bool paused );
 	void signalUpdateGameSpeed( GameSpeed speed );
@@ -215,13 +265,19 @@ signals:
 	void stopGame();
 	void signalInitView();
 	void signalInMenu( bool value );
+	void signalWorldTransitionStarted( bool generating );
+	void signalWorldTransitionProgress( QString message );
+	void signalWorldTransitionFinished( bool success );
 	void signalResume();
 	void signalLoadGameDone( bool value );
+	void signalSaveGameFinished( bool success );
+	void signalNewGameSettings( NewGameSettingsSnapshot settings );
+	void signalHudTutorial( TutorialSnapshot snapshot );
 
 	void signalEvent( unsigned int id, QString title, QString msg, bool pause, bool yesno );
-	
+
 	void signalHeartbeat( int value );
 	void signalPlayEffect( QVariantMap effect );
-	
+
 	void signalCameraPosition( float x, float y, float z, int r, float scale );
 };

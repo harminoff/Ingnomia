@@ -1,0 +1,36 @@
+<rml>
+<head>
+    <title data-l10n="shell.main_menu.ingnomia_main_menu">Ingnomia main menu</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+</head>
+<body class="l-shell-screen l-shell-screen--centered">
+    <main class="c-shell-chamber c-shell-chamber--compact">
+        <header class="c-shell-masthead">
+            <h1 class="c-shell-wordmark" data-l10n="shell.main_menu.ingnomia">INGNOMIA</h1>
+            <span id="shell-version" class="c-shell-version" data-l10n="shell.main_menu.shell-version">Version unavailable</span>
+        </header>
+        <section id="shell-presentation" class="c-shell-copy">
+            <p data-l10n="shell.main_menu.carve_a_home_beneath_the_mountain_and_guide_a_li">Carve a home beneath the mountain and guide a living settlement.</p>
+        </section>
+        <nav id="shell-main-actions" class="c-shell-actions">
+            <button id="shell-continue" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-continue">Continue</button>
+            <span id="shell-continue-reason" class="c-field__help" data-l10n="shell.main_menu.shell-continue-reason">Newest compatible save</span>
+            <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">New game</button>
+            <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start immediately with the accepted default setup.</span>
+            <button id="shell-tutorial" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-tutorial">Interactive tutorial</button>
+            <span class="c-field__help" data-l10n="shell.main_menu.shell-tutorial-help">Learn the settlement from five gnomes to a working civilization.</span>
+            <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Set up game</button>
+            <span class="c-field__help" data-l10n="shell.main_menu.choose_world_and_settlement_details_before_start">Choose world and settlement details before starting.</span>
+            <button id="shell-load" class="c-button" data-l10n="shell.main_menu.shell-load">Load game</button>
+            <button id="shell-settings" class="c-button" data-l10n="shell.main_menu.shell-settings">Settings</button>
+            <button id="shell-exit" class="c-button c-button--danger" data-l10n="shell.main_menu.shell-exit">Exit</button>
+        </nav>
+        <section id="shell-action-error" class="c-alert-row c-alert-row--danger c-shell-status u-hidden">
+            <span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.main_menu.action_could_not_be_completed">Action could not be completed</span><span id="shell-action-error-detail" class="c-alert-row__detail"></span></span>
+        </section>
+    </main>
+</body>
+</rml>

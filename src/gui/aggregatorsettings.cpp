@@ -44,6 +44,8 @@ AggregatorSettings::~AggregatorSettings()
 void AggregatorSettings::onRequestSettings()
 {
     m_settings.fullscreen = Global::cfg->get( "fullscreen" ).toBool();
+    m_settings.followMonitorRefresh = Global::cfg->get( "followMonitorRefresh" ).toBool();
+    m_settings.frameRateLimit = qBound( 30, Global::cfg->get( "frameRateLimit" ).toInt(), 240 );
     m_settings.scale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
     m_settings.keyboardSpeed = qMax( 0, qMin( Global::cfg->get( "keyboardMoveSpeed" ).toInt(), 200) );
     m_settings.languages.clear();
@@ -75,6 +77,7 @@ void AggregatorSettings::onSetUIScale( float scale )
 {
     Global::cfg->set( "uiscale", scale );
     emit signalUIScale( scale );
+    onRequestSettings();
 }
 
 /// @brief Persists the fullscreen flag and notifies the main window.
@@ -83,6 +86,23 @@ void AggregatorSettings::onSetFullScreen( bool value )
 {
     Global::cfg->set( "fullscreen", value );
     emit signalFullScreen( value );
+    onRequestSettings();
+}
+
+/// @brief Persists whether gameplay rendering should follow the active monitor refresh rate.
+/// @param value True to derive the cap from QScreen::refreshRate().
+void AggregatorSettings::onSetFollowMonitorRefresh( bool value )
+{
+    Global::cfg->set( "followMonitorRefresh", value );
+    onRequestSettings();
+}
+
+/// @brief Persists the manual gameplay frame-rate cap.
+/// @param value Requested cap in frames per second, clamped to a practical range.
+void AggregatorSettings::onSetFrameRateLimit( int value )
+{
+    Global::cfg->set( "frameRateLimit", qBound( 30, value, 240 ) );
+    onRequestSettings();
 }
 
 /// @brief Persists the keyboard camera pan speed.
@@ -90,6 +110,7 @@ void AggregatorSettings::onSetFullScreen( bool value )
 void AggregatorSettings::onSetKeyboardSpeed( int value )
 {
     Global::cfg->set( "keyboardMoveSpeed", value );
+    onRequestSettings();
 }
 
 /// @brief Persists the minimum light level, stored as a 0–1 float after dividing by 100.
@@ -97,6 +118,7 @@ void AggregatorSettings::onSetKeyboardSpeed( int value )
 void AggregatorSettings::onSetLightMin( int value )
 {
     Global::cfg->set( "lightMin", (float)value / 100. );
+    onRequestSettings();
 }
 
 /// @brief Persists whether the mouse wheel cycles z-levels (true) or zooms (false).
@@ -104,6 +126,7 @@ void AggregatorSettings::onSetLightMin( int value )
 void AggregatorSettings::onSetToggleMouseWheel( bool value )
 {
     Global::cfg->set( "toggleMouseWheel", value );
+    onRequestSettings();
 }
 
 /// @brief Emits the current UI scale so the GUI can re-bind to it during startup.
@@ -125,4 +148,19 @@ void AggregatorSettings::onRequestVersion()
 void AggregatorSettings::onSetAudioMasterVolume( float value )
 {
 	Global::cfg->set( "AudioMasterVolume", (float)value);
+}
+
+/// @brief Restores the supported RmlUi shell settings to safe defaults.
+void AggregatorSettings::onResetSupportedSettings()
+{
+    Global::cfg->set( "fullscreen", false );
+    Global::cfg->set( "followMonitorRefresh", true );
+    Global::cfg->set( "frameRateLimit", 60 );
+	Global::cfg->set( "uiscale", 1.0f );
+	Global::cfg->set( "keyboardMoveSpeed", 100 );
+	Global::cfg->set( "lightMin", 0.3f );
+	Global::cfg->set( "toggleMouseWheel", false );
+	emit signalFullScreen( false );
+	emit signalUIScale( 1.0f );
+	onRequestSettings();
 }

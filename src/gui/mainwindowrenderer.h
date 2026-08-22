@@ -24,13 +24,13 @@
 
 #include "aggregatorrenderer.h"
 
-#include <NsGui/IView.h>
-
 #include <QElapsedTimer>
 #include <QMatrix4x4>
 #include <QObject>
 
 #include <glad/gl.h>
+
+#include <array>
 
 struct Position;
 class MainWindow;
@@ -43,6 +43,15 @@ class MainWindowRenderer : public QObject
 	Q_OBJECT
 
 public:
+	/// @brief Identifies the creature and world tile used by one inspector camera.
+	///        The renderer replaces the tile center with the creature's interpolated
+	///        render position when matching camera data is available.
+	struct CameraPreviewTarget
+	{
+		Position position;
+		unsigned int creatureID{};
+	};
+
 	MainWindowRenderer( MainWindow* parent = Q_NULLPTR );
 	~MainWindowRenderer();
 
@@ -56,14 +65,36 @@ public:
 	int moveY() { return m_moveY; }
 	/// @brief Returns true when the renderer is in main-menu (idle) mode.
 	bool isInMenu() const { return m_inMenu; }
+	/// @brief Returns the GL texture containing the live inspector camera view.
+	static constexpr int cameraPreviewSlotCount = 8;
+	unsigned int cameraPreviewTexture( int slot = 0 ) const { return slot >= 0 && slot < cameraPreviewSlotCount ? m_cameraPreviewTexture[slot] : 0; }
+	int cameraPreviewWidth() const { return m_cameraPreviewWidth; }
+	int cameraPreviewHeight() const { return m_cameraPreviewHeight; }
+	void paintCameraPreview( const CameraPreviewTarget* target, int slot = 0 );
 
 protected:
 	GLuint m_vao = 0;                         ///< Vertex array object for the world quad.
 	GLuint m_worldShader = 0;                 ///< Tile-draw vertex/fragment program.
+	GLuint m_waterShader = 0;                 ///< Dedicated water surface/compositing program.
 	GLuint m_worldUpdateShader = 0;           ///< Compute shader that applies tile-data updates to m_tileBo.
 	GLuint m_thoughtBubbleShader = 0;         ///< Thought bubble vertex/fragment program.
 	GLuint m_selectionShader = 0;             ///< Placement-cursor vertex/fragment program.
 	GLuint m_axleShader = 0;                  ///< Axle-spinner vertex/fragment program.
+	std::array<GLuint, cameraPreviewSlotCount> m_cameraPreviewFbo{};      ///< Per-window offscreen framebuffers.
+	std::array<GLuint, cameraPreviewSlotCount> m_cameraPreviewTexture{};  ///< Per-window camera textures sampled by RmlUi.
+	std::array<GLuint, cameraPreviewSlotCount> m_cameraPreviewDepth{};   ///< Per-window depth/stencil buffers.
+	GLuint m_sceneFbo = 0;                    ///< Opaque scene target used by the water pass.
+	GLuint m_sceneColor = 0;                  ///< Opaque scene color texture.
+	GLuint m_sceneDepth = 0;                  ///< Opaque scene depth texture.
+	GLuint m_waterDuDv = 0;                   ///< Generated tileable distortion texture.
+	GLuint m_waterNormal = 0;                 ///< Generated tileable normal texture.
+	int m_sceneWidth = 0;
+	int m_sceneHeight = 0;
+	QHash<unsigned int, CreatureCameraTarget> m_creatureCameraTargets;    ///< Latest render-time target per creature.
+	// Keep the off-screen camera square so the UI can present a true 4:4 view
+	// without stretching the isometric world texture.
+	static constexpr int m_cameraPreviewWidth = 256;
+	static constexpr int m_cameraPreviewHeight = 256;
 
 	GLuint m_textures[32] = { 0 };            ///< Array textures holding sprite atlas slices.
 	GLuint m_tileBo       = 0;                ///< Persistent tile data SSBO on the GPU.
@@ -75,7 +106,7 @@ protected:
 
 private:
 	QString copyShaderToString( QString name );
-	GLuint initShader( QString name );
+	GLuint initShader( QString name, QString fragmentName = {} );
 	GLuint initComputeShader( QString name );
 	bool initShaders();
 
@@ -87,6 +118,12 @@ private:
 	void paintSelection();
 	void paintThoughtBubbles();
 	void paintAxles();
+	void initializeCameraPreview();
+	void initializeWaterTargets();
+	void initializeWaterTextures();
+	void cleanupWaterTargets();
+	void resizeWaterTargets();
+	void paintWater( bool forceFlat = false );
 	void updateWorld();
 	void uploadTileData( const QVector<TileDataUpdate>& tileData );
 	void updateTextures();
@@ -149,6 +186,14 @@ private:
 	ThoughtBubbleInfo m_thoughBubbles;          ///< Pending thought bubble batch.
 	AxleDataInfo m_axleData;                    ///< Pending axle data batch.
 	QVector<QVector<TileDataUpdate>> m_pendingUpdates; ///< Tile update batches waiting to be uploaded.
+
+	QElapsedTimer m_creatureMotionClock;        ///< Render clock used to measure simulation intervals.
+	QElapsedTimer m_waterClock;                 ///< Real render-time clock for frame-rate-independent waves.
+	qint64 m_lastCreatureMotionStartMs = -1;    ///< Start time of the most recent moving-creature update.
+	qint64 m_creatureMotionIntervalMs = 50;     ///< Estimated simulation interval used for interpolation.
+	float m_creatureInterpolation = 1.0f;       ///< 0 at the last tick, 1 when it catches up.
+	quint64 m_lastCreatureMotionTick = 0;       ///< Prevents split batches from restarting motion.
+	float m_creatureRenderTick = 0.0f;          ///< Current fractional render tick shared with preview cameras.
 
 	// Shader uniform setting helpers
 	void setUniformi( GLuint shader, const char* name, GLint value );

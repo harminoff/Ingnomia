@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorcreatureinfo.h
- *  @brief Data types and aggregator feeding the Creature Info XAML window with per-gnome
+ *  @brief Data types and aggregator feeding the Creature Info RmlUi window with per-gnome
  *         attributes, needs, profession, activity, and equipment icons.
  */
 #pragma once
@@ -24,6 +24,9 @@
 #include "../game/creature.h"
 
 #include <QObject>
+#include <QElapsedTimer>
+
+#include <array>
 
 #include "../game/gnome.h"
 #include "../game/militarymanager.h"
@@ -35,6 +38,7 @@ struct GuiCreatureInfo
 {
 	QString name;           ///< Gnome display name.
 	unsigned int id = 0;    ///< Creature UID.
+	QString position;       ///< Current world position used to anchor inspection actions.
 	QString profession;     ///< Current profession name.
 	int str = 0;            ///< Strength attribute.
 	int dex = 0;            ///< Dexterity attribute.
@@ -46,19 +50,28 @@ struct GuiCreatureInfo
 	int thirst = 0;         ///< Current thirst level.
 	int sleep = 0;          ///< Current sleep level.
 	int happiness = 0;      ///< Current happiness level.
+	std::array<bool, 4> needsReported{}; ///< Authoritative flags for Hunger, Thirst, Sleep, Happiness.
 
 	QString activity;       ///< Short description of what the gnome is doing right now.
+	struct Skill
+	{
+		QString id;
+		QString name;
+		int level{};
+		bool active{};
+	};
+	QList<Skill> skills;    ///< Authoritative DB-defined gnome skills.
 
 	Uniform uniform;        ///< Current military uniform (empty if unassigned).
 	Equipment equipment;    ///< Currently worn equipment.
+	QStringList inventory;  ///< Authoritative carried inventory designations.
+	bool inventoryReported = false; ///< True when the creature inventory was queried.
 
-	QMap< QString, std::vector<unsigned char> > itemPics; ///< Per-equipment-slot encoded PNG bytes for the GUI icons.
 };
 Q_DECLARE_METATYPE( GuiCreatureInfo )
 
 
-/// @brief Aggregates live creature state for the Creature Info XAML window. Produces PNG icon
-///        bytes for equipment/uniform slots so the Noesis view model can display them.
+/// @brief Aggregates live creature state for the Creature Info RmlUi window.
 class AggregatorCreatureInfo : public QObject
 {
 	Q_OBJECT
@@ -74,26 +87,23 @@ private:
 	QPointer<Game> g;                                     ///< Game instance (weak ownership).
 
 	GuiCreatureInfo m_info;                               ///< Cached payload for the currently viewed creature.
-	QMap< QString, std::vector<unsigned char> > m_emptyPics; ///< Cached blank-slot PNGs keyed by uniform slot name.
 
 	unsigned int m_currentID = 0;                         ///< Creature currently shown in the GUI.
 	unsigned int m_previousID = 0;                        ///< Previously shown creature (unused but reserved).
+	QStringList m_skillIds;                                ///< DB-defined skills in population order.
+	QElapsedTimer m_lastUpdate;                           ///< Prevents full detail rebuilds every game tick.
 
-	void createItemImg( QString slot, EquipmentItem& eItem );
-	void createUniformImg( QString slot, const UniformItem& uItem, EquipmentItem& eItem );
-	void createEmptyUniformImg( QString spriteID );
 
 public slots:
 	void onRequestCreatureUpdate( unsigned int creatureID );
 	void onRequestProfessionList();
 	void onSetProfession( unsigned int gnomeID, QString profession );
 
-	void onRequestEmptySlotImages();
 
 signals:
 	void signalCreatureUpdate( const GuiCreatureInfo& info );
+	void signalCreatureCleared();
 	void signalProfessionList( const QStringList& profs );
-	
-	void signalEmptyPics( const QMap< QString, std::vector<unsigned char> >& emptyPics );
+
 
 };

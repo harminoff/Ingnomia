@@ -351,7 +351,6 @@ GeneratedFiles
 /file
 /src/gui/license.h
 /src/version.h
-/content/tilesheet
 /content/db/ingnomia.db
 
 # create by https://github.com/iamcco/coc-gitignore (Mon Aug 10 2020 12:20:22 GMT-0500 (hora estándar de Perú))
@@ -388,3 +387,9 @@ nul
 CLAUDE.md
 .claude/
 
+# Local SDK/toolchain provisioning used for reproducible validation only.
+/.build-support/
+/build*/
+
+# Recoverable Wave 8 legacy-content quarantine; never package or stage.
+/migration-quarantine/

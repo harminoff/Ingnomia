@@ -22,6 +22,7 @@
 #include "aggregatorrenderer.h"
 
 #include "../base/global.h"
+#include "../base/gamestate.h"
 #include "../game/game.h"
 #include "../game/creature.h"
 #include "../game/creaturemanager.h"
@@ -106,27 +107,94 @@ TileDataUpdate AggregatorRenderer::aggregateTile( unsigned int tileID ) const
 	td.lightLevel      = qMin( tile.lightLevel, (unsigned char)20 );
 	td.fluidLevel      = qMin( tile.fluidLevel, (unsigned char)10 );
 	td.vegetationLevel = qMin( tile.vegetationLevel, (unsigned char)100 );
+	td.waterFlow       = static_cast<unsigned char>( tile.flow );
 
 	return TileDataUpdate { tileID, td };
 }
 
-/// @brief Walks every live gnome (including dead-on-map gnomes and specials), automaton,
-///        animal, and monster to compute a tileID → creature sprite UID map. Rotation is
-///        encoded in the high bits of the sprite UID (facing * ROT_BIT).
-/// @return Hash mapping tile UIDs to fully decorated creature sprite UIDs.
-QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
+namespace
 {
-	if( !g ) return QHash<unsigned int, unsigned int>();
-	QHash<unsigned int, unsigned int> creatures;
+/// @brief Adds the render-only creature motion fields to a tile update. Long jumps are
+///        deliberately not interpolated because they are teleports, not walking steps.
+void applyCreatureRenderData( TileDataUpdate& update, const CreatureRenderData& creature, quint64 simulationTick )
+{
+	update.tile.creatureSpriteUID = creature.spriteUID;
+
+	const Position currentPosition( update.id );
+	const Position delta = creature.previousPosition - currentPosition;
+	const bool isAdjacentStep = qAbs( delta.x ) <= 1 && qAbs( delta.y ) <= 1 && delta.z == 0;
+	if ( isAdjacentStep )
+	{
+		update.tile.creatureOffsetX = delta.x;
+		update.tile.creatureOffsetY = delta.y;
+		update.tile.creatureOffsetZ = delta.z;
+		update.tile.creatureMotionTick = static_cast<quint32>( simulationTick );
+		update.tile.creatureMotionDurationTicks = creature.motionDurationTicks;
+	}
+}
+} // namespace
+
+/// @brief Walks every live gnome (including dead-on-map gnomes and specials), automaton,
+///        animal, and monster to compute a tileID → creature sprite map. Rotation is
+///        encoded in the high bits of the sprite UID (facing * ROT_BIT), while the previous
+///        position is retained for render-only interpolation.
+/// @return Hash mapping tile UIDs to creature sprite and previous render position data.
+QHash<unsigned int, CreatureRenderData> AggregatorRenderer::collectCreatures( quint64 simulationTick,
+	QHash<unsigned int, CreatureCameraTarget>& cameraTargets )
+{
+	if( !g ) return QHash<unsigned int, CreatureRenderData>();
+	QHash<unsigned int, CreatureRenderData> creatures;
+	QHash<unsigned int, Position> currentCreaturePositions;
+	QHash<unsigned int, quint32> motionDurations;
+	cameraTargets.clear();
+
+	const auto registerCameraTarget = [&]( unsigned int creatureID, const Position& currentPosition )
+	{
+		if ( cameraTargets.contains( creatureID ) ) return;
+
+		const Position previousPosition = m_previousCreaturePositions.value( creatureID, currentPosition );
+		if ( !m_lastCreatureMotionTicks.contains( creatureID ) )
+			m_lastCreatureMotionTicks.insert( creatureID, simulationTick );
+
+		if ( previousPosition != currentPosition && !motionDurations.contains( creatureID ) )
+		{
+			const quint64 previousMotionTick = m_lastCreatureMotionTicks.value( creatureID, simulationTick );
+			const quint64 elapsedTicks = simulationTick > previousMotionTick ? simulationTick - previousMotionTick : 1;
+			// The movement system normally waits several simulation ticks between steps.
+			// Use that cadence for the visual traversal, but cap long pauses/teleports.
+			const auto duration = static_cast<quint32>( qBound<quint64>( 1, elapsedTicks, 12 ) );
+			motionDurations.insert( creatureID, duration );
+			m_lastCreatureMotionTicks[creatureID] = simulationTick;
+		}
+
+		currentCreaturePositions[creatureID] = currentPosition;
+		cameraTargets.insert( creatureID, CreatureCameraTarget {
+			currentPosition,
+			previousPosition,
+			m_lastCreatureMotionTicks.value( creatureID, simulationTick ),
+			motionDurations.value( creatureID, 1 )
+		} );
+	};
+
+	const auto addCreature = [&]( unsigned int creatureID, const Position& currentPosition,
+			unsigned int spriteID, const Position& renderPosition )
+	{
+		registerCameraTarget( creatureID, currentPosition );
+		const auto cameraTarget = cameraTargets.value( creatureID );
+		const Position renderOffset = renderPosition - currentPosition;
+		creatures[renderPosition.toInt()] = CreatureRenderData {
+			spriteID,
+			cameraTarget.previousPosition + renderOffset,
+			cameraTarget.motionDurationTicks
+		};
+	};
 
 	Sprite* sprite    = nullptr;
-
-	unsigned int posID = 0;
 
 	//TODO remove when we create gnome corpses
 	for ( auto gn : g->gm()->deadGnomes() )
 	{
-		posID = gn->getPos().toInt();
+		const Position position = gn->getPos();
 		{
 			unsigned int spriteID = 0;
 			sprite                = g->sf()->getCreatureSprite( gn->id(), spriteID );
@@ -134,7 +202,7 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 			{
 				spriteID += gn->facing() * ROT_BIT;
 			}
-			creatures[posID] = spriteID;
+			addCreature( gn->id(), position, spriteID, position );
 		}
 	}
 
@@ -142,7 +210,7 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 	{
 		if ( !gn->goneOffMap() )
 		{
-			posID = gn->getPos().toInt();
+			const Position position = gn->getPos();
 			{
 				unsigned int spriteID = 0;
 				sprite                = g->sf()->getCreatureSprite( gn->id(), spriteID );
@@ -150,13 +218,13 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 				{
 					spriteID += gn->facing() * ROT_BIT;
 				}
-				creatures[posID] = spriteID;
+				addCreature( gn->id(), position, spriteID, position );
 			}
 		}
 	}
 	for ( auto gn : g->gm()->specialGnomes() )
 	{
-		posID = gn->getPos().toInt();
+		const Position position = gn->getPos();
 		{
 			unsigned int spriteID = 0;
 			sprite                = g->sf()->getCreatureSprite( gn->id(), spriteID );
@@ -164,13 +232,13 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 			{
 				spriteID += gn->facing() * ROT_BIT;
 			}
-			creatures[posID] = spriteID;
+			addCreature( gn->id(), position, spriteID, position );
 		}
 	}
 
 	for ( auto a : g->gm()->automatons() )
 	{
-		posID = a->getPos().toInt();
+		const Position position = a->getPos();
 		{
 			unsigned int spriteID = 0;
 			sprite                = g->sf()->getCreatureSprite( a->id(), spriteID );
@@ -178,7 +246,7 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 			{
 				spriteID += a->facing() * ROT_BIT;
 			}
-			creatures[posID] = spriteID;
+			addCreature( a->id(), position, spriteID, position );
 		}
 	}
 
@@ -191,29 +259,33 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 			case CreatureType::ANIMAL:
 			{
 				auto a = dynamic_cast<Animal*>( creature );
-				unsigned int posID = a->getPos().toInt();
-				if ( !creatures.contains( posID ) && !a->isDead() )
+				const Position position = a->getPos();
+				const unsigned int positionID = position.toInt();
+				if ( !a->isDead() )
 				{
-					if ( a->isMulti() )
+					registerCameraTarget( a->id(), position );
+					currentCreaturePositions[a->id()] = position;
+					if ( !creatures.contains( positionID ) )
 					{
-						auto sprites = a->multiSprites();
-						for ( auto def : sprites )
+						if ( a->isMulti() )
 						{
-							posID                 = def.first.toInt();
-							unsigned int spriteID = def.second;
-							creatures[posID]      = spriteID;
+							auto sprites = a->multiSprites();
+							for ( auto def : sprites )
+							{
+								addCreature( a->id(), position, def.second, def.first );
+							}
 						}
-					}
-					else
-					{
-						Sprite* sprite        = g->sf()->getSprite( a->spriteUID() );
-						unsigned int spriteID = 0;
-						if ( sprite )
+						else
 						{
-							spriteID = sprite->uID;
-							spriteID += a->facing() * ROT_BIT;
+							Sprite* sprite        = g->sf()->getSprite( a->spriteUID() );
+							unsigned int spriteID = 0;
+							if ( sprite )
+							{
+								spriteID = sprite->uID;
+								spriteID += a->facing() * ROT_BIT;
+							}
+							addCreature( a->id(), position, spriteID, position );
 						}
-						creatures[posID] = spriteID;
 					}
 				}
 			}
@@ -221,21 +293,28 @@ QHash<unsigned int, unsigned int> AggregatorRenderer::collectCreatures()
 			case CreatureType::MONSTER:
 			{
 				auto m = dynamic_cast<Monster*>( creature );
-				unsigned int posID = m->getPos().toInt();
-				if ( !creatures.contains( posID ) && !m->isDead() )
+				const Position position = m->getPos();
+				const unsigned int positionID = position.toInt();
+				if ( !m->isDead() )
 				{
-					unsigned int spriteID = 0;
-					sprite                = g->sf()->getCreatureSprite( m->id(), spriteID );
-					if ( sprite )
+					registerCameraTarget( m->id(), position );
+					currentCreaturePositions[m->id()] = position;
+					if ( !creatures.contains( positionID ) )
 					{
-						spriteID += m->facing() * ROT_BIT;
+						unsigned int spriteID = 0;
+						sprite                = g->sf()->getCreatureSprite( m->id(), spriteID );
+						if ( sprite )
+						{
+							spriteID += m->facing() * ROT_BIT;
+						}
+						addCreature( m->id(), position, spriteID, position );
 					}
-					creatures[posID] = spriteID;
 				}
 			}
 		}
 	}
 	
+	m_previousCreaturePositions = currentCreaturePositions;
 	return creatures;
 }
 
@@ -245,13 +324,16 @@ void AggregatorRenderer::onAllTileInfo()
 {
 	if( !g ) return;
 	// Bake tile updates
-	auto creatures = collectCreatures();
+	QHash<unsigned int, CreatureCameraTarget> cameraTargets;
+	auto creatures = collectCreatures( GameState::tick, cameraTargets );
 	for ( auto tile = creatures.keyBegin(); tile != creatures.keyEnd(); ++tile )
 	{
 		//tiles.insert(*tile);
 	}
 	constexpr size_t batchSize = 1 << 16;
 	TileDataUpdateInfo tileUpdates;
+	tileUpdates.simulationTick = GameState::tick;
+	tileUpdates.creatureCameraTargets = cameraTargets;
 	tileUpdates.updates.reserve( batchSize );
 	const unsigned int worldSize = (unsigned int)g->w()->world().size();
 	for ( unsigned int tileUID = 0; tileUID < worldSize; ++tileUID )
@@ -261,7 +343,7 @@ void AggregatorRenderer::onAllTileInfo()
 		const auto creatureSprite = creatures.find( tileUID );
 		if ( creatureSprite != creatures.end() )
 		{
-			update.tile.creatureSpriteUID = creatureSprite.value();
+			applyCreatureRenderData( update, creatureSprite.value(), tileUpdates.simulationTick );
 		}
 
 		tileUpdates.updates.push_back( update );
@@ -289,13 +371,16 @@ void AggregatorRenderer::onUpdateAnyTileInfo( const QSet<unsigned int>& changeSe
 {
 	if( !g ) return;
 	// Bake tile updates
-	auto creatures = collectCreatures();
+	QHash<unsigned int, CreatureCameraTarget> cameraTargets;
+	auto creatures = collectCreatures( GameState::tick, cameraTargets );
 	for ( auto tile = creatures.keyBegin(); tile != creatures.keyEnd(); ++tile )
 	{
 		//tiles.insert(*tile);
 	}
 	constexpr size_t batchSize = 1 << 16;
 	TileDataUpdateInfo tileUpdates;
+	tileUpdates.simulationTick = GameState::tick;
+	tileUpdates.creatureCameraTargets = cameraTargets;
 	tileUpdates.updates.reserve( batchSize );
 	for ( auto tileUID : changeSet )
 	{
@@ -304,7 +389,7 @@ void AggregatorRenderer::onUpdateAnyTileInfo( const QSet<unsigned int>& changeSe
 		const auto creatureSprite = creatures.find( tileUID );
 		if ( creatureSprite != creatures.end() )
 		{
-			update.tile.creatureSpriteUID = creatureSprite.value();
+			applyCreatureRenderData( update, creatureSprite.value(), tileUpdates.simulationTick );
 		}
 
 		tileUpdates.updates.push_back( update );
@@ -378,5 +463,7 @@ void AggregatorRenderer::onCenterCamera( const Position& location )
 void AggregatorRenderer::onWorldParametersChanged()
 {
 	if( !g ) return;
+	m_previousCreaturePositions.clear();
+	m_lastCreatureMotionTicks.clear();
 	emit signalWorldParametersChanged();
 }

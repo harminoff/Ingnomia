@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorworkshop.h
- *  @brief Data types and aggregator feeding the Workshop XAML window: per-workshop settings,
+ *  @brief Data types and aggregator feeding the Workshop RmlUi window: per-workshop settings,
  *         product list with available component materials, craft job queue, and the trader
  *         stock/offer view for the TradingPost workshop.
  */
@@ -78,7 +78,7 @@ struct GuiWorkshopInfo
 	bool catchFish        = false;    ///< Generate catch-fish jobs (fisher workshop).
 	bool processFish      = false;    ///< Generate process-fish jobs (fisher workshop).
 
-	QString gui;                      ///< XAML template name for this workshop's special GUI.
+	QString gui;                      ///< RmlUi template name for this workshop's special GUI.
 
 	QList<GuiWorkshopProduct> products; ///< Products this workshop can craft.
 
@@ -102,7 +102,7 @@ Q_DECLARE_METATYPE( GuiTradeItem )
 
 
 
-/// @brief Bridges the Workshop XAML window (including the trader variant) with the game. Pushes
+/// @brief Bridges the Workshop RmlUi window (including the trader variant) with the game. Pushes
 ///        workshop state, craft job lists, and trader stock views; routes user edits back.
 class AggregatorWorkshop : public QObject
 {
@@ -174,7 +174,7 @@ signals:
 
 	void signalTraderStock( const QList<GuiTradeItem>& items );
 	void signalPlayerStock( const QList<GuiTradeItem>& items );
-	
+
 	void signalUpdateTraderStockItem( const GuiTradeItem& item );
 	void signalUpdatePlayerStockItem( const GuiTradeItem& item );
 

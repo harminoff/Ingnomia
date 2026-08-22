@@ -61,14 +61,31 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QSaveFile>
 #include <QStandardPaths>
-
+#include <QTextStream>
 #include <unordered_set>
+
+namespace
+{
+void traceLoad( const QString& message )
+{
+	const QString path = qEnvironmentVariable( "INGNOMIA_LOAD_TRACE_PATH" );
+	if ( path.isEmpty() )
+		return;
+	QFile file( path );
+	if ( file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) )
+	{
+		QTextStream stream( &file );
+		stream << message << Qt::endl;
+	}
+}
+}
 
 /** @brief Constructs the IO handler.
  *  @param game Pointer to the Game instance that owns all managers.
@@ -133,6 +150,13 @@ bool IO::saveConfig()
  */
 QString IO::getDataFolder()
 {
+	// Opt-in diagnostic override used by production save/reload probes. Normal
+	// launches retain the platform-specific Documents/AppData location, while
+	// an isolated copied save can exercise the same IO path without mutating a
+	// user's real save tree.
+	const QString overrideFolder = qEnvironmentVariable( "INGNOMIA_DATA_FOLDER" );
+	if ( !overrideFolder.isEmpty() )
+		return QDir::cleanPath( overrideFolder );
 #ifdef _WIN32
 	return QStandardPaths::writableLocation( QStandardPaths::DocumentsLocation ) + "/My Games/Ingnomia";
 #else
@@ -360,6 +384,7 @@ QString IO::save( bool autosave )
  */
 bool IO::load( QString folder )
 {
+	traceLoad( "IO::load begin " + folder );
 	if ( !folder.endsWith( "/" ) )
 	{
 		folder += "/";
@@ -374,19 +399,26 @@ bool IO::load( QString folder )
 
 	loadFile( folder + "game.json", jd );
 	IO::loadGame( jd );
+	traceLoad( "game.json" );
 
+	traceLoad( "before allowed-containers" );
 	Global::util->initAllowedInContainer();
+	traceLoad( "allowed-containers" );
 
 	loadFile( folder + "sprites.json", jd );
+	traceLoad( "sprites read" );
 	IO::loadSprites( jd );
+	traceLoad( "sprites.json" );
 	emit signalStatus( "Start loading world.." );
 	if ( !IO::loadWorld( folder ) )
 	{
 		return false;
 	}
+	traceLoad( "world.dat" );
 	g->w()->afterLoad();
 	emit signalStatus( "Loading world done" );
 	IO::loadItems( folder );
+	traceLoad( "items" );
 	emit signalStatus( "Loading items done" );
 	loadFile( folder + "floorconstructions.json", jd );
 	IO::loadFloorConstructions( jd );
@@ -397,6 +429,7 @@ bool IO::load( QString folder )
 	IO::loadJobs( jd );
 	loadFile( folder + "jobsprites.json", jd );
 	IO::loadJobSprites( jd );
+	traceLoad( "jobs" );
 	emit signalStatus( "Loading jobs done" );
 	loadFile( folder + "workshops.json", jd );
 	IO::loadWorkshops( jd );
@@ -415,6 +448,7 @@ bool IO::load( QString folder )
 	IO::loadMonsters( folder );
 	IO::loadPlants( folder );
 	IO::loadAnimals( folder );
+	traceLoad( "gnomes-monsters-plants-animals" );
 	emit signalStatus( "Loading gnomes, plants and animals done" );
 	loadFile( folder + "rooms.json", jd );
 	IO::loadRooms( jd );
@@ -424,13 +458,16 @@ bool IO::load( QString folder )
 	IO::loadItemHistory( jd );
 	loadFile( folder + "events.json", jd );
 	IO::loadEvents( jd );
+	traceLoad( "rooms-doors-history-events" );
 
 	loadFile( folder + "config.json", jd );
 	IO::loadConfig( jd );
 
 	sanitize();
+	traceLoad( "sanitize" );
 
 	qDebug() << "loading game took: " + QString::number( timer.elapsed() ) + " ms";
+	traceLoad( "IO::load complete" );
 	return true;
 }
 

@@ -16,22 +16,53 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file mainwindow.h
- *  @brief MainWindow: the QWindow + QOpenGLContext that hosts the Noesis GUI and the
+ *  @brief MainWindow: the QWindow + QOpenGLContext that hosts the RmlUi interface and the
  *         MainWindowRenderer. Handles keyboard/mouse input, fullscreen toggling, and
- *         routes events between Qt, Noesis, and the game.
+ *         routes events between Qt, RmlUi, and the game.
  */
 #pragma once
 
 #include "../base/position.h"
 #include "../base/tile.h"
 
-#include <NsGui/IView.h>
-
 #include <QElapsedTimer>
+#include <QVariant>
 #include <QWindow>
 #include <QTimer>
 
+#include <memory>
+#include <string_view>
+#include <vector>
+
 class QOpenGLContext;
+
+namespace ingnomia::ui {
+class RmlUiHost;
+namespace shell { class ShellController; class ShellQtCommandPort; class ShellRmlBinding; }
+namespace hud { class HudController; class HudQtCommandPort; class HudRmlBinding; }
+namespace inspector { class InspectorController; class InspectorQtCommandPort; class InspectorRmlBinding; }
+namespace management6b {
+class Management6BController;
+class Management6BQtCommandPort;
+class Management6BQtDataAdapter;
+class Management6BRmlBinding;
+}
+namespace management6a { class Management6AIntegration; }
+namespace management6c {
+class Management6CQtCommandPort;
+class Management6CRmlBinding;
+class Management6CController;
+class Management6CQtBridge;
+}
+namespace navigation { class WorkbenchCoordinator; }
+#if defined(INGNOMIA_DEVELOPER_UI)
+namespace debug {
+class DebugQtCommandPort;
+class DebugController;
+class DebugQtDataAdapter;
+}
+#endif
+}
 
 /// @brief Bitfield tracking which WASD-style camera keys are currently held.
 enum class KeyboardMove : unsigned char
@@ -71,9 +102,8 @@ inline KeyboardMove& operator-=( KeyboardMove& a, KeyboardMove b )
 struct Position;
 class MainWindowRenderer;
 
-/// @brief Top-level game window. A bare QWindow with a manual QOpenGLContext (since the
-///        Qt6 port replaced QOpenGLWindow/Qt5::OpenGL with GLAD). Hosts a Noesis::IView
-///        plus a MainWindowRenderer that actually draws the game world.
+/// @brief Top-level game window. A bare QWindow with a manual QOpenGLContext. Hosts the
+///        RmlUi composition plus a MainWindowRenderer that draws the game world.
 class MainWindow : public QWindow
 {
 	Q_OBJECT
@@ -83,9 +113,46 @@ public:
 	~MainWindow();
 	static MainWindow& getInstance();
 
-	bool noesisUpdate();
-
 	MainWindowRenderer* renderer();
+	/// @brief Dispatches a diagnostic click through the live HUD RmlUi listener.
+	///        This is also used by automated UI smoke tests; normal input remains
+	///        routed through MainWindow's event boundary.
+	bool activateHudElement( std::string_view id );
+	/// @brief Re-arms the one-shot production framebuffer capture for a diagnostic probe.
+	void armUiCapture();
+	/// @brief Dispatches a diagnostic click through the live inspector RmlUi listener.
+	///        This is opt-in and exists only for production inspector probes.
+	bool activateInspectorElement( std::string_view id );
+	/// @brief Opens a deterministic synthetic creature in the live inspector for UI probes.
+	///        This does not touch the simulation and is only enabled by an explicit
+	///        INGNOMIA_AUTOMATE_UI_FIXTURE launch environment.
+	bool showInspectorCreatureFixture();
+	/// @brief Returns the current typed HUD status for opt-in production probes.
+	std::string hudStatus() const;
+	/// @brief Dispatches a diagnostic click through the live shell RmlUi listener.
+	///        This is opt-in and exists only for production route smoke tests.
+	bool activateShellElement( std::string_view id );
+	bool dispatchShellSettingChangeForProbe( std::string_view id, float value, bool checked );
+	/// @brief Dispatches a diagnostic click through a live management document.
+	///        This is opt-in and used only by production save/workbench probes.
+	bool activateManagementElement( std::string_view id );
+	/// @brief Sets a live management form control for an opt-in production probe.
+	///        Normal input remains routed through MainWindow's event boundary.
+	bool setManagementFormValueForProbe( std::string_view id, std::string_view value );
+	/// @brief Sets the live Stockpile search for an opt-in mixed-filter production probe.
+	bool setManagementStockpileSearchForProbe( std::string_view value );
+	/// @brief Activates the first live Stockpile material row in the requested state.
+	bool activateFirstManagementStockpileFilterForProbe();
+	/// @brief Activates a specific live Stockpile item/material row for a copied-save probe.
+	bool activateManagementStockpileMaterialForProbe( std::string_view item, std::string_view material );
+	/// @brief Selects the first live mixed Stockpile item row for an opt-in visual probe.
+	bool selectFirstManagementMixedStockpileFilterForProbe();
+	/// @brief Sends an opt-in key event through the live selected Stockpile filter row.
+	bool dispatchManagementStockpileFilterKeyForProbe( int keyIdentifier );
+	bool activateFirstManagementElement( std::string_view kind );
+	/// @brief Opt-in production probe for the authoritative inventory history path.
+	bool requestInventoryHistoryProbe();
+	std::string inventoryHistoryStatus() const;
 
 	/// @brief Returns the owned QOpenGLContext.
 	QOpenGLContext* context() const { return m_context; }
@@ -94,6 +161,7 @@ public:
 
 protected:
 	bool event( QEvent* event ) override;
+	void closeEvent( QCloseEvent* event ) override;
 	void exposeEvent( QExposeEvent* event ) override;
 	void resizeEvent( QResizeEvent* event ) override;
 
@@ -111,14 +179,15 @@ private:
 	void paintGL();
 	void resizeGL( int w, int h );
 
-	void noesisInit();
+	bool initializeRmlUi();
+	void shutdownRmlUi();
+	void resizeRmlUi();
+	bool rmlUiActive() const;
+	int frameTimerIntervalMs() const;
+	void restartFrameTimer();
 
 	void keyboardZPlus( bool shift = false, bool ctrl = false );
 	void keyboardZMinus( bool shift = false, bool ctrl = false );
-	bool isOverGui( int x, int y );
-
-	void installResourceProviders();
-	void registerComponents();
 
 	void toggleFullScreen();
 	bool m_isFullScreen = false;                 ///< True when the window is currently fullscreen.
@@ -128,11 +197,45 @@ private:
 	QOpenGLContext* m_context = nullptr;         ///< Owned GL context.
 	bool m_glInitialized = false;                ///< True once initializeGL() has run.
 
-	QTimer* m_timer = nullptr;                   ///< Menu-mode frame timer (16 ms tick).
+	QTimer* m_timer = nullptr;                   ///< Frame pacing timer for menu and gameplay rendering.
 	QElapsedTimer m_keyboardMovementTimer;       ///< Measures time between keyboardMove ticks.
 
-	Noesis::IView* m_view          = nullptr;    ///< Noesis GUI view hosted on top of the world.
 	MainWindowRenderer* m_renderer = nullptr;    ///< Game world renderer.
+	std::unique_ptr<ingnomia::ui::RmlUiHost> m_rmlUiHost; ///< UI host, owned before the GL context.
+	ingnomia::ui::shell::ShellRmlBinding* m_shellBinding = nullptr; ///< Borrowed from m_rmlUiHost.
+	std::unique_ptr<ingnomia::ui::shell::ShellQtCommandPort> m_shellCommands;
+	std::unique_ptr<ingnomia::ui::shell::ShellController> m_shellController;
+	ingnomia::ui::hud::HudRmlBinding* m_hudBinding = nullptr; ///< Borrowed from m_rmlUiHost.
+	ingnomia::ui::inspector::InspectorRmlBinding* m_inspectorBinding = nullptr; ///< Borrowed from m_rmlUiHost.
+	std::unique_ptr<ingnomia::ui::hud::HudQtCommandPort> m_hudCommands;
+	std::unique_ptr<ingnomia::ui::hud::HudController> m_hudController;
+	std::unique_ptr<ingnomia::ui::inspector::InspectorQtCommandPort> m_inspectorCommands;
+	std::unique_ptr<ingnomia::ui::inspector::InspectorController> m_inspectorController;
+	struct CreatureInspectorWindow
+	{
+		int slot{};
+		ingnomia::ui::inspector::InspectorRmlBinding* binding{};
+		std::unique_ptr<ingnomia::ui::inspector::InspectorQtCommandPort> commands;
+		std::unique_ptr<ingnomia::ui::inspector::InspectorController> controller;
+	};
+	std::vector<CreatureInspectorWindow> m_creatureInspectorWindows;
+	ingnomia::ui::management6b::Management6BRmlBinding* m_management6bBinding = nullptr; ///< Borrowed from m_rmlUiHost.
+	std::unique_ptr<ingnomia::ui::management6b::Management6BQtCommandPort> m_management6bCommands;
+	std::unique_ptr<ingnomia::ui::management6b::Management6BController> m_management6bController;
+	std::unique_ptr<ingnomia::ui::management6b::Management6BQtDataAdapter> m_management6bData;
+	std::unique_ptr<ingnomia::ui::management6a::Management6AIntegration> m_management6a;
+	std::unique_ptr<ingnomia::ui::management6c::Management6CQtCommandPort> m_management6cCommands;
+	std::unique_ptr<ingnomia::ui::management6c::Management6CRmlBinding> m_management6cBinding;
+	std::unique_ptr<ingnomia::ui::management6c::Management6CController> m_management6cController;
+	std::unique_ptr<ingnomia::ui::management6c::Management6CQtBridge> m_management6cBridge;
+	std::unique_ptr<ingnomia::ui::navigation::WorkbenchCoordinator> m_workbenchCoordinator;
+#if defined(INGNOMIA_DEVELOPER_UI)
+	std::unique_ptr<ingnomia::ui::debug::DebugQtCommandPort> m_debugCommands;
+	std::unique_ptr<ingnomia::ui::debug::DebugController> m_debugController;
+	std::unique_ptr<ingnomia::ui::debug::DebugQtDataAdapter> m_debugData;
+#endif
+	std::uint64_t m_uiWorldEpoch = 0;
+	bool m_uiCompositionActive = false;
 
 	int m_clickX = 0;                            ///< Global X of last mouse click.
 	int m_clickY = 0;                            ///< Global Y of last mouse click.
@@ -146,6 +249,8 @@ private:
 	bool m_isMove    = false;                    ///< True when the current drag is classified as a camera pan.
 
 	bool m_pendingUpdate = false;                ///< True when a QEvent::UpdateRequest is already queued.
+	bool m_uiCaptureDone = false;                ///< One-shot diagnostic framebuffer capture guard.
+	std::uint32_t m_uiFrameCount = 0;            ///< Frames rendered for the optional capture probe.
 
 	KeyboardMove m_keyboardMove = KeyboardMove::None; ///< Current held-key bitfield for camera panning.
 
@@ -156,6 +261,7 @@ public slots:
 	void keyboardMove();
 
 	void onSetWindowSize( int width, int height );
+	void onUiSetViewLevel( int level );
 
 	void onInitViewAfterLoad();
 

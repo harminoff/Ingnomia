@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -22,6 +22,7 @@
  */
 #include "aggregatorneighbors.h"
 
+#include "../base/global.h"
 #include "../game/game.h"
 #include "../game/neighbormanager.h"
 #include "../game/gnomemanager.h"
@@ -62,7 +63,7 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 
 		gni.id = kingdom.id;
 
-		//if( kingdom.discovered || Global::debugMode )
+		if( kingdom.discovered || Global::debugMode )
 		{
 			gni.discovered = true;
 
@@ -75,7 +76,7 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 				break;
 			case KingdomType::GOBLIN:
 				name += " a goblin kingdom";
-				
+
 				gni.spyMission = true;
 				gni.sabotageMission = true;
 				gni.raidMission = true;
@@ -93,9 +94,9 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 			distance += S::gi().numberWord( kingdom.distance / 24 );
 			distance += " days to travel there.";
 			gni.distance = distance;
-			
+
 			QString wealth = "They are ";
-			switch ( kingdom.wealth )	
+			switch ( kingdom.wealth )
 			{
 				case KingdomWealth::VERYPOOR:
 				wealth += "very poor.";
@@ -137,7 +138,7 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 			gni.economy = economy;
 
 			QString military = "Their military is ";
-			switch ( kingdom.military )	
+			switch ( kingdom.military )
 			{
 				case KingdomMilitary::VERYWEAK:
 				military += "very weak.";
@@ -156,7 +157,7 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 				break;
 			}
 			gni.military = military;
-	
+
 			QString attitude = "They are neutral towards us.";
 			if( kingdom.attitude < -75 )
 			{
@@ -170,17 +171,17 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 			{
 				attitude = "They are hostile.";
 			}
-			else if( kingdom.attitude > 25 )
-			{
-				attitude = "They are friendly.";
-			}
-			else if( kingdom.attitude > 50 )
-			{
-				attitude = "They are very friendly";
-			}
 			else if( kingdom.attitude > 75 )
 			{
 				attitude = "They consider us their friends.";
+			}
+			else if( kingdom.attitude > 50 )
+			{
+				attitude = "They are very friendly.";
+			}
+			else if( kingdom.attitude > 25 )
+			{
+				attitude = "They are friendly.";
 			}
 			gni.attitude = attitude;
 		}

@@ -43,6 +43,14 @@
 #include <QDebug>
 #include <QElapsedTimer>
 
+namespace
+{
+// The underground biome occupies the seven lowest levels and reads the level
+// immediately below each of them.  Keep one additional level as a hard safety
+// margin so older settings files cannot create a negative world index.
+constexpr int minimumSupportedZLevels = 71;
+}
+
 /// @brief Constructs the WorldGenerator.
 /// @param newGameSettings New-game settings (world size, seed, starting items, etc.).
 /// @param parent          Owning Game instance.
@@ -66,16 +74,25 @@ World* WorldGenerator::generateTopology()
 {
 	m_dimX       = ngs->worldSize();
 	m_dimY       = ngs->worldSize();
-	m_dimZ       = ngs->zLevels();
+	m_dimZ       = qMax( minimumSupportedZLevels, ngs->zLevels() );
+	if ( m_dimZ != ngs->zLevels() )
+	{
+		qWarning() << "Clamping unsupported world depth" << ngs->zLevels() << "to" << m_dimZ;
+	}
 	Global::dimX = ngs->worldSize();
 	Global::dimY = ngs->worldSize();
-	Global::dimZ = ngs->zLevels();
+	Global::dimZ = m_dimZ;
 
 	w = new World( m_dimX, m_dimY, m_dimZ, g );
 
 	qDebug() << "creating world with size" << m_dimX << m_dimY << m_dimZ;
 
-	m_groundLevel = ngs->ground();
+	const int maximumGroundLevel = m_dimZ - 8;
+	m_groundLevel = qBound( 7, maximumGroundLevel, ngs->ground() );
+	if ( m_groundLevel != ngs->ground() )
+	{
+		qWarning() << "Clamping unsupported ground height" << ngs->ground() << "to" << m_groundLevel;
+	}
 	m_fow         = Global::cfg->get( "fow" ).toBool();
 
 	auto& world = w->world();
@@ -287,9 +304,36 @@ void WorldGenerator::setMetalsAndGems()
 	}
 }
 // set water and sand floor at water
-/// @brief Sets initial water tiles and sand floors in low-lying areas.
+/// @brief Materializes generator water markers as full, settled water cells.
 void WorldGenerator::setWater()
 {
+	int seededWaterTiles = 0;
+	for ( int z = 1; z < m_dimZ - 1; ++z )
+	{
+		for ( int y = 1; y < m_dimY - 1; ++y )
+		{
+			for ( int x = 1; x < m_dimX - 1; ++x )
+			{
+				const Position pos( x, y, z );
+				Tile& tile = w->getTile( pos );
+				if ( !(bool)( tile.flags & TileFlag::TF_WATER ) || tile.fluidLevel > 0 || tile.pressure > 0 )
+				{
+					continue;
+				}
+
+				// A water marker is a generator declaration, not a one-tick source.
+				// Seed the cell at capacity so the world opens in its authored basin
+				// state instead of pouring in from an edge after unpausing.
+				w->addWater( pos, 10 );
+				if ( w->fluidLevel( pos ) == 10 )
+				{
+					++seededWaterTiles;
+				}
+			}
+		}
+	}
+
+	qDebug() << "WorldGenerator::setWater seeded" << seededWaterTiles << "water tiles";
 }
 // set sunlight and grass
 /// @brief Propagates sunlight downward from the top of the map, marks surface tiles with
@@ -396,6 +440,11 @@ void WorldGenerator::addPlantsAndTrees()
 			{
 				Position pos( x_, y_, m_mushroomLevel + 5 );
 				w->getFloorLevelBelow( pos, false );
+				if ( !pos.valid() )
+				{
+					shroomRejected = true;
+					continue;
+				}
 
 				int random = rand();
 				if ( random % treeDensity == 0 || shroomRejected )
@@ -419,6 +468,11 @@ void WorldGenerator::addPlantsAndTrees()
 			{
 				Position pos( x_, y_, m_mushroomLevel + 5 );
 				w->getFloorLevelBelow( pos, false );
+				if ( !pos.valid() )
+				{
+					shroomRejected = true;
+					continue;
+				}
 
 				int random = rand();
 				if ( random % treeDensity == 0 || shroomRejected )
@@ -456,6 +510,11 @@ void WorldGenerator::addPlantsAndTrees()
 
 				Position pos( x_, y_, m_dimZ - 2 );
 				w->getFloorLevelBelow( pos, false );
+				if ( !pos.valid() )
+				{
+					treeRejected = true;
+					continue;
+				}
 
 				int random = rand();
 				if ( random % treeDensity == 0 || treeRejected )
@@ -491,6 +550,10 @@ void WorldGenerator::addPlantsAndTrees()
 
 				Position pos( x_, y_, m_dimZ - 2 );
 				w->getFloorLevelBelow( pos, false );
+				if ( !pos.valid() )
+				{
+					continue;
+				}
 
 				int random = rand();
 				if ( random % plantDensity == 0 )
@@ -571,6 +634,10 @@ void WorldGenerator::addAnimals()
 
 			Position pos( x, y, m_dimZ - 2 );
 			w->getFloorLevelBelow( pos, false );
+			if ( !pos.valid() )
+			{
+				continue;
+			}
 
 			if ( !w->isWalkable( pos ) || ( sqrt( ( x_ - x ) * ( x_ - x ) + ( y_ - y ) * ( y_ - y ) ) < startingZoneSize ) )
 			{
@@ -618,6 +685,10 @@ void WorldGenerator::addAnimals()
 		{
 			Position pos( x_, y_, m_mushroomLevel + 5 );
 			w->getFloorLevelBelow( pos, false );
+			if ( !pos.valid() )
+			{
+				continue;
+			}
 
 			int random = rand();
 			if ( random % 100 > 96 )
@@ -938,7 +1009,7 @@ void WorldGenerator::fillFloorMushroomBiome( int zz, QVector<TerrainMaterial>& m
 						tile.flags += TileFlag::TF_UNDISCOVERED;
 					}
 				}
-				else
+				else if ( z > 0 )
 				{
 					Tile& tileBelow = world[x + y * m_dimX + ( z - 1 ) * m_dimX * m_dimY];
 					if ( tileBelow.wallType & WallType::WT_ROUGH )
@@ -991,7 +1062,9 @@ void WorldGenerator::fillFloor( int z, QVector<TerrainMaterial>& mats, QVector<i
 			{
 				//if( m_random.GetPerlinFractal( x, y, z ) > 0.00001 )
 				//if( fBm( x, y, z ) )
-				if ( z - m_heightMap[x + y * m_dimX] > 0 )
+				// Z increases upward. Ground level is the surface height; leave
+				// levels above it open for sunlight, trees, and sky.
+				if ( m_groundLevel - z + m_heightMap[x + y * m_dimX] >= 0 )
 				{
 					if ( mat.key != "Air" )
 					{
@@ -1025,7 +1098,7 @@ void WorldGenerator::fillFloor( int z, QVector<TerrainMaterial>& mats, QVector<i
 							tile.flags += TileFlag::TF_UNDISCOVERED;
 						}
 					}
-					else
+					else if ( z > 0 )
 					{
 						Tile& tileBelow = world[x + y * m_dimX + ( z - 1 ) * m_dimX * m_dimY];
 						if ( tileBelow.wallType & WallType::WT_ROUGH )
@@ -1046,7 +1119,10 @@ void WorldGenerator::fillFloor( int z, QVector<TerrainMaterial>& mats, QVector<i
 ///        Used during world generation so the initial view is fully visible.
 void WorldGenerator::discoverAll()
 {
-	for ( int z = m_dimZ - 2; z > 0; --z )
+	// initSunLight creates the playable surface at the highest world level.
+	// Include that level here; starting one below it leaves the surface covered
+	// by the undiscovered fallback cube on a fresh world.
+	for ( int z = m_dimZ - 1; z > 0; --z )
 	{
 		for ( int y = 1; y < m_dimY - 1; ++y )
 		{
@@ -1481,6 +1557,11 @@ void WorldGenerator::setSandFloor( int x, int y, int sandRowID )
 	tile2.floorType      = FT_SOLIDFLOOR;
 	tile2.wallSpriteUID  = g->sf()->createSprite( "RoughWall", { "Sand" } )->uID;
 	tile2.floorSpriteUID = g->sf()->createSprite( "RoughFloor", { "Sand" } )->uID;
+
+	// The tile above the sand bed is the authored water surface. Keep its
+	// visual marker and its simulation mass on the same tile so a generated
+	// river cannot report 100% water while rendering an empty surface.
+	w->addWater( Position( x, y, pos.z + 1 ), 10 );
 }
 
 /// @brief Returns the minimum height-map value along the entire X column at @p x.
@@ -1523,7 +1604,7 @@ void WorldGenerator::fillWater( int x, int y, int z )
 	while ( z > 1 )
 	{
 		Tile& tile = w->world()[x + y * m_dimX + z * m_dimX * m_dimY];
-		if ( !(bool)( tile.wallType & WT_SOLIDWALL ) )
+		if ( !(bool)( tile.wallType & WT_MOVEBLOCKING ) )
 		{
 			w->addWater( Position( x, y, z ), 10 );
 		}

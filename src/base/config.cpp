@@ -92,6 +92,14 @@ Config::Config()
 	{
 		m_settings.insert( "uiscale", 1.0 );
 	}
+	if ( !m_settings.contains( "followMonitorRefresh" ) )
+	{
+		m_settings.insert( "followMonitorRefresh", true );
+	}
+	if ( !m_settings.contains( "frameRateLimit" ) )
+	{
+		m_settings.insert( "frameRateLimit", 60 );
+	}
 	m_settings.insert( "dataPath", QCoreApplication::applicationDirPath() + "/content" );
 
 	m_valid = true;

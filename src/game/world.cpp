@@ -23,6 +23,7 @@
  */
 
 #include "world.h"
+#include "waterflowsolver.h"
 
 #include "../base/config.h"
 #include "../base/db.h"
@@ -46,11 +47,44 @@
 #include "../gui/eventconnector.h"
 
 #include <QDebug>
+#include <QHash>
 #include <QJsonDocument>
 #include <QVector3D>
 
+#include <algorithm>
+#include <limits>
 #include <random>
 #include <time.h>
+
+namespace
+{
+bool isWaterBoundary( int x, int y, int z, int dimX, int dimY, int dimZ )
+{
+	// The outermost ring is the retaining wall. The inner ring (x/y == 1)
+	// is valid playable terrain and is where the world generator places edge
+	// rivers and ocean water.
+	return x == 0 || x == dimX - 1 || y == 0 || y == dimY - 1 || z == 0 || z == dimZ - 1;
+}
+
+bool isWaterBoundary( const Position& pos, int dimX, int dimY, int dimZ )
+{
+	return isWaterBoundary( pos.x, pos.y, pos.z, dimX, dimY, dimZ );
+}
+
+bool isWaterBoundary( unsigned int tileID, int dimX, int dimY, int dimZ )
+{
+	if ( tileID >= static_cast<unsigned int>( dimX * dimY * dimZ ) )
+	{
+		return true;
+	}
+	const unsigned int pitchZ = static_cast<unsigned int>( dimX * dimY );
+	const unsigned int z      = tileID / pitchZ;
+	const unsigned int plane  = tileID % pitchZ;
+	const unsigned int y      = plane / static_cast<unsigned int>( dimX );
+	const unsigned int x      = plane % static_cast<unsigned int>( dimX );
+	return isWaterBoundary( static_cast<int>( x ), static_cast<int>( y ), static_cast<int>( z ), dimX, dimY, dimZ );
+}
+}
 
 /**
  * @brief Constructs the World with the given dimensions, initializing construction lookup maps.
@@ -117,6 +151,9 @@ void World::init()
 void World::initWater()
 {
 	m_water.clear();
+	m_activeWater.clear();
+	m_aquifiers.clear();
+	m_deaquifiers.clear();
 
 	for ( int z = m_dimZ - 2; z >= 0; --z )
 	{
@@ -125,6 +162,24 @@ void World::initWater()
 			for ( int x = 0; x < m_dimX; ++x )
 			{
 				Tile& here = getTile( x, y, z );
+				if ( isWaterBoundary( x, y, z, m_dimX, m_dimY, m_dimZ ) )
+				{
+					// The outer rows and bottom level form a virtual retaining wall.
+					here.fluidLevel = 0;
+					here.pressure   = 0;
+					here.flow       = WF_NOFLOW;
+					here.flags -= TileFlag::TF_WATER;
+					continue;
+				}
+
+				const bool markedWater = (bool)( here.flags & TileFlag::TF_WATER );
+				if ( markedWater && here.fluidLevel == 0 && here.pressure == 0 && !(bool)( here.wallType & WT_MOVEBLOCKING ) )
+				{
+					// Older generated worlds stored the water-surface marker without
+					// storing fluid mass. Treat that marker as authored full water when
+					// the world is initialized, rather than waking an empty cell.
+					here.fluidLevel = 10;
+				}
 
 				if ( here.flags & TileFlag::TF_AQUIFIER )
 				{
@@ -135,25 +190,36 @@ void World::initWater()
 					addDeaquifier( Position( x, y, z ) );
 				}
 
-				here.pressure = 0;
-				if ( here.fluidLevel > 0 )
+				if ( here.fluidLevel > 0 || here.pressure > 0 )
 				{
-					if ( (bool)( here.wallType & WT_SOLIDWALL ) )
+					if ( (bool)( here.wallType & ( WT_SOLIDWALL | WT_MOVEBLOCKING ) ) )
 					{
 						here.fluidLevel = 0;
+						here.pressure   = 0;
+						here.flow       = WF_NOFLOW;
+						here.flags -= TileFlag::TF_WATER;
 					}
 					else
 					{
+						// Fluid mass is the canonical water state. Older saves and
+						// generator revisions could persist the level without the
+						// derived TF_WATER marker, which made the inspector report
+						// water while the renderer culled the cell.
+						here.flags += TileFlag::TF_WATER;
 						Position pos( x, y, z );
 						m_water.insert( pos.toInt() );
-
-						Tile& above = getTile( pos.aboveOf() );
-						if (
-							above.fluidLevel > 0 && here.fluidLevel == 10 && !(bool)( above.floorType & FloorType::FT_SOLIDFLOOR ) )
-						{
-							here.pressure = above.pressure + 1;
-						}
+						// Existing generated/save water is already an authored basin.
+						// Keep it settled on load; aquifiers and later topology changes
+						// explicitly wake the simulation when new flow is needed.
+						here.flow = WF_NOFLOW;
 					}
+				}
+				else if ( !(bool)( here.flags & TileFlag::TF_AQUIFIER ) )
+				{
+					// Do not let a stale save flag reintroduce a zero-mass water cell.
+					here.pressure = 0;
+					here.flow     = WF_NOFLOW;
+					here.flags -= TileFlag::TF_WATER;
 				}
 			}
 		}
@@ -210,7 +276,8 @@ void World::setFloorSprite( Position pos, unsigned int spriteUID )
  */
 void World::setWallSprite( unsigned short x, unsigned short y, unsigned short z, unsigned int spriteUID, unsigned char rotation )
 {
-	unsigned int UID           = Position( x, y, z ).toInt();
+	const Position pos( x, y, z );
+	unsigned int UID           = pos.toInt();
 	m_world[UID].wallSpriteUID = spriteUID;
 	m_world[UID].wallRotation  = rotation;
 	addToUpdateList( UID );
@@ -250,7 +317,8 @@ void World::setWallSprite( unsigned int tileID, unsigned int spriteUID )
  */
 void World::setItemSprite( unsigned short x, unsigned short y, unsigned short z, unsigned int spriteUID, unsigned char rotation )
 {
-	unsigned int UID           = Position( x, y, z ).toInt();
+	const Position pos( x, y, z );
+	unsigned int UID           = pos.toInt();
 	m_world[UID].itemSpriteUID = spriteUID;
 	//m_world[UID].wallRotation = rotation;
 	addToUpdateList( UID );
@@ -939,11 +1007,20 @@ void World::createGrass( Position pos )
  */
 void World::addWater( Position pos, unsigned char level )
 {
+	if ( isWaterBoundary( pos, m_dimX, m_dimY, m_dimZ ) )
+	{
+		return;
+	}
+	Tile& tile = getTile( pos );
+	if ( tile.wallType & WallType::WT_MOVEBLOCKING )
+	{
+		return;
+	}
 	if ( !m_water.count( pos.toInt() ) )
 	{
 		m_water.insert( pos.toInt() );
+		m_activeWater.insert( pos.toInt() );
 
-		Tile& tile      = getTile( pos );
 		tile.fluidLevel = level;
 		tile.flags += TileFlag::TF_WATER;
 		addToUpdateList( pos );
@@ -957,12 +1034,46 @@ void World::addWater( Position pos, unsigned char level )
  */
 void World::changeFluidLevel( Position pos, int diff )
 {
+	if ( isWaterBoundary( pos, m_dimX, m_dimY, m_dimZ ) )
+	{
+		return;
+	}
 	Tile& tile         = getTile( pos );
-	int effectiveLevel = tile.fluidLevel + tile.pressure + diff;
-	tile.pressure      = qMax( 0, effectiveLevel - 10 );
-	tile.fluidLevel    = qMin( 10, effectiveLevel );
-	m_water.insert( pos.toInt() );
-	tile.flags += TileFlag::TF_WATER;
+	if ( tile.wallType & WallType::WT_MOVEBLOCKING )
+	{
+		// A wall, tree, or other blocking object is a physical water boundary.
+		// Clear any stale fluid that was present before the object was placed.
+		if ( tile.fluidLevel > 0 || tile.pressure > 0 || ( tile.flags & TileFlag::TF_WATER ) )
+		{
+			tile.fluidLevel = 0;
+			tile.pressure   = 0;
+			tile.flow       = WF_NOFLOW;
+			tile.flags     -= TileFlag::TF_WATER;
+			m_water.erase( pos.toInt() );
+			addToUpdateList( pos );
+		}
+		return;
+	}
+	constexpr int fluidCapacity = 10;
+	constexpr int maxStoredMass = fluidCapacity + 255;
+	const int effectiveLevel = qBound( 0, (int)tile.fluidLevel + (int)tile.pressure + diff, maxStoredMass );
+
+	tile.fluidLevel = qMin( fluidCapacity, effectiveLevel );
+	tile.pressure   = qBound( 0, effectiveLevel - fluidCapacity, 255 );
+
+	if ( effectiveLevel > 0 )
+	{
+		m_water.insert( pos.toInt() );
+		m_activeWater.insert( pos.toInt() );
+		tile.flags += TileFlag::TF_WATER;
+	}
+	else
+	{
+		m_water.erase( pos.toInt() );
+		m_activeWater.remove( pos.toInt() );
+		tile.flow = WF_NOFLOW;
+		tile.flags -= TileFlag::TF_WATER;
+	}
 	addToUpdateList( pos );
 }
 
@@ -972,8 +1083,17 @@ void World::changeFluidLevel( Position pos, int diff )
  */
 void World::addAquifier( Position pos )
 {
+	if ( isWaterBoundary( pos, m_dimX, m_dimY, m_dimZ ) )
+	{
+		return;
+	}
+	if ( getTile( pos ).wallType & WallType::WT_MOVEBLOCKING )
+	{
+		return;
+	}
 	m_aquifiers.append( pos );
 	m_water.insert( pos.toInt() );
+	m_activeWater.insert( pos.toInt() );
 	Tile& tile = getTile( pos );
 	tile.flags += TileFlag::TF_WATER;
 	tile.flags += TileFlag::TF_AQUIFIER;
@@ -1004,7 +1124,21 @@ void World::processWater()
 	// Add / remove 1 water per tick and aquifier / deaquifier
 	for ( const auto& pos : m_aquifiers )
 	{
+		if ( isWaterBoundary( pos, m_dimX, m_dimY, m_dimZ ) )
+		{
+			continue;
+		}
 		Tile& tile = getTile( pos );
+		if ( tile.wallType & WallType::WT_MOVEBLOCKING )
+		{
+			tile.fluidLevel = 0;
+			tile.pressure   = 0;
+			tile.flow       = WF_NOFLOW;
+			tile.flags     -= TileFlag::TF_WATER;
+			m_water.erase( pos.toInt() );
+			m_activeWater.remove( pos.toInt() );
+			continue;
+		}
 		if ( tile.pressure == 0 && tile.fluidLevel < 10)
 		{
 			tile.fluidLevel++;
@@ -1012,6 +1146,7 @@ void World::processWater()
 			waterUpdates.append( pos.toInt() );
 		}
 		m_water.insert( pos.toInt() );
+		wakeWaterAround( pos );
 	}
 	for ( const auto& pos : m_deaquifiers )
 	{
@@ -1032,6 +1167,7 @@ void World::processWater()
 				tile.flags -= TileFlag::TF_WATER;
 				m_water.erase( pos.toInt() );
 			}
+			wakeWaterAround( pos );
 			waterUpdates.append( pos.toInt() );
 		}
 	}
@@ -1043,268 +1179,390 @@ void World::processWater()
 	processWaterFlow();
 }
 
-struct Neighbors
+namespace
 {
-#ifdef _WIN32
-	__forceinline Neighbors( unsigned int pos )
-#else
-	inline Neighbors( unsigned int pos )
-#endif
-	{
-		const unsigned int pitchY = Global::dimX;
-		const unsigned int pitchZ = pitchY * Global::dimY;
-
-		const unsigned int maxZ = pitchZ * ( Global::dimZ - 1 );
-
-		const auto plane = pos % pitchZ;
-		const auto row   = pos % pitchY;
-
-		above = pos < maxZ ? pos + pitchZ : 0;
-		below = pos > pitchZ ? pos - pitchZ : 0;
-		north = plane > pitchY * 2 ? pos - pitchY : 0;
-		south = plane < pitchZ - 2 * pitchY ? pos + pitchY : 0;
-		east  = row < pitchY - 2 ? pos + 1 : 0;
-		west  = row > 1 ? pos - 1 : 0;
-	}
-	unsigned int above;
-	unsigned int below;
-	unsigned int north;
-	unsigned int south;
-	unsigned int east;
-	unsigned int west;
-};
+constexpr unsigned int invalidWaterTile = std::numeric_limits<unsigned int>::max();
+constexpr int fluidCapacity            = 10;
+constexpr int maxStoredFluidMass       = fluidCapacity + 255;
+constexpr int maxTransferPerEdge       = 1;
 
 /**
- * @brief Simulates water flow: computes pressure gradients, drains and floods neighbor tiles,
- *        handles evaporation, and batch-updates the water tracking set and render list.
+ * @brief Bounds-safe neighbors for the flat world array.
+ *
+ * The old implementation used zero as a sentinel (which is a real tile ID)
+ * and had two-tile off-by-one errors on every horizontal edge.  Water uses
+ * the complete world volume, so it must not use Position::valid(), which
+ * intentionally excludes the outer x/y rows for other read-only queries.
  */
-void World::processWaterFlow()
+struct Neighbors
 {
-	// Batch newly tracked water tiles
-	QSet<unsigned int> newWater;
-	QSet<unsigned int> removedWater;
-
-	QVector<unsigned int> drain;
-	QVector<unsigned int> flood;
-
-	// Random numbers are expensive, and rand() only delivers 15bit of entropy per call
-	auto seedBase = rand() ^ rand() << 10 ^ rand() << 20;
-	for ( const auto& currentPos : m_water )
+	Neighbors( unsigned int tileID, int dimX, int dimY, int dimZ )
 	{
-		Tile& here = getTile( currentPos );
+		const unsigned int pitchZ = static_cast<unsigned int>( dimX * dimY );
+		const unsigned int z      = tileID / pitchZ;
+		const unsigned int plane  = tileID % pitchZ;
+		const unsigned int y      = plane / static_cast<unsigned int>( dimX );
+		const unsigned int x      = plane % static_cast<unsigned int>( dimX );
 
-		if ( (bool)( here.wallType & WallType::WT_MOVEBLOCKING ) )
+		auto makeID = [=]( int neighborX, int neighborY, int neighborZ ) {
+			if ( neighborX < 0 || neighborX >= dimX || neighborY < 0 || neighborY >= dimY || neighborZ < 0 || neighborZ >= dimZ )
+			{
+				return invalidWaterTile;
+			}
+			return static_cast<unsigned int>( neighborX + dimX * neighborY + pitchZ * neighborZ );
+		};
+
+		north = makeID( x, y - 1, z );
+		south = makeID( x, y + 1, z );
+		east  = makeID( x + 1, y, z );
+		west  = makeID( x - 1, y, z );
+		above = makeID( x, y, z + 1 );
+		below = makeID( x, y, z - 1 );
+	}
+
+	unsigned int above = invalidWaterTile;
+	unsigned int below = invalidWaterTile;
+	unsigned int north = invalidWaterTile;
+	unsigned int south = invalidWaterTile;
+	unsigned int east  = invalidWaterTile;
+	unsigned int west  = invalidWaterTile;
+};
+
+constexpr WaterFlow oppositeFlow( WaterFlow flow )
+{
+	switch ( flow )
+	{
+		case WF_NORTH:
+			return WF_SOUTH;
+		case WF_SOUTH:
+			return WF_NORTH;
+		case WF_EAST:
+			return WF_WEST;
+		case WF_WEST:
+			return WF_EAST;
+		case WF_UP:
+			return WF_DOWN;
+		case WF_DOWN:
+			return WF_UP;
+		default:
+			return WF_NOFLOW;
+	}
+}
+}
+
+/**
+ * @brief Wakes water at a changed topology cell and its six direct neighbours.
+ *
+ * Dry cells are intentionally allowed in the active set: one of their wet
+ * neighbours may need to flow into them after a wall or floor is removed.
+ */
+void World::wakeWaterAround( Position pos )
+{
+	const unsigned int worldTileCount = static_cast<unsigned int>( m_world.size() );
+	const unsigned int tileID = pos.toInt();
+	if ( tileID >= worldTileCount )
+		return;
+
+	const Neighbors adjacent( tileID, m_dimX, m_dimY, m_dimZ );
+	for ( const unsigned int id : { tileID, adjacent.above, adjacent.below, adjacent.north, adjacent.south, adjacent.east, adjacent.west } )
+	{
+		if ( id != invalidWaterTile && id < worldTileCount && !isWaterBoundary( id, m_dimX, m_dimY, m_dimZ ) )
+			m_activeWater.insert( id );
+	}
+}
+
+/**
+ * @brief Simulates water flow with a deterministic, mass-conserving grid pass.
+ *
+ * Each water cell is treated as a small storage cell with a capacity of ten
+ * surface units.  A tick first moves one unit down when the receiving cell has
+ * room, then equalizes horizontal gradients one cell-pair at a time.  All
+ * transfers are planned against a snapshot and committed together, so a tile
+ * cannot be drained multiple times just because several neighbors selected it
+ * in the same frame.
+ */
+void World::processWaterFlowLegacy()
+{
+	QHash<unsigned int, int> mass;
+	QHash<unsigned int, int> remaining;
+	QHash<unsigned int, int> delta;
+	QHash<unsigned int, WaterFlow> flowFlags;
+	QSet<unsigned int> sourceSet;
+	QSet<unsigned int> touched;
+	QSet<unsigned int> invalidTracked;
+	QVector<unsigned int> activeWater;
+
+	const unsigned int worldTileCount = static_cast<unsigned int>( m_world.size() );
+	activeWater.reserve( static_cast<int>( m_water.size() ) );
+
+	auto storedMass = []( const Tile& tile ) {
+		return qBound( 0, (int)tile.fluidLevel + (int)tile.pressure, maxStoredFluidMass );
+	};
+
+	// Take a stable snapshot.  A source is allowed to send only its mass at
+	// the beginning of the tick; incoming mass becomes available next tick.
+	for ( const unsigned int currentPos : m_water )
+	{
+		if ( currentPos >= worldTileCount )
 		{
-			// Bogus, this should not be in water list
+			invalidTracked.insert( currentPos );
+			continue;
+		}
+
+		Tile& here = m_world[currentPos];
+		touched.insert( currentPos );
+		if ( isWaterBoundary( currentPos, m_dimX, m_dimY, m_dimZ ) || (bool)( here.wallType & WallType::WT_MOVEBLOCKING ) || storedMass( here ) == 0 )
+		{
 			here.flow       = WF_NOFLOW;
 			here.pressure   = 0;
 			here.fluidLevel = 0;
 			here.flags -= TileFlag::TF_WATER;
+			invalidTracked.insert( currentPos );
+			continue;
 		}
 
-		if ( here.fluidLevel > 0 )
-		{
-			// Just barely random enough not to be obvious
-			const auto seed = ( currentPos ^ currentPos << 16 ^ seedBase ) % 2147483647;
-
-			if ( here.fluidLevel <= 2 && (bool)( here.floorType & FloorType::FT_SOLIDFLOOR ) )
-			{
-				// Low fluid level on solid floor never moves, only may evaporate
-				if ( ( seed % 1000 ) == 0 )
-				{
-					here.flow = WF_EVAP;
-					drain.append( currentPos );
-				}
-				else
-				{
-					here.flow = WF_NOFLOW;
-				}
-				continue;
-			}
-
-			const Neighbors neighbors( currentPos );
-
-			const unsigned int candidates[7] = {
-				neighbors.north,
-				neighbors.south,
-				neighbors.east,
-				neighbors.west,
-				currentPos,
-				neighbors.above,
-				neighbors.below,
-			};
-			constexpr WaterFlow direction[7] = {
-				WF_NORTH,
-				WF_SOUTH,
-				WF_EAST,
-				WF_WEST,
-				WF_NOFLOW,
-				WF_UP,
-				WF_DOWN
-			};
-			enum index : size_t
-			{
-				north = 0,
-				south,
-				east,
-				west,
-				center,
-				up,
-				down
-			};
-
-			// Compute pressure for passable directions
-			constexpr int invalidPressure = INT_MAX;
-			int pressure[7];
-			for ( size_t i = north; i <= center; i++ )
-			{
-				const Tile& there = getTile( candidates[i] );
-				if ( candidates[i] && !(bool)( there.wallType & WallType::WT_MOVEBLOCKING ) )
-				{
-					pressure[i] = there.pressure + there.fluidLevel;
-				}
-				else
-				{
-					pressure[i] = invalidPressure;
-				}
-			}
-			{
-				const Tile& there = getTile( candidates[up] );
-				if ( candidates[up] && !(bool)( there.wallType & WallType::WT_MOVEBLOCKING ) && !(bool)( there.floorType & FloorType::FT_SOLIDFLOOR ) )
-				{
-					pressure[up] = there.pressure + there.fluidLevel;
-				}
-				else
-				{
-					pressure[up] = invalidPressure;
-				}
-			}
-			{
-				const Tile& there = getTile( candidates[down] );
-				if ( candidates[down] && !(bool)( there.wallType & WallType::WT_MOVEBLOCKING ) && !(bool)( here.floorType & FloorType::FT_SOLIDFLOOR ) )
-				{
-					pressure[down] = there.pressure + there.fluidLevel;
-				}
-				else
-				{
-					pressure[down] = invalidPressure;
-				}
-			}
-
-			// Flow down if no back-pressure
-			if ( pressure[down] != invalidPressure && pressure[down] <= pressure[center] || pressure[down] < 10 )
-			{
-				here.flow += WF_DOWN;
-				drain.append( currentPos );
-				flood.append( neighbors.below );
-				pressure[center]--;
-				pressure[up]++;
-			}
-
-			// Decide whether to enter instable states this frame
-			// In an unstable state, distribution can reverse right in the next frame
-			// Still need to allow it occasionally to relax gradients
-			const int preventInstability = seed % 127 == 0 ? 0 : 1;
-			{
-				const bool waterAbove = pressure[up] != invalidPressure && pressure[up] != 0;
-				for ( size_t i = 0; i < 4; ++i )
-				{
-					// First order of sampled directions is randomized ...
-					const size_t j = ( i + seed ) % 4;
-					// Prevent flow to side if that would cause vacuum
-					const bool vacuum = waterAbove && pressure[center] == 10;
-					if ( pressure[j] != invalidPressure && ( pressure[center] > pressure[j] + preventInstability ) && !vacuum )
-					{
-						drain.append( currentPos );
-						flood.append( candidates[j] );
-						here.flow += direction[j];
-						pressure[center]--;
-						pressure[j]++;
-					}
-				}
-			}
-
-			// Only if nothing else worked, flow upwards
-			if ( pressure[up] != invalidPressure && ( pressure[center] > 10 ) && ( pressure[center] > pressure[up] + preventInstability + 1 ) )
-			{
-				here.flow += WF_UP;
-				drain.append( currentPos );
-				flood.append( neighbors.above );
-				pressure[center]--;
-				pressure[up]++;
-			}
-		}
-		else
-		{
-			// Collecting tiles which should no longer had been tracked
-			removedWater.insert( currentPos );
-		}
-		here.flow = WF_NOFLOW;
+		const int currentMass = storedMass( here );
+		mass.insert( currentPos, currentMass );
+		remaining.insert( currentPos, currentMass );
+		sourceSet.insert( currentPos );
+		activeWater.append( currentPos );
 	}
 
-	// Batch updates
+	for ( const unsigned int currentPos : invalidTracked )
+	{
+		m_water.erase( currentPos );
+	}
+
+	auto passable = [&]( unsigned int tileID ) {
+		return tileID != invalidWaterTile && tileID < worldTileCount && !isWaterBoundary( tileID, m_dimX, m_dimY, m_dimZ ) && !(bool)( m_world[tileID].wallType & WallType::WT_MOVEBLOCKING );
+	};
+
+	auto ensureMass = [&]( unsigned int tileID ) {
+		if ( tileID == invalidWaterTile || tileID >= worldTileCount )
+		{
+			return 0;
+		}
+		if ( !mass.contains( tileID ) )
+		{
+			const int tileMass = storedMass( m_world[tileID] );
+			mass.insert( tileID, tileMass );
+			remaining.insert( tileID, tileMass );
+		}
+		return mass.value( tileID );
+	};
+
+	auto addTransfer = [&]( unsigned int source, unsigned int destination, int requested, WaterFlow direction ) {
+		if ( !passable( source ) || !passable( destination ) || requested <= 0 )
+		{
+			return 0;
+		}
+
+		ensureMass( destination );
+		const int available = remaining.value( source, 0 );
+		const int currentDestinationMass = mass.value( destination, 0 ) + delta.value( destination, 0 );
+		const int destinationRoom = qMax( 0, fluidCapacity - currentDestinationMass );
+		const int amount = qMin( requested, qMin( available, destinationRoom ) );
+		if ( amount <= 0 )
+		{
+			return 0;
+		}
+
+		remaining[source] = available - amount;
+		delta[source] = delta.value( source, 0 ) - amount;
+		delta[destination] = delta.value( destination, 0 ) + amount;
+		flowFlags[source] = flowFlags.value( source, WF_NOFLOW ) + direction;
+		touched.insert( source );
+		touched.insert( destination );
+		return amount;
+	};
+
+	// Gravity is directional and gets first claim on available capacity.
+	for ( const unsigned int currentPos : activeWater )
+	{
+		const Neighbors neighbors( currentPos, m_dimX, m_dimY, m_dimZ );
+		const Tile& here = m_world[currentPos];
+		if ( !(bool)( here.floorType & FloorType::FT_SOLIDFLOOR ) && passable( neighbors.below ) )
+		{
+			addTransfer( currentPos, neighbors.below, maxTransferPerEdge, WF_DOWN );
+		}
+	}
+
+	auto processHorizontalPair = [&]( unsigned int source, unsigned int neighbor, WaterFlow direction ) {
+		if ( !passable( neighbor ) )
+		{
+			return;
+		}
+
+		const bool neighborIsSource = sourceSet.contains( neighbor );
+		// Every active-active pair is processed once, in flat-ID order.  This
+		// removes the old random direction reversal and makes saves reproducible.
+		if ( neighborIsSource && source > neighbor )
+		{
+			return;
+		}
+
+		ensureMass( neighbor );
+		const int sourceMass = remaining.value( source, 0 );
+		const int neighborMass = mass.value( neighbor, 0 );
+		if ( sourceMass > neighborMass + 1 )
+		{
+			addTransfer( source, neighbor, maxTransferPerEdge, direction );
+		}
+		else if ( neighborIsSource && remaining.value( neighbor, 0 ) > mass.value( source, 0 ) + 1 )
+		{
+			addTransfer( neighbor, source, maxTransferPerEdge, oppositeFlow( direction ) );
+		}
+	};
+
+	// Equalize the horizontal surface without ever exceeding receiver capacity.
+	for ( const unsigned int currentPos : activeWater )
+	{
+		const Neighbors neighbors( currentPos, m_dimX, m_dimY, m_dimZ );
+		processHorizontalPair( currentPos, neighbors.north, WF_NORTH );
+		processHorizontalPair( currentPos, neighbors.south, WF_SOUTH );
+		processHorizontalPair( currentPos, neighbors.east, WF_EAST );
+		processHorizontalPair( currentPos, neighbors.west, WF_WEST );
+
+		// Pressure is an overflow channel, not a reason to teleport an entire
+		// column.  Let only one stored unit rise per tick when a cell is overfull.
+		const unsigned int above = neighbors.above;
+		if ( remaining.value( currentPos, 0 ) > fluidCapacity && passable( above ) && !(bool)( m_world[above].floorType & FloorType::FT_SOLIDFLOOR ) )
+		{
+			addTransfer( currentPos, above, maxTransferPerEdge, WF_UP );
+		}
+	}
+
+	// Commit every touched cell from the same snapshot.  This is where the
+	// previous flood-then-drain implementation could underflow fluidLevel or
+	// apply several competing transfers to one tile.
+	QVector<unsigned int> updateIDs = touched.values().toVector();
+	std::sort( updateIDs.begin(), updateIDs.end() );
 	QVector<unsigned int> waterUpdates;
-	// Expecting to see every tile again
-	waterUpdates.reserve( (int)m_water.size() );
-
-	// Flood first
-	for ( const auto& pos : flood )
+	waterUpdates.reserve( updateIDs.size() );
+	for ( const unsigned int tileID : updateIDs )
 	{
-		Tile& here = getTile( pos );
-		if ( here.fluidLevel == 0 )
+		if ( tileID >= worldTileCount )
 		{
-			// Track it, it's probably new
-			newWater.insert( pos );
-			here.flags += TileFlag::TF_WATER;
+			continue;
 		}
-		if ( here.fluidLevel < 10 )
+
+		Tile& tile = m_world[tileID];
+		const TileFlag oldFlags = tile.flags;
+		const unsigned char oldFluid = tile.fluidLevel;
+		const unsigned char oldPressure = tile.pressure;
+		const WaterFlow oldFlow = tile.flow;
+		const int finalMass = qBound( 0, mass.value( tileID, 0 ) + delta.value( tileID, 0 ), maxStoredFluidMass );
+
+		if ( !passable( tileID ) || finalMass == 0 )
 		{
-			++here.fluidLevel;
-			waterUpdates.append( pos );
+			tile.fluidLevel = 0;
+			tile.pressure   = 0;
+			tile.flow       = WF_NOFLOW;
+			tile.flags -= TileFlag::TF_WATER;
+			m_water.erase( tileID );
 		}
 		else
 		{
-			++here.pressure;
+			tile.fluidLevel = qMin( fluidCapacity, finalMass );
+			tile.pressure   = qBound( 0, finalMass - fluidCapacity, 255 );
+			tile.flow       = flowFlags.value( tileID, WF_NOFLOW );
+			tile.flags += TileFlag::TF_WATER;
+			m_water.insert( tileID );
+		}
+
+		if ( oldFlags != tile.flags || oldFluid != tile.fluidLevel || oldPressure != tile.pressure || oldFlow != tile.flow )
+		{
+			waterUpdates.append( tileID );
 		}
 	}
 
-	// Then apply drain
-	for ( const auto& pos : drain )
-	{
-		Tile& here = getTile( pos );
-		if ( here.pressure > 0 )
-		{
-			--here.pressure;
-		}
-		else
-		{
-			--here.fluidLevel;
-			waterUpdates.append( pos );
-		}
-		if ( here.fluidLevel == 0 )
-		{
-			here.flow = WF_NOFLOW;
-			here.flags -= TileFlag::TF_WATER;
-			removedWater.insert( pos );
-		}
-	}
-
-	// Batch submit water tile updates
 	addToUpdateList( waterUpdates );
-	waterUpdates.clear();
+}
 
-	// Append tracked new water tiles
-	for ( const auto& newPos : newWater )
+/**
+ * @brief Applies the extracted deterministic water solver to World storage.
+ *
+ * The solver works entirely in mass units. This adapter deliberately keeps
+ * the legacy fluidLevel/pressure split and TF_WATER/m_water bookkeeping so
+ * existing saves and gameplay callers remain compatible.
+ */
+void World::processWaterFlow()
+{
+	const int worldTileCount = m_world.size();
+	if ( worldTileCount <= 0 || m_activeWater.isEmpty() )
+		return;
+
+	constexpr int surfaceCapacity = 10;
+	constexpr int maxStoredMass = surfaceCapacity + 255;
+	QSet<unsigned int> sparseIDs = m_activeWater;
+	for ( const unsigned int tileID : std::as_const( m_activeWater ) )
 	{
-		m_water.insert( newPos );
+		if ( tileID >= static_cast<unsigned int>( worldTileCount ) )
+			continue;
+		const Neighbors adjacent( tileID, m_dimX, m_dimY, m_dimZ );
+		for ( const unsigned int neighbor : { adjacent.above, adjacent.below, adjacent.north, adjacent.south, adjacent.east, adjacent.west } )
+		{
+			if ( neighbor != invalidWaterTile && neighbor < static_cast<unsigned int>( worldTileCount ) )
+				sparseIDs.insert( neighbor );
+		}
 	}
 
-	// Remove empty tiles
-	for ( const auto& oldPos : removedWater )
+	QHash<unsigned int, WaterFlowCell> cells;
+	cells.reserve( sparseIDs.size() );
+	for ( const unsigned int tileID : std::as_const( sparseIDs ) )
 	{
-		auto it = m_water.find( oldPos );
-		m_water.erase( it );
+		const Tile& tile = m_world[static_cast<int>( tileID )];
+		cells.insert( tileID, {
+			qBound( 0, static_cast<int>( tile.fluidLevel ) + static_cast<int>( tile.pressure ), maxStoredMass ),
+			static_cast<bool>( tile.wallType & WallType::WT_MOVEBLOCKING ),
+			static_cast<bool>( tile.floorType & FloorType::FT_SOLIDFLOOR ),
+			isWaterBoundary( tileID, m_dimX, m_dimY, m_dimZ )
+		} );
 	}
+
+	const WaterFlowConfig config { surfaceCapacity, maxStoredMass, 1 };
+	const WaterFlowResult flow = solveWaterFlow( cells, m_dimX, m_dimY, m_dimZ, m_activeWater, config );
+	m_activeWater = flow.nextActive;
+
+	QVector<unsigned int> touched = flow.touched.values().toVector();
+	std::sort( touched.begin(), touched.end() );
+	QVector<unsigned int> waterUpdates;
+	waterUpdates.reserve( touched.size() );
+
+	for ( const unsigned int tileID : touched )
+	{
+		if ( tileID >= static_cast<unsigned int>( worldTileCount ) )
+			continue;
+
+		Tile& tile = m_world[static_cast<int>( tileID )];
+		const TileFlag oldFlags = tile.flags;
+		const unsigned char oldFluid = tile.fluidLevel;
+		const unsigned char oldPressure = tile.pressure;
+		const WaterFlow oldFlow = tile.flow;
+		const int finalMass = flow.mass.value( tileID, 0 );
+
+		if ( finalMass <= 0 || cells[tileID].boundary || cells[tileID].moveBlocking )
+		{
+			tile.fluidLevel = 0;
+			tile.pressure = 0;
+			tile.flow = WF_NOFLOW;
+			tile.flags -= TileFlag::TF_WATER;
+			m_water.erase( tileID );
+		}
+		else
+		{
+			tile.fluidLevel = static_cast<unsigned char>( qMin( surfaceCapacity, finalMass ) );
+			tile.pressure = static_cast<unsigned char>( qBound( 0, finalMass - surfaceCapacity, 255 ) );
+			tile.flow = flow.flow.value( tileID, WF_NOFLOW );
+			tile.flags += TileFlag::TF_WATER;
+			m_water.insert( tileID );
+		}
+
+		if ( oldFlags != tile.flags || oldFluid != tile.fluidLevel || oldPressure != tile.pressure || oldFlow != tile.flow )
+			waterUpdates.append( tileID );
+	}
+
+	addToUpdateList( waterUpdates );
 }
 
 /**
@@ -1381,6 +1639,9 @@ QPair<unsigned short, unsigned short> World::mineWall( Position pos, Position& w
 	updateRampAtPos( pos.westOf() );
 
 	discover( pos );
+	wakeWaterAround( pos );
+	if ( tile.wallType == WallType::WT_NOWALL )
+		wakeWaterAround( pos.aboveOf() );
 
 	QString ncd = QString::number( pos.toInt() );
 	ncd += ";";
@@ -1422,6 +1683,7 @@ QPair<unsigned short, unsigned short> World::removeWall( Position pos, Position&
 	updateLightsInRange( pos );
 
 	discover( pos );
+	wakeWaterAround( pos );
 
 	QString ncd = QString::number( pos.toInt() );
 	ncd += ";";
@@ -1483,6 +1745,8 @@ unsigned short World::removeRamp( Position pos, Position workPosition )
 	updateLightsInRange( pos );
 
 	removeGrass( pos );
+	wakeWaterAround( pos );
+	wakeWaterAround( pos.aboveOf() );
 
 	return materialInt;
 }
@@ -1523,6 +1787,8 @@ void World::updateRampAtPos( Position pos )
 		updateWalkable( pos.aboveOf() );
 
 		removeGrass( pos );
+		wakeWaterAround( pos );
+		wakeWaterAround( pos.aboveOf() );
 
 		return;
 	}
@@ -1579,6 +1845,8 @@ unsigned short World::removeFloor( Position pos, Position extractTo )
 	}
 	
 	discover( pos.belowOf() );
+	wakeWaterAround( pos );
+	wakeWaterAround( pos.belowOf() );
 
 	addToUpdateList( pos );
 

@@ -30,8 +30,8 @@
 class Game;
 
 /// @brief GPU-bound representation of one world tile. Four sprite UIDs (floor/wall/item/
-///        creature) plus two job-overlay sprite UIDs and packed state bytes. Laid out so it
-///        can be uploaded as a small array of uints (see TD_SIZE).
+///        creature) plus two job-overlay sprite UIDs, packed state bytes, and a render-only
+///        previous creature position. Laid out to match the world shaders.
 struct TileData
 {
 	unsigned int flags  = 0;                ///< Primary tile flags (walkable, occupied, …).
@@ -49,9 +49,34 @@ struct TileData
 	unsigned char fluidLevel      = 0;      ///< Fluid level 0–10.
 	unsigned char lightLevel      = 0;      ///< Light level 0–255.
 	unsigned char vegetationLevel = 0;      ///< Grass/vegetation growth 0–255.
-	unsigned char unused3         = 0;      ///< Padding / reserved.
+	unsigned char waterFlow       = 0;      ///< Packed WaterFlow flags; keeps the 56-byte GPU layout.
+
+	qint32 creatureOffsetX = 0;             ///< Previous creature X minus current X, in tiles.
+	qint32 creatureOffsetY = 0;             ///< Previous creature Y minus current Y, in tiles.
+	qint32 creatureOffsetZ = 0;             ///< Previous creature Z minus current Z, in tiles.
+	quint32 creatureMotionTick = 0;         ///< Simulation tick when this creature step began.
+	quint32 creatureMotionDurationTicks = 1;///< Number of simulation ticks for this movement.
 };
+static_assert( sizeof( TileData ) == 56, "TileData GPU layout must remain 56 bytes" );
 Q_DECLARE_TYPEINFO( TileData, Q_PRIMITIVE_TYPE );
+
+/// @brief One creature sprite and its previous render position for interpolation.
+struct CreatureRenderData
+{
+	unsigned int spriteUID = 0;
+	Position previousPosition;
+	quint32 motionDurationTicks = 1;
+};
+
+/// @brief Render-time camera target for a creature inspector preview.
+///        The camera follows the same previous-to-current path used by the creature shader.
+struct CreatureCameraTarget
+{
+	Position currentPosition;
+	Position previousPosition;
+	quint64 motionTick = 0;
+	quint32 motionDurationTicks = 1;
+};
 
 /// @brief One tile update packet: tile ID plus its new TileData.
 struct TileDataUpdate
@@ -65,6 +90,8 @@ Q_DECLARE_TYPEINFO( TileDataUpdate, Q_PRIMITIVE_TYPE );
 struct TileDataUpdateInfo
 {
 	QVector<TileDataUpdate> updates;
+	QHash<unsigned int, CreatureCameraTarget> creatureCameraTargets;
+	quint64 simulationTick = 0; ///< Simulation snapshot that produced this batch.
 };
 Q_DECLARE_METATYPE( TileDataUpdateInfo );
 
@@ -121,8 +148,11 @@ public:
 private:
 	QPointer<Game> g;   ///< Game instance (weak ownership).
 
-	QHash<unsigned int, unsigned int> collectCreatures();
+	QHash<unsigned int, CreatureRenderData> collectCreatures( quint64 simulationTick,
+		QHash<unsigned int, CreatureCameraTarget>& cameraTargets );
 	TileDataUpdate aggregateTile( unsigned int tileID ) const;
+	QHash<unsigned int, Position> m_previousCreaturePositions;
+	QHash<unsigned int, quint64> m_lastCreatureMotionTicks;
 
 public slots:
 	void onWorldParametersChanged();

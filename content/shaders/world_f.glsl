@@ -29,12 +29,6 @@
 #define TF_TRANSPARENT          0x40000000u
 #define TF_OVERSIZE             0x80000000u
 
-#define WATER_TOP               0x01u
-#define WATER_EDGE              0x02u
-#define WATER_WALL              0x10u
-#define WATER_FLOOR             0x20u
-#define WATER_ONFLOOR           0x40u
-
 #define CAT(x, y) CAT_(x, y)
 #define CAT_(x, y) x ## y
 #define UNPACKSPRITE(alias, src) const uint CAT(alias, ID) = src & 0xffff; const uint CAT(alias, Flags) = src >> 16;
@@ -50,7 +44,6 @@ uniform sampler2DArray uTexture[32];
 uniform int uTickNumber;
 
 uniform int uUndiscoveredTex;
-uniform int uWaterTex;
 
 uniform int uWorldRotation;
 uniform bool uOverlay;
@@ -61,11 +54,6 @@ uniform float uLightMin;
 uniform bool uPaintFrontToBack;
 
 uniform bool uShowJobs;
-
-const float waterAlpha = 0.6;
-const float flSize =  ( 1.0 / 32. );
-const int rightWallOffset = 4;
-const int leftWallOffset = 8;
 
 const vec3 perceivedBrightness = vec3(0.299, 0.587, 0.114);
 
@@ -236,55 +224,6 @@ void main()
 				
 			}
 		}
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		//
-		// water related calculations
-		//
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		if( ( vFluidFlags & ( WATER_FLOOR | WATER_EDGE ) ) != 0 )
-		{
-			const bool renderAboveFloor = ( vFluidFlags & WATER_ONFLOOR ) != 0;
-			const int startLevel =  renderAboveFloor ? 2 : int(min(vFluidLevel, 2));
-			const int referenceLevel = int(vTexCoords.x < 0.5 ? vFluidLevelLeft : vFluidLevelRight);
-			const int offset = vTexCoords.x < 0.5 ? leftWallOffset : rightWallOffset;
-
-			const float fl = float( startLevel - 2 ) * flSize;
-
-			vec4 tmpTexel = vec4( 0, 0, 0, 0 );
-
-			if( ( vFluidFlags & WATER_FLOOR ) != 0 )
-			{
-				float y = vTexCoords.y + fl;
-				tmpTexel = texture( uTexture[0], vec3( vec2( vTexCoords.x, y ), uWaterTex ) );
-			}
-
-			if( ( vFluidFlags & WATER_EDGE ) != 0 )
-			{
-				float y = vTexCoords.y + fl;
-				for(int i = startLevel; i > referenceLevel; --i)
-				{
-					y -= flSize;
-					tmpTexel += texture( uTexture[0], vec3( vec2( vTexCoords.x, y ), uWaterTex + offset ) );
-				}
-			}
-
-			// Turn into slight tint instead
-			if( renderAboveFloor && vFluidLevel == 1 )
-			{
-				tmpTexel.a *= 0.5;
-			}
-
-
-			texel.rgb = mix( texel.rgb, tmpTexel.rgb, waterAlpha * tmpTexel.a );
-			texel.a = max(texel.a , tmpTexel.a);
-		}
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		//
-		// end water related calculations
-		//
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		
-		
 	}
 	else
 	{
@@ -372,50 +311,11 @@ void main()
 			rot = ( rot + uWorldRotation ) % 4;
 			
 			vec4 tmpTexel = getTexel( spriteID, rot, animFrame );
-			
+
 			texel.rgb = mix( texel.rgb, tmpTexel.rgb, tmpTexel.a );
 			texel.a = max(texel.a , tmpTexel.a);
 		}
-		
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		//
-		// water related calculations
-		//
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		if( ( vFluidFlags & ( WATER_TOP | WATER_WALL ) ) != 0 && vFluidLevel > 2 )
-		{
-			const int startLevel = int(vFluidLevel - 2);
-			const int referenceLevel = int( vTexCoords.x < 0.5 ? max(2, vFluidLevelLeft) : max(2, vFluidLevelRight) ) - 2;
-			const int offset = vTexCoords.x < 0.5 ? leftWallOffset : rightWallOffset;
 
-			const float fl = float( startLevel ) * flSize;
-
-			vec4 tmpTexel = vec4( 0, 0, 0, 0 );
-			
-			if( ( vFluidFlags & WATER_TOP ) != 0 )
-			{
-				float y = vTexCoords.y + fl;
-				tmpTexel = texture( uTexture[0], vec3( vec2( vTexCoords.x, y ), uWaterTex ) );
-			}
-
-			if( ( vFluidFlags & WATER_WALL ) != 0)
-			{
-				float y = vTexCoords.y + fl;
-				for(int i = startLevel; i > referenceLevel; --i)
-				{
-					y -= flSize;
-					tmpTexel += texture( uTexture[0], vec3( vec2( vTexCoords.x, y ), uWaterTex + offset ) );
-				}
-			}
-			
-			texel.rgb = mix( texel.rgb, tmpTexel.rgb, waterAlpha * tmpTexel.a );
-			texel.a = max(texel.a , tmpTexel.a);
-		}
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		//
-		// end water related calculations
-		//
-		////////////////////////////////////////////////////////////////////////////////////////////////////
 	}
 
 	if( texel.a <= 0 )

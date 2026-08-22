@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -22,8 +22,12 @@
 #define GAME_H_
 
 #include "../base/enums.h"
+#include "tutorialtypes.h"
+#include "tutorialmanager.h"
 
 #include <QObject>
+#include <QElapsedTimer>
+#include <QPointer>
 
 class Config;
 class NewGameSettings;
@@ -96,7 +100,7 @@ public:
 	void setPaused( bool value );
 	void setHeartbeatResponse( int value );
 
-	void generateWorld( NewGameSettings* ngs );
+	void generateWorld( NewGameSettings* ngs, GameStartMode mode = GameStartMode::Normal );
 	void setWorld( int dimX, int dimY, int dimZ );
 	World* world();
 
@@ -118,6 +122,8 @@ public:
 	MilitaryManager* mil();
 	PathFinder* pf();
 	SoundManager* sm();
+	TutorialManager* tutorial();
+	[[nodiscard]] GameStartMode startMode() const noexcept { return m_startMode; }
 
 private:
 	QScopedPointer<World> m_world;
@@ -125,7 +131,7 @@ private:
 	QScopedPointer<PathFinder> m_pf;
 
 	QPointer<QTimer> m_timer;
-	
+
 	QElapsedTimer m_upsTimer;
 	int m_upsCounter;
 	int m_upsCounter1;
@@ -165,6 +171,8 @@ private:
 	QPointer<NeighborManager> m_neighborManager;
 	QPointer<MilitaryManager> m_militaryManager;
 	QPointer<SoundManager> m_soundManager;
+	QPointer<TutorialManager> m_tutorialManager;
+	GameStartMode m_startMode{ GameStartMode::Normal };
 
 public slots:
 	void loop();
@@ -176,6 +184,8 @@ signals:
 	void sendOverlayMessage( int id, QString text );
 	void signalTimeAndDate( int minute, int hour, int day, QString season, int year, QString sunStatus );
 	void signalKingdomInfo( QString name, QString info1, QString info2, QString info3 );
+	void signalHudSettlement( QString name, unsigned int gnomes, unsigned int animals, unsigned int items );
+	void signalHudClock( int minute, int hour, int day, QString seasonId, int year, bool daylight, int nextSunMinute );
 	void signalHeartbeat( int value );
 	void signalPause( bool pause );
 	void signalEvent( unsigned int id, QString title, QString msg, bool pause, bool yesno );
@@ -183,6 +193,7 @@ signals:
 	void signalEndAutoSave();
 	void signalUpdateTileInfo( QSet<unsigned int> changeSet );
 	void signalUpdateStockpile();
+	void signalTutorialSnapshot( TutorialSnapshot snapshot );
 };
 
 #endif /* GAME_H_ */

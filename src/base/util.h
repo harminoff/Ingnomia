@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -132,13 +132,7 @@ public:
 	void debugVM( QVariantMap vm, QString name );
 
 	QPixmap smallPixmap( Sprite* sprite, QString season, int rotation );
-	QPixmap createWorkshopImage( const QString& workshopID, const QStringList& m_mats );
-	QPixmap createItemImage( const QString& constructionID, const QStringList& mats );
-	QPixmap createItemImage2( const QString& constructionID, const QStringList& mats );
-	QPixmap createConstructionImage( const QString& constructionID, const QStringList& mats );
-	Sprite* getSprite( int x, int y, const QList<QVariantMap>& comps, unsigned char& rot, const QStringList& mats );
 
-	void createBufferForNoesisImage( const QPixmap& pm, std::vector<unsigned char>& buffer );
 
 	QStringList possibleMaterialsForItem( QString itemSID );
 	QStringList possibleMaterials( QString allowedMaterials, QString allowedMaterialTypes );

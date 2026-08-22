@@ -1,0 +1,17 @@
+<template name="modal-shell" content="modal-content">
+<head>
+    <link type="text/rcss" href="../styles/base.rcss" />
+    <link type="text/rcss" href="../styles/components.rcss" />
+</head>
+<body class="c-modal-stage">
+    <div class="c-modal-scrim"></div>
+    <section class="c-modal">
+        <header class="c-modal__header"><h2>Decision required</h2></header>
+        <div id="modal-content" class="c-modal__body"></div>
+        <footer class="c-modal__actions">
+            <button>Cancel</button>
+            <button class="c-button c-button--primary">Confirm</button>
+        </footer>
+    </section>
+</body>
+</template>

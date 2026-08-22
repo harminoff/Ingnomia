@@ -31,6 +31,12 @@
 
 #include <random>
 
+namespace
+{
+constexpr int minimumSupportedZLevels = 71;
+constexpr int maximumSupportedZLevels = 200;
+}
+
 /// @brief Constructs the settings object: loads the embark map and presets, then randomises the seed and kingdom name.
 /// @param parent Qt parent object.
 NewGameSettings::NewGameSettings( QObject* parent ) :
@@ -220,8 +226,8 @@ void NewGameSettings::loadEmbarkMap()
 	m_seed = embarkMap.value( "seed" ).toString();
 
 	m_worldSize    = embarkMap.value( "dimX" ).toInt();
-	m_zLevels      = embarkMap.value( "dimZ" ).toInt();
-	m_ground       = embarkMap.value( "groundLevel" ).toInt();
+	m_zLevels      = qBound( minimumSupportedZLevels, embarkMap.value( "dimZ" ).toInt(), maximumSupportedZLevels );
+	m_ground       = qBound( 7, m_zLevels - 8, embarkMap.value( "groundLevel" ).toInt() );
 	m_flatness     = embarkMap.value( "flatness" ).toInt();
 	m_oceanSize    = embarkMap.value( "oceanSize" ).toInt();
 	m_rivers       = embarkMap.value( "rivers" ).toInt();
@@ -293,9 +299,14 @@ bool NewGameSettings::setWorldSize( int value )
 /// @brief Sets the number of Z levels if changed. @param value New Z level count. @return true if changed.
 bool NewGameSettings::setZLevels( int value )
 {
+	if ( value < minimumSupportedZLevels || value > maximumSupportedZLevels )
+	{
+		return false;
+	}
 	if ( m_zLevels != value )
 	{
 		m_zLevels = value;
+		m_ground = qBound( 7, m_zLevels - 8, m_ground );
 		return true;
 	}
 	return false;
@@ -303,6 +314,10 @@ bool NewGameSettings::setZLevels( int value )
 /// @brief Sets the ground level if changed. @param value New ground level. @return true if changed.
 bool NewGameSettings::setGround( int value )
 {
+	if ( value < 7 || value > m_zLevels - 8 )
+	{
+		return false;
+	}
 	if ( m_ground != value )
 	{
 		m_ground = value;

@@ -113,6 +113,8 @@ public:
 	static QString seed;
 
 	static QVariantList startingItems;
+	/// Versioned interactive-tutorial progress.  Missing in older saves.
+	static QVariantMap tutorial;
 
 	static unsigned int startingZone;
 	

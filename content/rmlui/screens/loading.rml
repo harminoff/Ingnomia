@@ -1,0 +1,15 @@
+<rml>
+<head>
+    <title data-l10n="shell.loading.preparing_kingdom">Preparing kingdom</title>
+    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+</head>
+<body class="l-shell-screen l-shell-screen--centered is-blocking">
+    <main class="c-shell-chamber c-shell-chamber--compact">
+        <header class="c-shell-masthead"><h1 id="loading-heading" tab-index="auto" data-l10n="shell.loading.loading-heading">Preparing kingdom</h1></header>
+        <p id="loading-progress" class="c-shell-copy" data-l10n="shell.loading.loading-progress">Please wait while the world transition completes.</p>
+        <div class="c-shell-loading-mark"><span class="c-loading-step"></span><span class="c-loading-step is-active"></span><span class="c-loading-step"></span></div>
+        <section id="loading-error" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.loading.the_kingdom_could_not_be_prepared">The kingdom could not be prepared</span><span id="loading-error-detail" class="c-alert-row__detail"></span></span></section>
+        <div id="loading-error-actions" class="c-shell-actions c-shell-actions--row u-hidden"><button id="shell-back" data-l10n="shell.loading.shell-back">Back</button><button id="loading-retry" class="c-button c-button--primary" data-l10n="shell.loading.loading-retry">Retry</button></div>
+    </main>
+</body>
+</rml>

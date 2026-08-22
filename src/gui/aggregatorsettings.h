@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -16,7 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 /** @file aggregatorsettings.h
- *  @brief Data type and aggregator for the in-game Settings XAML window. Mirrors
+ *  @brief Data type and aggregator for the in-game Settings RmlUi window. Mirrors
  *         Global::cfg values and pushes changes back into the config when edited.
  */
 #pragma once
@@ -28,6 +28,8 @@
 struct GuiSettings
 {
     bool fullscreen = false;          ///< Fullscreen toggle.
+    bool followMonitorRefresh = true; ///< Match the active monitor's refresh rate.
+    int frameRateLimit = 60;          ///< Manual gameplay frame-rate cap when monitor matching is off.
     float scale = 1.0;                ///< UI scaling factor.
     QList<QString> languages;         ///< Available language IDs.
     QString language;                 ///< Currently active language ID.
@@ -62,9 +64,12 @@ public slots:
     void onSetUIScale( float scale );
     void onSetKeyboardSpeed( int value );
     void onSetFullScreen( bool value );
+    void onSetFollowMonitorRefresh( bool value );
+    void onSetFrameRateLimit( int value );
     void onSetLightMin( int value );
     void onSetToggleMouseWheel( bool value );
 	void onSetAudioMasterVolume( float value );
+	void onResetSupportedSettings();
 
 signals:
 	void signalUpdateSettings( const GuiSettings& info );
