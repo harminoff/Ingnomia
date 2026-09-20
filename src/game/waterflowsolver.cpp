@@ -49,19 +49,6 @@ Neighbors neighbors( unsigned int id, int dimX, int dimY, int dimZ )
 	};
 }
 
-WaterFlow oppositeFlow( WaterFlow flow )
-{
-	switch ( flow )
-	{
-		case WF_NORTH: return WF_SOUTH;
-		case WF_SOUTH: return WF_NORTH;
-		case WF_EAST: return WF_WEST;
-		case WF_WEST: return WF_EAST;
-		case WF_UP: return WF_DOWN;
-		case WF_DOWN: return WF_UP;
-		default: return WF_NOFLOW;
-	}
-}
 }
 
 WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
@@ -81,10 +68,7 @@ WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 	const int maxTransfer = qMax( 0, config.maxTransferPerEdge );
 
 	QHash<unsigned int, int> mass;
-	QHash<unsigned int, int> remaining;
-	QHash<unsigned int, int> delta;
 	QHash<unsigned int, WaterFlow> flowFlags;
-	QSet<unsigned int> sourceSet;
 	QVector<unsigned int> active;
 	active.reserve( activeWater.size() );
 	result.visitedCellCount = cells.size();
@@ -105,8 +89,6 @@ WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 			result.mass.insert( id, 0 );
 			continue;
 		}
-		remaining.insert( id, mass.value( id ) );
-		sourceSet.insert( id );
 		active.append( id );
 	}
 
@@ -114,12 +96,6 @@ WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 
 	auto passable = [&]( unsigned int id ) {
 		return id != invalidTile && id < worldTileCount && cells.contains( id ) && !cells[id].boundary && !cells[id].moveBlocking;
-	};
-
-	auto ensureMass = [&]( unsigned int id ) {
-		if ( id == invalidTile || id >= worldTileCount || !cells.contains( id ) )
-			return 0;
-		return mass.value( id );
 	};
 
 	auto activateAround = [&]( unsigned int id ) {
@@ -137,17 +113,15 @@ WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 		if ( !passable( source ) || !passable( destination ) || requested <= 0 )
 			return 0;
 
-		ensureMass( destination );
-		const int available = remaining.value( source );
-		const int currentDestinationMass = mass.value( destination ) + delta.value( destination );
+		const int available = mass.value( source );
+		const int currentDestinationMass = mass.value( destination );
 		const int destinationRoom = qMax( 0, capacity - currentDestinationMass );
 		const int amount = qMin( requested, qMin( available, destinationRoom ) );
 		if ( amount <= 0 )
 			return 0;
 
-		remaining[source] = available - amount;
-		delta[source] = delta.value( source ) - amount;
-		delta[destination] = delta.value( destination ) + amount;
+		mass[source] -= amount;
+		mass[destination] += amount;
 		flowFlags[source] = flowFlags.value( source, WF_NOFLOW ) + direction;
 		result.touched.insert( source );
 		result.touched.insert( destination );
@@ -165,41 +139,110 @@ WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 			addTransfer( id, n.below, maxTransfer, WF_DOWN );
 	}
 
-	auto processHorizontalPair = [&]( unsigned int source, unsigned int neighbor, WaterFlow direction ) {
-		if ( !passable( neighbor ) )
-			return;
-		const bool neighborIsSource = sourceSet.contains( neighbor );
-		if ( neighborIsSource && source > neighbor )
-			return;
-
-		ensureMass( neighbor );
-		if ( remaining.value( source ) > mass.value( neighbor ) + 1 )
+	// A local integer gradient stops at 10,9,8,...,1,0 forever. Relax the
+	// connected surface instead, with a dry frontier only one cell wide. This
+	// levels a body without scanning the map or spreading through a dry wall.
+	QSet<unsigned int> wet;
+	QSet<unsigned int> candidates;
+	for ( auto it = mass.cbegin(); it != mass.cend(); ++it )
+	{
+		if ( it.value() <= 0 || cells[it.key()].mass <= 0 || !passable( it.key() ) )
+			continue;
+		wet.insert( it.key() );
+		candidates.insert( it.key() );
+		const Neighbors n = neighbors( it.key(), dimX, dimY, dimZ );
+		for ( const auto adjacent : { n.north, n.east, n.south, n.west } )
+			if ( passable( adjacent ) ) candidates.insert( adjacent );
+	}
+	QVector<unsigned int> ordered = candidates.values().toVector();
+	std::sort( ordered.begin(), ordered.end() );
+	QSet<unsigned int> visited;
+	for ( const auto seed : ordered )
+	{
+		if ( visited.contains( seed ) ) continue;
+		QVector<unsigned int> body { seed };
+		visited.insert( seed );
+		qint64 total = 0;
+		for ( qsizetype cursor = 0; cursor < body.size(); ++cursor )
 		{
-			addTransfer( source, neighbor, maxTransfer, direction );
+			const auto id = body[cursor];
+			total += mass.value( id );
+			const Neighbors n = neighbors( id, dimX, dimY, dimZ );
+			for ( const auto adjacent : { n.north, n.east, n.south, n.west } )
+			{
+				// Do not walk through chains of dry candidates. A newly wetted
+				// frontier becomes a source on the next fixed simulation tick.
+				if ( candidates.contains( adjacent ) && !visited.contains( adjacent ) &&
+					( wet.contains( id ) || wet.contains( adjacent ) ) )
+				{
+					visited.insert( adjacent );
+					body.append( adjacent );
+				}
+			}
 		}
-		else if ( neighborIsSource && remaining.value( neighbor ) > mass.value( source ) + 1 )
+		if ( total == 0 ) continue;
+		auto draining = [&]( unsigned int id ) {
+			const auto below = neighbors( id, dimX, dimY, dimZ ).below;
+			return !cells[id].solidFloor && passable( below ) && mass.value( below ) < capacity;
+		};
+		// Keep indivisible remainders where they are so a settled puddle does
+		// not shuffle every tick. Give a spillway first claim on that last unit:
+		// even 1/10-deep water must drain when its containing floor is removed.
+		std::sort( body.begin(), body.end(), [&]( unsigned int a, unsigned int b ) {
+			if ( draining( a ) != draining( b ) ) return draining( a );
+			if ( mass.value( a ) != mass.value( b ) ) return mass.value( a ) > mass.value( b );
+			return a < b;
+		} );
+		const int level = static_cast<int>( total / body.size() );
+		const int remainder = static_cast<int>( total % body.size() );
+		QHash<unsigned int, int> target;
+		QVector<unsigned int> donors;
+		QVector<unsigned int> receivers;
+		for ( qsizetype i = 0; i < body.size(); ++i )
 		{
-			addTransfer( neighbor, source, maxTransfer, oppositeFlow( direction ) );
+			const auto id = body[i];
+			target[id] = level + ( i < remainder ? 1 : 0 );
+			if ( mass.value( id ) > target[id] ) donors.append( id );
+			if ( mass.value( id ) < target[id] ) receivers.append( id );
 		}
-	};
+		qsizetype receiverIndex = 0;
+		for ( const auto donor : donors )
+		{
+			int available = qMin( maxTransfer, mass.value( donor ) - target[donor] );
+			while ( available > 0 && receiverIndex < receivers.size() )
+			{
+				const auto receiver = receivers[receiverIndex];
+				const int amount = qMin( available, target[receiver] - mass.value( receiver ) );
+				mass[donor] -= amount;
+				mass[receiver] += amount;
+				available -= amount;
+				result.touched.insert( donor );
+				result.touched.insert( receiver );
+				activateAround( donor );
+				activateAround( receiver );
+				const int dx = static_cast<int>( receiver % dimX ) - static_cast<int>( donor % dimX );
+				const int dy = static_cast<int>( receiver / dimX % dimY ) - static_cast<int>( donor / dimX % dimY );
+				WaterFlow direction = WF_NOFLOW;
+				if ( dx != 0 ) direction += dx > 0 ? WF_EAST : WF_WEST;
+				if ( dy != 0 ) direction += dy > 0 ? WF_SOUTH : WF_NORTH;
+				flowFlags[donor] = flowFlags.value( donor, WF_NOFLOW ) + direction;
+				if ( mass.value( receiver ) == target[receiver] ) ++receiverIndex;
+			}
+		}
+	}
 
-	for ( const unsigned int id : active )
+	for ( const auto id : active )
 	{
 		const Neighbors n = neighbors( id, dimX, dimY, dimZ );
-		processHorizontalPair( id, n.north, WF_NORTH );
-		processHorizontalPair( id, n.south, WF_SOUTH );
-		processHorizontalPair( id, n.east, WF_EAST );
-		processHorizontalPair( id, n.west, WF_WEST );
-
-		if ( remaining.value( id ) > capacity && passable( n.above ) && !cells[n.above].solidFloor )
-			addTransfer( id, n.above, maxTransfer, WF_UP );
+		if ( mass.value( id ) > capacity && passable( n.above ) && !cells[n.above].solidFloor )
+			addTransfer( id, n.above, qMin( maxTransfer, mass.value( id ) - capacity ), WF_UP );
 	}
 
 	for ( const unsigned int id : result.touched )
 	{
 		if ( id >= worldTileCount )
 			continue;
-		const int finalMass = qBound( 0, mass.value( id ) + delta.value( id ), maxStoredMass );
+		const int finalMass = qBound( 0, mass.value( id ), maxStoredMass );
 		result.mass.insert( id, finalMass );
 		if ( finalMass > 0 && passable( id ) )
 			result.flow.insert( id, flowFlags.value( id, WF_NOFLOW ) );

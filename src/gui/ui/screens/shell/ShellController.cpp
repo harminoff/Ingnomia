@@ -199,7 +199,9 @@ bool ShellController::handleEscape()
 	}
 	if( state_.route.value == "game.hud" )
 	{
-		activate( ShellControl::OpenPause );
+		const bool pauseAlreadyRequested = state_.authoritativePaused ||
+			( pendingPauseValue_ && *pendingPauseValue_ );
+		activate( pauseAlreadyRequested ? ShellControl::OpenPauseMenu : ShellControl::OpenPause );
 		return true;
 	}
 	if( state_.route.value == "game.pause" )
@@ -342,8 +344,17 @@ void ShellController::activate( ShellControl control, FocusToken sourceFocus )
 	case ShellControl::ApplySettings: dispatch( action( "settings.apply", NoPayload{} ) ); break;
 	case ShellControl::RevertSettings: dispatch( action( "settings.revert", NoPayload{} ) ); break;
 	case ShellControl::ResetSettings: dispatch( action( "settings.reset", NoPayload{} ) ); break;
+	case ShellControl::TogglePause:
+	{
+		const bool paused = pendingPauseValue_.value_or( state_.authoritativePaused );
+		dispatch( action( "sim.set_paused", SetPausedPayload{ !paused }, true ) );
+		break;
+	}
 	case ShellControl::OpenPause:
 		if( dispatch( action( "sim.set_paused", SetPausedPayload{ true }, true ) ) ) navigate( "game.pause" );
+		break;
+	case ShellControl::OpenPauseMenu:
+		navigate( "game.pause" );
 		break;
 	case ShellControl::Resume:
 		closePauseWhenUnpaused_ = dispatch( action( "sim.set_paused", SetPausedPayload{ false }, true ) );

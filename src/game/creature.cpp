@@ -348,6 +348,15 @@ void Creature::addAttribute( QString id, int level )
 	m_attributes.insert( id, level );
 }
 
+/** @brief Check whether this creature defines an attribute.
+ *  @param id Attribute identifier.
+ *  @return True when the attribute is present, even if its value is zero.
+ */
+bool Creature::hasAttribute( QString id ) const
+{
+	return m_attributes.contains( id );
+}
+
 /** @brief Get the value of an attribute.
  *  @param id Attribute identifier.
  *  @return Attribute value, or 0 if not set.

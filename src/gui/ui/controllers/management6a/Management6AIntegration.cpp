@@ -94,7 +94,7 @@ void Management6AIntegration::connectSignals()
 	auto* sp   = connector_->aggregatorStockpile();
 	auto* ag   = connector_->aggregatorAgri();
 	connect( ws, &AggregatorWorkshop::signalOpenWorkshopWindow, this, [this]( unsigned int )
-			 {if(controller_)controller_->showLoading(ManagementView::Workshop); }, Qt::QueuedConnection );
+			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Workshop);controller_->showLoading(ManagementView::Workshop);} }, Qt::QueuedConnection );
 	auto workshop = [this]( const GuiWorkshopInfo& value )
 	{if(!controller_)return;commands_->rememberWorkshopLink(WorkshopId{value.workshopID},value.linkStockpile);controller_->showWorkshop(Management6AQtDataAdapter::workshop(value),Revision{++workshopRevision_.value},selectedPosition_); };
 	connect( ws, &AggregatorWorkshop::signalUpdateInfo, this, workshop, Qt::QueuedConnection );
@@ -115,13 +115,13 @@ void Management6AIntegration::connectSignals()
 	connect( ws, &AggregatorWorkshop::signalUpdatePlayerValue, this, [this]( int value )
 			 {if(controller_)controller_->setTradeValues(controller_->state().workshop.traderOfferValue,value); }, Qt::QueuedConnection );
 	connect( sp, &AggregatorStockpile::signalOpenStockpileWindow, this, [this]( unsigned int )
-			 {if(controller_)controller_->showLoading(ManagementView::Stockpile); }, Qt::QueuedConnection );
+			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Stockpile);controller_->showLoading(ManagementView::Stockpile);} }, Qt::QueuedConnection );
 	auto stockpile = [this]( const GuiStockpileInfo& value )
 	{if(controller_)controller_->showStockpile(Management6AQtDataAdapter::stockpile(value),Revision{++stockpileRevision_.value},selectedPosition_); };
 	connect( sp, &AggregatorStockpile::signalUpdateInfo, this, stockpile, Qt::QueuedConnection );
 	connect( sp, &AggregatorStockpile::signalUpdateContent, this, stockpile, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalShowAgri, this, [this]( unsigned int )
-			 {if(controller_)controller_->showLoading(ManagementView::Agriculture); }, Qt::QueuedConnection );
+			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Agriculture);controller_->showLoading(ManagementView::Agriculture);} }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalGlobalPlantInfo, this, [this]( const QList<GuiPlant>& v )
 			 {plants_=Management6AQtDataAdapter::plants(v);if(controller_)controller_->setAgricultureCatalog(AgricultureKind::Farm,plants_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalGlobalTreeInfo, this, [this]( const QList<GuiPlant>& v )

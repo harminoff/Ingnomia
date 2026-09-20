@@ -156,6 +156,13 @@ CommandResult Management6CQtCommandPort::dispatch( const UiActionEnvelope& actio
 		return queue( [military, value = *payload]{ if( military ) { if( value.direction == MoveDirection::Up )
 			military->onMoveGnomeLeft( value.creature.value ); else military->onMoveGnomeRight( value.creature.value ); } } );
 	}
+	if( action.id.value == "military.assign_squad" )
+	{
+		const auto* payload = std::get_if<AssignSquadPayload>( &action.payload );
+		if( !payload ) return reject( "ui.error.invalid_payload" );
+		return queue( [military, value = *payload]{ if( military )
+			military->onAssignGnomeToSquad( value.creature.value, value.squad.value ); } );
+	}
 	if( action.id.value == "military.set_attitude" )
 	{
 		const auto* payload = std::get_if<SetAttitudePayload>( &action.payload );
@@ -215,7 +222,12 @@ CommandResult Management6CQtCommandPort::dispatch( const UiActionEnvelope& actio
 	}
 
 	if( action.id.value == "diplomacy.refresh" )
-		return queue( [diplomacy]{ if( diplomacy ) { diplomacy->onRequestNeighborsUpdate(); diplomacy->onRequestMissions(); } } );
+		return queue( [diplomacy, military]{
+            // Participant names come from the existing authoritative citizen roster,
+            // including citizens who are currently away on missions.
+            if( military ) military->onRequestMilitary();
+            if( diplomacy ) { diplomacy->onRequestNeighborsUpdate(); diplomacy->onRequestMissions(); }
+        } );
 	if( action.id.value == "diplomacy.refresh_available_gnomes" )
 		return queue( [diplomacy]{ if( diplomacy ) diplomacy->onRequestAvailableGnomes(); } );
 	if( action.id.value == "diplomacy.start_mission" )

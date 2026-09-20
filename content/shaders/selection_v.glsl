@@ -11,6 +11,7 @@ uniform uvec3 uRenderMin;
 uniform uvec3 uRenderMax;
 
 uniform uvec3 tile;
+uniform float uPreviewYOffset;
 
 uvec3 rotate(uvec3 pos)
 {
@@ -66,6 +67,7 @@ void main()
 	vTexCoords = vec2( aPos.x, 1.0 - aPos.y );
 
 	vec3 worldPos = project( rotate( tile ), aPos.xy, true);
+	worldPos.y += uPreviewYOffset;
 
 	gl_Position = uTransform * vec4( worldPos, 1.0 );
 }

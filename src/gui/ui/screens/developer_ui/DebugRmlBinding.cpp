@@ -110,6 +110,18 @@ void DebugRmlBinding::stateChanged( const DebugState& s )
 	show( "debug_gnomes", s.page == Page::Gnomes );
 	show( "debug_items", s.page == Page::Items );
 	show( "debug_game", s.page == Page::Game );
+	const auto selectTab = [this]( const char* id, bool selected )
+	{
+		if ( auto* e = document_->GetElementById( id ) )
+		{
+			e->SetClass( "is-selected", selected );
+			e->SetAttribute( "aria-selected", selected ? "true" : "false" );
+		}
+	};
+	selectTab( "debug_tab_diagnostics", s.page == Page::Diagnostics );
+	selectTab( "debug_tab_gnomes", s.page == Page::Gnomes );
+	selectTab( "debug_tab_items", s.page == Page::Items );
+	selectTab( "debug_tab_game", s.page == Page::Game );
 	if ( auto* e = document_->GetElementById( "debug_counters" ) )
 		e->SetInnerRML( "notifications " + std::to_string( s.counters.notifications ) + " | rendered " + std::to_string( s.counters.renderedNotifications ) + " | dirty bindings " + std::to_string( s.counters.dirtyBindings ) + " | full snapshots " + std::to_string( s.counters.fullSnapshots ) + " | row patches " + std::to_string( s.counters.rowPatches ) + " | stale epoch " + std::to_string( s.counters.staleEpochRejects ) + " | stale revision " + std::to_string( s.counters.staleRevisionRejects ) );
 	if ( auto* e = document_->GetElementById( "debug_gnome_rows" ) )

@@ -65,7 +65,7 @@ std::string activityText( std::string value, bool active )
 std::string inventoryFallbackSprite( const InventoryRow& r )
 {
 	if ( r.id.depth == InventoryDepth::Category || r.id.depth == InventoryDepth::Group )
-		return "<span class='l-m6b-row__sprite l-m6b-row__sprite--empty' aria-hidden='true'></span>";
+		return {};
 	char glyph = '?';
 	for ( const unsigned char c : r.name )
 	{
@@ -80,20 +80,21 @@ std::string inventoryFallbackSprite( const InventoryRow& r )
 std::string inventorySprite( const InventoryRow& r )
 {
 	if ( r.id.depth == InventoryDepth::Category || r.id.depth == InventoryDepth::Group )
-		return "<span class='l-m6b-row__sprite l-m6b-row__sprite--empty' aria-hidden='true'></span>";
+		return {};
 	if ( r.spriteSheet.empty() || r.spriteWidth <= 0 || r.spriteHeight <= 0 )
 		return inventoryFallbackSprite( r );
 	for ( const unsigned char c : r.spriteSheet )
 		if ( !( std::isalnum( c ) || c == '_' || c == '-' || c == '.' ) )
 			return inventoryFallbackSprite( r );
-	constexpr double frame = 32.0;
+	constexpr double frame = 40.0;
 	constexpr double cell = 40.0;
+	constexpr double cellHeight = 40.0;
 	const int sheetWidth = r.spriteSheetWidth > 0 ? r.spriteSheetWidth : r.spriteWidth;
 	const int sheetHeight = r.spriteSheetHeight > 0 ? r.spriteSheetHeight : r.spriteHeight;
 	const double scale = std::min( frame / static_cast<double>( r.spriteWidth ), frame / static_cast<double>( r.spriteHeight ) );
 	char style[160] {};
 	const double left = ( cell - frame ) * 0.5 + ( frame - static_cast<double>( r.spriteWidth ) * scale ) * 0.5 - static_cast<double>( r.spriteX ) * scale;
-	const double top = ( 34.0 - frame ) * 0.5 + ( frame - static_cast<double>( r.spriteHeight ) * scale ) * 0.5 - static_cast<double>( r.spriteY ) * scale;
+	const double top = ( cellHeight - frame ) * 0.5 + ( frame - static_cast<double>( r.spriteHeight ) * scale ) * 0.5 - static_cast<double>( r.spriteY ) * scale;
 	std::snprintf( style, sizeof style, "width:%.2fdp;height:%.2fdp;left:%.2fdp;top:%.2fdp;", static_cast<double>( sheetWidth ) * scale, static_cast<double>( sheetHeight ) * scale, left, top );
 	return "<span class='l-m6b-row__sprite'><img class='l-m6b-row__sprite-image' src='/tilesheet/" + r.spriteSheet + "' style='" + style + "' /></span>";
 }
@@ -124,8 +125,10 @@ Management6BRmlBinding::~Management6BRmlBinding()
 bool Management6BRmlBinding::initialize( Management6BController& c )
 {
 	controller_ = &c;
-	population_ = context_.LoadDocument( "windows/population_manager.rml" );
-	inventory_  = context_.LoadDocument( "windows/inventory_browser.rml" );
+	const auto load = [this]( const char* path )
+		{ return documentLoader_ ? documentLoader_( path ) : context_.LoadDocument( path ); };
+	population_ = load( "windows/population_manager.rml" );
+	inventory_  = load( "windows/inventory_browser.rml" );
 	if ( !population_ || !inventory_ )
 	{
 		shutdown();
@@ -187,26 +190,16 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 			   {const auto key=static_cast<Rml::Input::KeyIdentifier>(e.GetParameter<int>("key_identifier",0));if(key==Rml::Input::KI_LEFT)controller_->moveScheduleFocus(-1,0);else if(key==Rml::Input::KI_RIGHT)controller_->moveScheduleFocus(1,0);else if(key==Rml::Input::KI_UP)controller_->moveScheduleFocus(0,-1);else if(key==Rml::Input::KI_DOWN)controller_->moveScheduleFocus(0,1);else if(key==Rml::Input::KI_HOME)controller_->moveScheduleFocus(-24,0);else if(key==Rml::Input::KI_END)controller_->moveScheduleFocus(24,0);else if(key==Rml::Input::KI_PRIOR)controller_->moveScheduleFocus(0,-1);else if(key==Rml::Input::KI_NEXT)controller_->moveScheduleFocus(0,1);else if((key==Rml::Input::KI_RETURN||key==Rml::Input::KI_SPACE)&&controller_->state().selectedScheduleCell){const auto cell=*controller_->state().selectedScheduleCell;const auto row=std::ranges::find_if(controller_->state().schedules,[&](const auto&r){return r.creature==cell.creature;});if(row!=controller_->state().schedules.end())controller_->activateScheduleCell(next(row->hours[cell.hour]));}else return;e.StopPropagation();focusScheduleCell(); } );
 	bind( inventory_, "inventory_close", [this]
 		  { closeInventory(); } );
-	bind( inventory_, "inventory_refresh", [this]
-		  { controller_->refresh(); } );
 	bind( inventory_, "inventory_filter_owned", [this]
 		  { controller_->setInventoryOwnedOnly( !controller_->state().inventoryOwnedOnly ); } );
 	bind( inventory_, "inventory_sort_name", [this]
 		  { controller_->setInventorySort( Sort::Name ); } );
 	bind( inventory_, "inventory_sort_total", [this]
 		  { controller_->setInventorySort( Sort::Total ); } );
-	bind( inventory_, "inventory_sort_value", [this]
-		  { controller_->setInventorySort( Sort::Value ); } );
-	bind( inventory_, "inventory_toggle_watch", [this]
-		  { controller_->toggleSelectedWatch(); } );
-	bind( inventory_, "inventory_request_history", [this]
-		  { controller_->requestSelectedInventoryHistory(); } );
-	bind( inventory_, "inventory_page_previous", [this]
-		  { controller_->changeInventoryPage( -1 ); } );
-	bind( inventory_, "inventory_page_next", [this]
-		  { controller_->changeInventoryPage( 1 ); } );
+	bind( inventory_, "inventory_sort_stock", [this]
+		  { controller_->setInventorySort( Sort::Stock ); } );
 	bindEvent( inventory_, "inventory_rows", "click", [this]( Rml::Event& e )
-			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto d=x->GetAttribute<Rml::String>("data-depth","");if(d.empty())continue;const InventoryRowId id{CatalogId{x->GetAttribute<Rml::String>("data-category","")},CatalogId{x->GetAttribute<Rml::String>("data-group","")},CatalogId{x->GetAttribute<Rml::String>("data-item","")},CatalogId{x->GetAttribute<Rml::String>("data-material","")},d=="category"?InventoryDepth::Category:d=="group"?InventoryDepth::Group:d=="material"?InventoryDepth::Material:InventoryDepth::Item};if(id.depth==InventoryDepth::Category||id.depth==InventoryDepth::Group)controller_->toggleInventoryExpanded(id);else{controller_->selectInventory(id);focusInventoryRow();}break;} } );
+			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto d=x->GetAttribute<Rml::String>("data-depth","");if(d.empty())continue;const InventoryRowId id{CatalogId{x->GetAttribute<Rml::String>("data-category","")},CatalogId{x->GetAttribute<Rml::String>("data-group","")},CatalogId{x->GetAttribute<Rml::String>("data-item","")},CatalogId{x->GetAttribute<Rml::String>("data-material","")},d=="category"?InventoryDepth::Category:d=="group"?InventoryDepth::Group:d=="material"?InventoryDepth::Material:InventoryDepth::Item};if(id.depth==InventoryDepth::Category||id.depth==InventoryDepth::Group||id.depth==InventoryDepth::Item)controller_->toggleInventoryExpanded(id);else{controller_->selectInventory(id);focusInventoryRow();}break;} } );
 	bindEvent( inventory_, "inventory_rows", "keydown", [this]( Rml::Event& e )
 	{
 		const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) );
@@ -238,10 +231,10 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 				const auto d = x->GetAttribute<Rml::String>( "data-depth", "" );
 				if ( d.empty() )
 					continue;
-				section = d == "category" || d == "group";
+				section = d == "category" || d == "group" || d == "item";
 				if ( section )
 				{
-					const InventoryRowId id { CatalogId { x->GetAttribute<Rml::String>( "data-category", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-group", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-item", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-material", "" ) }, d == "category" ? InventoryDepth::Category : InventoryDepth::Group };
+					const InventoryRowId id { CatalogId { x->GetAttribute<Rml::String>( "data-category", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-group", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-item", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-material", "" ) }, d == "category" ? InventoryDepth::Category : d == "group" ? InventoryDepth::Group : InventoryDepth::Item };
 					controller_->toggleInventoryExpanded( id );
 				}
 				break;
@@ -259,7 +252,10 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 		{
 			auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( x );
 			controller_->setInventoryFilter( control ? control->GetValue() : x->GetAttribute<Rml::String>( "value", "" ) );
-			if ( auto* search = inventory_->GetElementById( "inventory_search" ) )
+			// Updating the filter synchronously rebuilds the result rows and tabs.
+			// RmlUi may clear focus during that DOM work, so restore the existing
+			// native input after the controller notification has completed.
+			if ( auto* search = inventory_->GetElementById( "inventory_search" ); search && context_.GetFocusElement() != search )
 				search->Focus();
 		}
 	};
@@ -444,6 +440,12 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 {
 	if ( !population_ || !inventory_ )
 		return;
+	if ( !presentationEnabled_ )
+	{
+		population_->Hide();
+		inventory_->Hide();
+		return;
+	}
 	auto tr = [this]( const char* key, std::initializer_list<localization::TextArgument> args = {} )
 	{ return textCatalog_.format( LocalizationKey { key }, args ); };
 	const bool pop = s.populationOpen;
@@ -464,11 +466,12 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 	visible( population_, "creature_detail", pop && ( s.populationView == View::Creature ) );
 	visible( population_, "population_loading", s.loadingPopulation );
 	visible( inventory_, "inventory_loading", s.loadingInventory );
-	const bool filteredInventory = !s.inventoryCategory.empty() || !s.inventoryFilter.empty() || s.inventoryOwnedOnly;
+	// Owned-only still presents the full category/group/item hierarchy.  Only
+	// text and category searches use the compact filtered-row alignment.
+	const bool filteredInventory = !s.inventoryCategory.empty() || !s.inventoryFilter.empty();
 	if ( auto* e = inventory_->GetElementById( "inventory_workbench" ) )
 	{
 		e->SetClass( "is-filtered", filteredInventory );
-		e->SetClass( "history-open", s.historyTarget.has_value() );
 	}
 	// Keep the native form value synchronized with the pointer-free controller
 	// state.  Inventory snapshots can arrive while the user is typing; without
@@ -477,11 +480,11 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 	if ( auto* search = inventory_->GetElementById( "inventory_search" ) )
 	{
 		if ( auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( search ) )
-			control->SetValue( s.inventoryFilter );
+			if ( control->GetValue() != s.inventoryFilter ) control->SetValue( s.inventoryFilter );
 	}
 	if ( auto* e = inventory_->GetElementById( "inventory_column_head" ) )
 		e->SetProperty( "display", "flex" );
-	std::string categoryTabs = "<button id='inventory_category_all' class='l-m6b-tab" + ( s.inventoryCategory.empty() ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory.empty() ? std::string( "true" ) : std::string( "false" ) ) + "' data-category=''>" + esc( tr( "management.inventory.tab_all" ) ) + "</button>";
+	std::string categoryTabs = "<button id='inventory_category_all' class='c-tabs__tab l-m6b-tab" + ( s.inventoryCategory.empty() ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory.empty() ? std::string( "true" ) : std::string( "false" ) ) + "' data-category=''>" + esc( tr( "management.inventory.tab_all" ) ) + "</button>";
 	std::vector<std::pair<std::string, std::string>> categories;
 	for ( const auto& r : s.inventory )
 	{
@@ -491,26 +494,40 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 		categories.emplace_back( id, r.id.depth == InventoryDepth::Category ? r.name : id );
 	}
 	for ( const auto& [id, name] : categories )
-		categoryTabs += "<button id='" + stableId( "inventory_category_", id ) + "' class='l-m6b-tab" + ( s.inventoryCategory == id ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory == id ? std::string( "true" ) : std::string( "false" ) ) + "' data-category='" + esc( id ) + "'>" + esc( name ) + "</button>";
+		categoryTabs += "<button id='" + stableId( "inventory_category_", id ) + "' class='c-tabs__tab l-m6b-tab" + ( s.inventoryCategory == id ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory == id ? std::string( "true" ) : std::string( "false" ) ) + "' data-category='" + esc( id ) + "'>" + esc( name ) + "</button>";
 	rml( inventory_, "inventory_category_tabs", categoryTabs );
 	if ( auto* e = inventory_->GetElementById( "inventory_sort_name" ) )
+	{
 		e->SetClass( "is-selected", s.inventorySort == Sort::Name );
+		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Name ? "true" : "false" );
+	}
 	if ( auto* e = inventory_->GetElementById( "inventory_sort_total" ) )
+	{
 		e->SetClass( "is-selected", s.inventorySort == Sort::Total );
-	if ( auto* e = inventory_->GetElementById( "inventory_sort_value" ) )
-		e->SetClass( "is-selected", s.inventorySort == Sort::Value );
+		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Total ? "true" : "false" );
+	}
+	if ( auto* e = inventory_->GetElementById( "inventory_sort_stock" ) )
+	{
+		e->SetClass( "is-selected", s.inventorySort == Sort::Stock );
+		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Stock ? "true" : "false" );
+	}
 	if ( auto* e = inventory_->GetElementById( "inventory_filter_owned" ) )
 	{
 		e->SetClass( "is-checked", s.inventoryOwnedOnly );
 		e->SetClass( "is-unchecked", !s.inventoryOwnedOnly );
 		e->SetAttribute( "aria-pressed", s.inventoryOwnedOnly ? "true" : "false" );
 	}
-	if ( auto* e = population_->GetElementById( "population_tab_citizens" ) )
-		e->SetClass( "is-selected", s.populationView == View::Citizens || s.populationView == View::Creature );
-	if ( auto* e = population_->GetElementById( "population_tab_professions" ) )
-		e->SetClass( "is-selected", s.populationView == View::Professions );
-	if ( auto* e = population_->GetElementById( "population_tab_schedules" ) )
-		e->SetClass( "is-selected", s.populationView == View::Schedules );
+	const auto populationTab = [this]( const char* id, bool selected )
+	{
+		if ( auto* e = population_->GetElementById( id ) )
+		{
+			e->SetClass( "is-selected", selected );
+			e->SetAttribute( "aria-selected", selected ? "true" : "false" );
+		}
+	};
+	populationTab( "population_tab_citizens", s.populationView == View::Citizens || s.populationView == View::Creature );
+	populationTab( "population_tab_professions", s.populationView == View::Professions );
+	populationTab( "population_tab_schedules", s.populationView == View::Schedules );
 	std::string rows;
 	for ( const auto& r : controller_->populationPage() )
 	{
@@ -572,50 +589,16 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 	for ( const auto& r : controller_->inventoryPage() )
 	{
 		const bool selected = s.selectedInventory && *s.selectedInventory == r.id;
-		const bool section = r.id.depth == InventoryDepth::Category || r.id.depth == InventoryDepth::Group;
+		const bool section = r.id.depth == InventoryDepth::Category || r.id.depth == InventoryDepth::Group || r.id.depth == InventoryDepth::Item;
 		const std::string disclosure = section ? ( controller_->inventoryExpanded( r.id ) ? "[-]" : "[+]" ) : std::string {};
-		inventory += "<button id='" + stableId( "inventory_row_", inventoryKey( r.id ) ) + "' class='c-list__row l-m6b-row l-m6b-inventory-row" + ( selected ? " is-selected" : "" ) + "' role='treeitem' aria-expanded='" + ( section ? ( controller_->inventoryExpanded( r.id ) ? "true" : "false" ) : "false" ) + "' aria-selected='" + ( selected ? std::string( "true" ) : std::string( "false" ) ) + "' data-depth='" + depth( r.id.depth ) + "' data-category='" + esc( r.id.category.value ) + "' data-group='" + esc( r.id.group.value ) + "' data-item='" + esc( r.id.item.value ) + "' data-material='" + esc( r.id.material.value ) + "'>" + inventorySprite( r ) + "<span class='l-m6b-row__watch'>" + ( r.watched ? esc( tr( "management.inventory.watched" ) ) : std::string {} ) + "</span><span class='l-m6b-inventory__name l-m6b-depth-" + depth( r.id.depth ) + "'><span class='l-m6b-inventory__content'><span class='l-m6b-disclosure' aria-hidden='true'>" + disclosure + "</span>" + esc( r.name ) + "</span></span><span class='l-m6b-inventory__metric'>" + std::to_string( r.total ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.inJobs ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.stockpiled ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.equipped ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.constructed ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.loose ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.totalValue ) + "</span></button>";
+		inventory += "<button id='" + stableId( "inventory_row_", inventoryKey( r.id ) ) + "' class='c-list__row l-m6b-row l-m6b-inventory-row" + ( selected ? " is-selected" : "" ) + "' role='treeitem' aria-expanded='" + ( section ? ( controller_->inventoryExpanded( r.id ) ? "true" : "false" ) : "false" ) + "' aria-selected='" + ( selected ? std::string( "true" ) : std::string( "false" ) ) + "' data-depth='" + depth( r.id.depth ) + "' data-category='" + esc( r.id.category.value ) + "' data-group='" + esc( r.id.group.value ) + "' data-item='" + esc( r.id.item.value ) + "' data-material='" + esc( r.id.material.value ) + "'><span class='l-m6b-inventory__name l-m6b-depth-" + depth( r.id.depth ) + "'>" + inventorySprite( r ) + "<span class='l-m6b-inventory__content'><span class='l-m6b-disclosure' aria-hidden='true'>" + disclosure + "</span>" + esc( r.name ) + "</span></span><span class='l-m6b-inventory__metric'>" + std::to_string( r.stockpiled ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.total ) + "</span></button>";
 	}
 	rml( inventory_, "inventory_rows", inventory.empty() ? esc( tr( "management.inventory.no_rows" ) ) : inventory );
-	const bool showHistory = s.historyTarget.has_value();
-	visible( inventory_, "inventory_history", showHistory );
-	if ( showHistory )
-	{
-		const auto target = std::ranges::find_if( s.inventory, [&]( const auto& r ) { return r.id == *s.historyTarget; } );
-		text( inventory_, "inventory_history_target", target == s.inventory.end() ? std::string {} : target->name );
-		std::string history;
-		if ( s.inventoryHistoryLoading )
-			history = esc( tr( "management.inventory.history_loading" ) );
-		else if ( s.inventoryHistory.empty() )
-			history = esc( tr( "management.inventory.history_empty" ) );
-		else
-			for ( const auto& point : s.inventoryHistory )
-				history += "<div class='l-m6b-history__row'>" + esc( tr( "management.inventory.history_point", { { "day", std::to_string( point.dayIndex ) }, { "total", std::to_string( point.total ) }, { "created", std::to_string( point.created ) }, { "destroyed", std::to_string( point.destroyed ) } } ) ) + "</div>";
-		rml( inventory_, "inventory_history_rows", history );
-	}
-	const bool hasVisibleSelection = s.selectedInventory && std::ranges::any_of( controller_->visibleInventory(), [&]( const auto& r )
-																															{ return r.id == *s.selectedInventory; } );
-	const bool watchSelected = hasVisibleSelection && std::ranges::any_of( s.inventory, [&]( const auto& r )
-																											   { return r.id == *s.selectedInventory && r.watched; } );
-	if ( auto* e = inventory_->GetElementById( "inventory_toggle_watch" ) )
-	{
-		e->SetInnerRML( esc( tr( watchSelected ? "management.inventory.watching_selected" : "management.inventory.toggle_watch" ) ) );
-		e->SetClass( "is-checked", watchSelected );
-		e->SetClass( "is-unchecked", !watchSelected );
-		e->SetAttribute( "aria-pressed", watchSelected ? "true" : "false" );
-		e->SetAttribute( "aria-disabled", hasVisibleSelection ? "false" : "true" );
-		if ( hasVisibleSelection )
-			e->RemoveAttribute( "disabled" );
-		else
-			e->SetAttribute( "disabled", "disabled" );
-	}
-	const auto populationTotal = controller_->visiblePopulation().size(), inventoryTotal = controller_->visibleInventory().size();
+	const auto populationTotal = controller_->visiblePopulation().size();
 	const auto pageText = [&]( const char* key, std::size_t page, std::size_t total )
 	{const auto first=total?std::min(page*Management6BState::pageSize+1,total):0;const auto last=std::min((page+1)*Management6BState::pageSize,total);return tr(key,{{"first",std::to_string(first)}, {"last",std::to_string(last)}, {"total",std::to_string(total)}}); };
 	text( population_, "population_page_status", pageText( "management.population.page", s.populationPage, populationTotal ) );
-	text( inventory_, "inventory_page_status", pageText( "management.inventory.page", s.inventoryPage, inventoryTotal ) );
-	text( population_, "population_revision", tr( "management.population.revision", { { "revision", std::to_string( s.populationRevision.value ) } } ) );
-	text( inventory_, "inventory_revision", tr( "management.inventory.revision", { { "revision", std::to_string( s.inventoryRevision.value ) } } ) );
+	text( population_, "population_revision", tr( "management.population.revision" ) );
 	const auto status = s.pendingAction ? tr( "status.updating" ) : s.status;
 	text( population_, "population_status", status );
 	text( inventory_, "inventory_status", status );

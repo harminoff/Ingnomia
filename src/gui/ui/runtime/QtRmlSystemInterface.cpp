@@ -30,6 +30,11 @@ QtRmlSystemInterface::QtRmlSystemInterface( QWindow* window, Translator translat
     m_elapsed.start();
 }
 
+void QtRmlSystemInterface::setWindow( QWindow* window )
+{
+    m_window = window;
+}
+
 double QtRmlSystemInterface::GetElapsedTime()
 {
     return static_cast<double>( m_elapsed.nsecsElapsed() ) / 1'000'000'000.0;

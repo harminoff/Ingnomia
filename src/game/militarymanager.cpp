@@ -20,6 +20,7 @@
  */
 #include "militarymanager.h"
 #include "game.h"
+#include "gnomemanager.h"
 
 #include "../base/db.h"
 #include "../base/gamestate.h"
@@ -35,6 +36,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+
+#include <algorithm>
 
 /// @brief Serialises this uniform item slot (type, item SID, material SID, quality) into a QVariantMap.
 /// @return Map with keys Type, Item, Material, Quality.
@@ -672,7 +675,24 @@ bool MilitaryManager::removeGnome( unsigned int gnomeID )
 	}
 	return false;
 }
-	
+
+/// @brief Assigns a gnome directly to a squad, maintaining the one-squad invariant.
+/// @param gnomeID UID of the gnome to assign.
+/// @param squadID UID of the destination squad.
+/// @return true when both entities exist and the assignment was applied.
+bool MilitaryManager::assignGnomeToSquad( unsigned int gnomeID, unsigned int squadID )
+{
+	if( !g || !std::any_of( g->gm()->gnomes().begin(), g->gm()->gnomes().end(),
+		[&]( const Gnome* gnome ){ return gnome && gnome->id() == gnomeID; } ) ) return false;
+	Squad* destination = squad( squadID );
+	if( !destination ) return false;
+
+	for( auto& candidate : m_squads ) candidate.gnomes.removeAll( gnomeID );
+	destination->gnomes.append( gnomeID );
+	m_gnome2Squad.insert( gnomeID, squadID );
+	return true;
+}
+
 /// @brief Moves @p gnomeID from their current squad to the previous squad in the ordered list.
 /// @param gnomeID UID of the gnome to move.
 /// @return true if the gnome was moved, false if they were already in the first squad or unassigned.

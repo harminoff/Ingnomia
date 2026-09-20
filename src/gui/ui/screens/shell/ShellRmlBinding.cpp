@@ -49,6 +49,13 @@ std::string escape( std::string_view value )
 	}
 	return result;
 }
+
+std::string quantity( std::string value, std::string_view singular, std::string_view plural )
+{
+	if ( value == "1" ) value += " " + std::string( singular );
+	else value += " " + std::string( plural );
+	return value;
+}
 }
 
 ShellRmlBinding::ShellRmlBinding( Rml::Context& context ) : context_( context ) {}
@@ -431,6 +438,8 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	if( state.actionError ) setText( "shell-action-error-detail", messageText( textCatalog_, state.actionError->message ) );
 	setVisible( "load-kingdoms-empty", state.loadGame.kingdomsStatus == RequestStatus::Empty );
 	setVisible( "load-saves-empty", state.loadGame.savesStatus == RequestStatus::Empty );
+	setText( "load-saves-empty-title", state.loadGame.selectedKingdom ? "No saves for this kingdom" : "Select a kingdom" );
+	setText( "load-saves-empty-detail", state.loadGame.selectedKingdom ? "Start a new kingdom or refresh the save list." : "Choose a kingdom to see its saves." );
 	// Empty-state cards replace their list rather than layering over it. Leaving
 	// the empty list in the flow makes the message appear at the bottom of the
 	// pane and can cover the footer controls on the load screen.
@@ -601,21 +610,26 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	};
 	setText( "new-summary-kingdom", escape( newGameFieldText( "kingdom_name", "Unnamed kingdom" ) ) );
 	setText( "new-summary-seed", escape( newGameFieldText( "seed", "Default seed" ) ) );
-	setText( "new-summary-settlement", escape( newGameFieldText( "gnomes", "—" ) + " gnomes / zone " + newGameFieldText( "start_zone", "—" ) + " / " + newGameFieldText( "peaceful", "Standard" ) ) );
-	setText( "new-summary-world", escape( newGameFieldText( "world_size", "—" ) + " map / " + newGameFieldText( "z_levels", "—" ) + " levels / ground " + newGameFieldText( "ground", "—" ) + " / flatness " + newGameFieldText( "flatness", "—" ) ) );
-	setText( "new-summary-life", escape( newGameFieldText( "ocean_size", "—" ) + " ocean / " + newGameFieldText( "rivers", "—" ) + " rivers / trees " + newGameFieldText( "tree_density", "—" ) + " / plants " + newGameFieldText( "plant_density", "—" ) + " / wildlife " + newGameFieldText( "wild_animals", "—" ) ) );
+	setText( "new-summary-settlement", escape( quantity( newGameFieldText( "gnomes", "—" ), "settler", "settlers" ) + " / zone " + newGameFieldText( "start_zone", "—" ) + " / " + newGameFieldText( "peaceful", "Standard" ) ) );
+	setText( "new-summary-world", escape( newGameFieldText( "world_size", "—" ) + " tiles / " + quantity( newGameFieldText( "z_levels", "—" ), "level", "levels" ) + " / ground " + newGameFieldText( "ground", "—" ) + " levels high / flatness " + newGameFieldText( "flatness", "—" ) ) );
+	setText( "new-summary-life", escape( newGameFieldText( "ocean_size", "—" ) + " ocean / " + quantity( newGameFieldText( "rivers", "—" ), "river", "rivers" ) + " / trees " + newGameFieldText( "tree_density", "—" ) + " / plants " + newGameFieldText( "plant_density", "—" ) + " / wildlife " + quantity( newGameFieldText( "wild_animals", "—" ), "animal", "animals" ) ) );
 	const auto setNewGameRangeValue = [&]( const char* elementId, std::string_view fieldId, std::string_view suffix ) {
-		setText( elementId, escape( newGameFieldText( fieldId, "—" ) + std::string( suffix ) ) );
+		auto value = newGameFieldText( fieldId, "—" );
+		if ( fieldId == "gnomes" ) value = quantity( std::move( value ), "settler", "settlers" );
+		else if ( fieldId == "rivers" ) value = quantity( std::move( value ), "river", "rivers" );
+		else if ( fieldId == "wild_animals" ) value = quantity( std::move( value ), "animal", "animals" );
+		else value += std::string( suffix );
+		setText( elementId, escape( value ) );
 	};
 	setNewGameRangeValue( "new-value-world-size", "world_size", " tiles" );
 	setNewGameRangeValue( "new-value-z-levels", "z_levels", " levels" );
-	setNewGameRangeValue( "new-value-ground", "ground", " high" );
+	setNewGameRangeValue( "new-value-ground", "ground", " levels high" );
 	setNewGameRangeValue( "new-value-flatness", "flatness", " / 20" );
 	setNewGameRangeValue( "new-value-gnomes", "gnomes", " settlers" );
 	setNewGameRangeValue( "new-value-start-zone", "start_zone", " tiles from center" );
 	setNewGameRangeValue( "new-value-ocean-size", "ocean_size", " / 15 edge-water" );
 	setNewGameRangeValue( "new-value-rivers", "rivers", " rivers" );
-	setNewGameRangeValue( "new-value-river-size", "river_size", " width" );
+	setNewGameRangeValue( "new-value-river-size", "river_size", " tiles wide" );
 	setNewGameRangeValue( "new-value-tree-density", "tree_density", "% cover" );
 	setNewGameRangeValue( "new-value-plant-density", "plant_density", "% abundance" );
 	setNewGameRangeValue( "new-value-wild-animals", "wild_animals", " animals" );

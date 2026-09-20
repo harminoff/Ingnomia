@@ -12,11 +12,14 @@ namespace ingnomia::ui::management6b
 class Management6BRmlBinding final : public ViewPort
 {
 public:
+	using DocumentLoader=std::function<Rml::ElementDocument*( const char* )>;
 	using RouteCloseHandler=std::function<void(RouteId,FocusToken)>;
 	explicit Management6BRmlBinding( Rml::Context& );
 	~Management6BRmlBinding() override;
 	bool initialize( Management6BController& );
 	void shutdown();
+	void setDocumentLoader( DocumentLoader loader ){ documentLoader_=std::move(loader); }
+	void setPresentationEnabled( bool enabled ){ presentationEnabled_=enabled; }
 	void stateChanged( const Management6BState& ) override;
 	[[nodiscard]] bool activateElement( std::string_view );
 	[[nodiscard]] bool activateFirstDataElement( std::string_view kind );
@@ -30,6 +33,6 @@ private:
 	Rml::Context& context_;Management6BController* controller_{};Rml::ElementDocument* population_{},*inventory_{};
 	localization::UiText textCatalog_{management6BText()};
 	struct Listener{Rml::Element*target{};std::string event;std::unique_ptr<Callback>callback;};std::vector<Listener>listeners_;
-	std::optional<RouteId> activeRoute_;FocusToken returnFocus_{};FocusToken populationFocus_{}, inventoryFocus_{};RouteCloseHandler routeCloseHandler_;
+	std::optional<RouteId> activeRoute_;FocusToken returnFocus_{};FocusToken populationFocus_{}, inventoryFocus_{};RouteCloseHandler routeCloseHandler_;DocumentLoader documentLoader_;bool presentationEnabled_{true};
 };
 } // namespace ingnomia::ui::management6b

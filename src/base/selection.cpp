@@ -247,6 +247,22 @@ void Selection::setAction( QString action )
 	emit signalActionChanged( m_action );
 }
 
+/** @brief Returns whether the active placement uses the floor render layer.
+ *
+ * Generic BuildItem actions are shared by furniture and floor-mounted items, so
+ * the Actions row cannot describe their render layer. Resolve that detail from
+ * the selected item's authoritative Items_Tiles row instead of treating every
+ * BuildItem preview as a wall sprite.
+ */
+bool Selection::isFloor() const
+{
+	if ( m_action == "BuildItem" && !m_item.isEmpty() )
+	{
+		return DB::select( "Location", "Items_Tiles", m_item ).toString() == "Floor";
+	}
+	return m_isFloor;
+}
+
 /** @brief Updates the selection rectangle as the cursor moves.
  *
  *  Before the first click, shows a single-tile preview at the cursor.
@@ -260,7 +276,7 @@ void Selection::setAction( QString action )
  *  @param shift Whether Shift is held.
  *  @param ctrl  Whether Ctrl is held (hollow rectangle selection).
  */
-void Selection::updateSelection( Position& pos, bool shift, bool ctrl )
+void Selection::updateSelection( const Position& pos, bool shift, bool ctrl )
 {
 	if ( m_action.isEmpty() )
 	{
@@ -309,8 +325,8 @@ void Selection::updateSelection( Position& pos, bool shift, bool ctrl )
 							if ( x > beginX && x < endX && y > beginY && y < endY )
 								continue;
 						}
-						pos = Position( x, y, z );
-						m_selection.push_back( QPair<Position, bool>( pos, testTileForJobSelection( pos ) ) );
+						const Position tilePos( x, y, z );
+						m_selection.push_back( QPair<Position, bool>( tilePos, testTileForJobSelection( tilePos ) ) );
 					}
 				}
 			}
@@ -326,8 +342,8 @@ void Selection::updateSelection( Position& pos, bool shift, bool ctrl )
 						if ( x > beginX && x < endX && y > beginY && y < endY )
 							continue;
 					}
-					pos = Position( x, y, m_firstClick.z );
-					m_selection.push_back( QPair<Position, bool>( pos, testTileForJobSelection( pos ) ) );
+					const Position tilePos( x, y, m_firstClick.z );
+					m_selection.push_back( QPair<Position, bool>( tilePos, testTileForJobSelection( tilePos ) ) );
 				}
 			}
 		}

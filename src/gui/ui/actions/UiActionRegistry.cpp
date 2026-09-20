@@ -122,6 +122,7 @@ constexpr std::array ACTIONS{
 	action<MoveSquadPayload>( "military.move_squad", ActionScope::World ),
 	action<GnomeTargetPayload>( "military.remove_gnome", ActionScope::World ),
 	action<MoveGnomePayload>( "military.move_gnome", ActionScope::World ),
+	action<AssignSquadPayload>( "military.assign_squad", ActionScope::World ),
 	action<SetAttitudePayload>( "military.set_attitude", ActionScope::World ),
 	action<MovePriorityPayload>( "military.move_priority", ActionScope::World ),
 	action<RoleTargetPayload>( "military.remove_role", ActionScope::World, true ),
@@ -299,6 +300,8 @@ bool basicPayloadValid( const Payload& payload, const ActionValidationContext& c
 		return payload.squad && validCatalog( payload.targetType );
 	else if constexpr( std::is_same_v<Payload, AssignRolePayload> )
 		return payload.creature && payload.role;
+	else if constexpr( std::is_same_v<Payload, AssignSquadPayload> )
+		return payload.creature && payload.squad;
 	else if constexpr( std::is_same_v<Payload, SetUniformSlotPayload> )
 		return payload.role && validCatalog( payload.type )
 			&& payload.slot <= UniformSlot::Back

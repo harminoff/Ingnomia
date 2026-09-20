@@ -26,6 +26,8 @@
 #include "../game/game.h"
 #include "../game/creature.h"
 #include "../game/creaturemanager.h"
+#include "../game/job.h"
+#include "../game/jobmanager.h"
 #include "../game/gnomemanager.h"
 #include "../game/mechanismmanager.h"
 #include "../game/world.h"
@@ -103,6 +105,8 @@ TileDataUpdate AggregatorRenderer::aggregateTile( unsigned int tileID ) const
 
 	td.flags  = (quint64)tile.flags;
 	td.flags2 = (quint64)tile.flags >> 32;
+	if ( tile.wallType & WT_MOVEBLOCKING ) td.flags2 |= TileData::WaterBlocking;
+	if ( tile.floorType & FT_SOLIDFLOOR ) td.flags2 |= TileData::WaterFloor;
 
 	td.lightLevel      = qMin( tile.lightLevel, (unsigned char)20 );
 	td.fluidLevel      = qMin( tile.fluidLevel, (unsigned char)10 );
@@ -116,7 +120,7 @@ namespace
 {
 /// @brief Adds the render-only creature motion fields to a tile update. Long jumps are
 ///        deliberately not interpolated because they are teleports, not walking steps.
-void applyCreatureRenderData( TileDataUpdate& update, const CreatureRenderData& creature, quint64 simulationTick )
+void applyCreatureRenderData( TileDataUpdate& update, const CreatureRenderData& creature )
 {
 	update.tile.creatureSpriteUID = creature.spriteUID;
 
@@ -128,7 +132,7 @@ void applyCreatureRenderData( TileDataUpdate& update, const CreatureRenderData& 
 		update.tile.creatureOffsetX = delta.x;
 		update.tile.creatureOffsetY = delta.y;
 		update.tile.creatureOffsetZ = delta.z;
-		update.tile.creatureMotionTick = static_cast<quint32>( simulationTick );
+		update.tile.creatureMotionTick = static_cast<quint32>( creature.motionTick );
 		update.tile.creatureMotionDurationTicks = creature.motionDurationTicks;
 	}
 }
@@ -145,7 +149,6 @@ QHash<unsigned int, CreatureRenderData> AggregatorRenderer::collectCreatures( qu
 	if( !g ) return QHash<unsigned int, CreatureRenderData>();
 	QHash<unsigned int, CreatureRenderData> creatures;
 	QHash<unsigned int, Position> currentCreaturePositions;
-	QHash<unsigned int, quint32> motionDurations;
 	cameraTargets.clear();
 
 	const auto registerCameraTarget = [&]( unsigned int creatureID, const Position& currentPosition )
@@ -156,24 +159,35 @@ QHash<unsigned int, CreatureRenderData> AggregatorRenderer::collectCreatures( qu
 		if ( !m_lastCreatureMotionTicks.contains( creatureID ) )
 			m_lastCreatureMotionTicks.insert( creatureID, simulationTick );
 
-		if ( previousPosition != currentPosition && !motionDurations.contains( creatureID ) )
+		if ( !m_creatureMotionSegments.contains( creatureID ) )
+		{
+			m_creatureMotionSegments.insert( creatureID, CreatureCameraTarget {
+				currentPosition, currentPosition, simulationTick, 1
+			} );
+		}
+
+		if ( previousPosition != currentPosition )
 		{
 			const quint64 previousMotionTick = m_lastCreatureMotionTicks.value( creatureID, simulationTick );
 			const quint64 elapsedTicks = simulationTick > previousMotionTick ? simulationTick - previousMotionTick : 1;
-			// The movement system normally waits several simulation ticks between steps.
-			// Use that cadence for the visual traversal, but cap long pauses/teleports.
+			const Position delta = previousPosition - currentPosition;
+			const bool isAdjacentStep = qAbs( delta.x ) <= 1 && qAbs( delta.y ) <= 1 && delta.z == 0;
+			// OpenRCT2 keeps an entity's pre/post tick pair alive for the complete
+			// interpolation interval. Do the same here: unrelated tile updates must
+			// not replace an active camera path with current/current and snap the
+			// viewport to its destination. Long jumps remain instant teleports.
 			const auto duration = static_cast<quint32>( qBound<quint64>( 1, elapsedTicks, 12 ) );
-			motionDurations.insert( creatureID, duration );
+			m_creatureMotionSegments[creatureID] = CreatureCameraTarget {
+				currentPosition,
+				isAdjacentStep ? previousPosition : currentPosition,
+				simulationTick,
+				isAdjacentStep ? duration : 1
+			};
 			m_lastCreatureMotionTicks[creatureID] = simulationTick;
 		}
 
 		currentCreaturePositions[creatureID] = currentPosition;
-		cameraTargets.insert( creatureID, CreatureCameraTarget {
-			currentPosition,
-			previousPosition,
-			m_lastCreatureMotionTicks.value( creatureID, simulationTick ),
-			motionDurations.value( creatureID, 1 )
-		} );
+		cameraTargets.insert( creatureID, m_creatureMotionSegments.value( creatureID ) );
 	};
 
 	const auto addCreature = [&]( unsigned int creatureID, const Position& currentPosition,
@@ -185,6 +199,7 @@ QHash<unsigned int, CreatureRenderData> AggregatorRenderer::collectCreatures( qu
 		creatures[renderPosition.toInt()] = CreatureRenderData {
 			spriteID,
 			cameraTarget.previousPosition + renderOffset,
+			cameraTarget.motionTick,
 			cameraTarget.motionDurationTicks
 		};
 	};
@@ -314,6 +329,18 @@ QHash<unsigned int, CreatureRenderData> AggregatorRenderer::collectCreatures( qu
 		}
 	}
 	
+	for ( auto it = m_creatureMotionSegments.begin(); it != m_creatureMotionSegments.end(); )
+	{
+		if ( !currentCreaturePositions.contains( it.key() ) )
+		{
+			m_lastCreatureMotionTicks.remove( it.key() );
+			it = m_creatureMotionSegments.erase( it );
+		}
+		else
+		{
+			++it;
+		}
+	}
 	m_previousCreaturePositions = currentCreaturePositions;
 	return creatures;
 }
@@ -332,7 +359,7 @@ void AggregatorRenderer::onAllTileInfo()
 	}
 	constexpr size_t batchSize = 1 << 16;
 	TileDataUpdateInfo tileUpdates;
-	tileUpdates.simulationTick = GameState::tick;
+	tileUpdates.simulationTick = m_latestSimulationTick ? m_latestSimulationTick : GameState::tick;
 	tileUpdates.creatureCameraTargets = cameraTargets;
 	tileUpdates.updates.reserve( batchSize );
 	const unsigned int worldSize = (unsigned int)g->w()->world().size();
@@ -343,7 +370,7 @@ void AggregatorRenderer::onAllTileInfo()
 		const auto creatureSprite = creatures.find( tileUID );
 		if ( creatureSprite != creatures.end() )
 		{
-			applyCreatureRenderData( update, creatureSprite.value(), tileUpdates.simulationTick );
+			applyCreatureRenderData( update, creatureSprite.value() );
 		}
 
 		tileUpdates.updates.push_back( update );
@@ -379,7 +406,7 @@ void AggregatorRenderer::onUpdateAnyTileInfo( const QSet<unsigned int>& changeSe
 	}
 	constexpr size_t batchSize = 1 << 16;
 	TileDataUpdateInfo tileUpdates;
-	tileUpdates.simulationTick = GameState::tick;
+	tileUpdates.simulationTick = m_latestSimulationTick ? m_latestSimulationTick : GameState::tick;
 	tileUpdates.creatureCameraTargets = cameraTargets;
 	tileUpdates.updates.reserve( batchSize );
 	for ( auto tileUID : changeSet )
@@ -389,7 +416,7 @@ void AggregatorRenderer::onUpdateAnyTileInfo( const QSet<unsigned int>& changeSe
 		const auto creatureSprite = creatures.find( tileUID );
 		if ( creatureSprite != creatures.end() )
 		{
-			applyCreatureRenderData( update, creatureSprite.value(), tileUpdates.simulationTick );
+			applyCreatureRenderData( update, creatureSprite.value() );
 		}
 
 		tileUpdates.updates.push_back( update );
@@ -438,6 +465,18 @@ void AggregatorRenderer::onThoughtBubbleUpdate()
 			info.thoughtBubbles.push_back( { gn->getPos(), g->sf()->thoughtBubbleID( thoughtBubble ) } );
 		}
 	}
+
+	// PENDING means the workshop blueprint's required items could not yet be
+	// claimed. Keep the warning attached to the authoritative construction job.
+	const auto pendingResourcesSprite = g->sf()->thoughtBubbleID( "NeedsResources" );
+	for ( auto it = g->jm()->allJobs().cbegin(); it != g->jm()->allJobs().cend(); ++it )
+	{
+		const auto& job = it.value();
+		if ( job && job->type() == "BuildWorkshop" && job->phase() == JobPhase::PENDING )
+		{
+			info.thoughtBubbles.push_back( { job->pos(), pendingResourcesSprite } );
+		}
+	}
 	emit signalThoughtBubbles( info );
 }
 
@@ -465,5 +504,16 @@ void AggregatorRenderer::onWorldParametersChanged()
 	if( !g ) return;
 	m_previousCreaturePositions.clear();
 	m_lastCreatureMotionTicks.clear();
+	m_creatureMotionSegments.clear();
+	m_latestSimulationTick = 0;
 	emit signalWorldParametersChanged();
+}
+
+/// @brief Relays every authoritative fixed simulation tick to the GUI renderer.
+/// Tile updates are intentionally not used as the clock: ticks with no dirty
+/// terrain still need to advance creature interpolation smoothly.
+void AggregatorRenderer::onSimulationTick( quint64 tick )
+{
+	m_latestSimulationTick = tick;
+	emit signalSimulationTick( tick );
 }

@@ -71,6 +71,7 @@ struct GuiUniformItem
 	QString material = "any";            ///< Required material, or "any".
 
 	QStringList possibleTypesForSlot;    ///< Legal armor types for this slot (e.g. no bone for hands).
+	QStringList possibleMaterials;
 };
 Q_DECLARE_METATYPE( GuiUniformItem )
 
@@ -128,6 +129,7 @@ public slots:
 	void onMoveSquadLeft( unsigned int id );
 	void onMoveSquadRight( unsigned int id );
 	void onRemoveGnomeFromSquad( unsigned int gnomeID );
+	void onAssignGnomeToSquad( unsigned int gnomeID, unsigned int squadID );
 	void onMoveGnomeLeft( unsigned int id );
 	void onMoveGnomeRight( unsigned int id );
 

@@ -164,6 +164,7 @@ struct Management6CState
 	bool acceptsWorldActions{}, open{}, militaryOpen{}, diplomacyOpen{};
 	View view{ View::Squads };
 	Sort militarySort{ Sort::SourceOrder }, diplomacySort{ Sort::SourceOrder };
+	LoadState availableGnomeLoad{ LoadState::Idle };
 	LoadState militaryLoad{ LoadState::Idle }, diplomacyLoad{ LoadState::Idle }, missionLoad{ LoadState::Idle };
 	std::string militaryFilter, diplomacyFilter, status;
 	MilitaryRoster roster;

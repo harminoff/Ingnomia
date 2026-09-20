@@ -32,6 +32,7 @@
 #include "../game/world.h"
 #include "../gfx/spritefactory.h"
 #include "eventconnector.h"
+#include "isometricplacement.h"
 
 #include <QDebug>
 
@@ -252,6 +253,14 @@ static bool isSelectableFloor( const Position& pos, bool snapToWallBelow )
 	return false;
 }
 
+// A solid underground tile is presented as a cube, not its obscured floor.
+// This predicate is shared by picking and excavation preview construction.
+static bool hasVisibleWallTop( const Position& pos )
+{
+	return !Global::wallsLowered
+		&& ( Global::eventConnector->game()->w()->getTile( pos ).wallType & WT_SOLIDWALL );
+}
+
 /// @brief Projects a screen-space mouse position into a world tile using the current camera
 ///        rotation/zoom/offset. Walks down through z-levels until a selectable floor is found
 ///        (or @p useViewLevel forces the cursor to stay at the current view level). Adjusts
@@ -268,134 +277,68 @@ Position AggregatorSelection::calcCursor( int mouseX, int mouseY, bool isFloor, 
 		return Position( 0, 0, 0 );
 	}
 
-	Position cursorPos;
 	int dim = Global::dimX;
 	if ( dim == 0 )
 	{
-		cursorPos = Position( 0, 0, 0 );
-		return cursorPos;
+		return Position( 0, 0, 0 );
 	}
 	int viewLevel = GameState::viewLevel;
-	int w2        = ( m_width / m_scale ) / 2;
-	int h2        = ( m_height / m_scale ) / 2;
+	const double scale = qMax( 0.0001, static_cast<double>( m_scale ) );
+	const double halfWidth = static_cast<double>( m_width ) / ( 2.0 * scale );
+	const double halfHeight = static_cast<double>( m_height ) / ( 2.0 * scale );
+	const double screenOriginX = static_cast<double>( m_moveX ) + halfWidth;
+	const double screenOriginY = static_cast<double>( m_moveY ) + halfHeight;
+	const int renderedWidth = ( m_rotation == 1 || m_rotation == 3 ) ? Global::dimY : Global::dimX;
+	const int renderedHeight = ( m_rotation == 1 || m_rotation == 3 ) ? Global::dimX : Global::dimY;
 
-	int x0 = m_moveX + w2;
-	int y0 = m_moveY + h2 + 360;
-
-	int rot = m_rotation;
-
-	int dimZ = Global::dimZ;
+	// At each depth, test the visible wall-top diamond before the floor plane.
+	// Picking a solid tile by its hidden floor selects the cube one diagonal
+	// tile behind the pointer, even when a floor-shaped ghost appears aligned.
+	const double renderedMouseX = static_cast<double>( mouseX ) / scale;
+	const double renderedMouseY = static_cast<double>( mouseY ) / scale;
 
 	bool zFloorFound = false;
-
 	int origViewLevel = viewLevel;
-	int zDiff         = 0;
+	Position cursorPos;
+	int zDiff = 0;
 	while ( !zFloorFound && zDiff < 20 )
 	{
-		zDiff  = origViewLevel - viewLevel;
-		int z0 = qMax( 0, viewLevel - ( viewLevel - 20 ) );
+		zDiff = origViewLevel - viewLevel;
 
-		int mouseXScaled = (double)( mouseX ) / m_scale;
-		int mouseYScaled = (double)( mouseY ) / m_scale - ( zDiff * 4 ) - 3;
+		auto pickSurface = [&]( double surfaceHeight ) {
+			const auto renderedTile = ingnomia::ui::nearestIsometricTile(
+				renderedMouseX, renderedMouseY, screenOriginX, screenOriginY,
+				zDiff, renderedWidth, renderedHeight, surfaceHeight );
+			const int bestRenderedX = renderedTile.x;
+			const int bestRenderedY = renderedTile.y;
 
-		int column = ( mouseXScaled - x0 ) / 32;
-		if ( mouseXScaled < x0 )
-			column -= 1;
-		int row = ( mouseYScaled - y0 - 8 + z0 * 20 ) / 16;
+			const int candidateZ = qBound( 0, viewLevel, Global::dimZ - 1 );
+			switch ( m_rotation )
+			{
+				case 1:
+					cursorPos = Position( bestRenderedY, Global::dimY - bestRenderedX - 1, candidateZ );
+					break;
+				case 2:
+					cursorPos = Position( Global::dimX - bestRenderedX - 1, Global::dimY - bestRenderedY - 1, candidateZ );
+					break;
+				case 3:
+					cursorPos = Position( Global::dimX - bestRenderedY - 1, bestRenderedX, candidateZ );
+					break;
+				default:
+					cursorPos = Position( bestRenderedX, bestRenderedY, candidateZ );
+					break;
+			}
+			cursorPos.x = qBound( 0, cursorPos.x, Global::dimX - 1 );
+			cursorPos.y = qBound( 0, cursorPos.y, Global::dimY - 1 );
+		};
 
-		float quadX = ( mouseXScaled - x0 ) % 32;
-		float quadY = ( ( mouseYScaled - y0 - 8 + z0 * 20 ) % 16 ) * 2;
-
-		if ( quadX < 0 )
+		pickSurface( 28.0 );
+		if ( hasVisibleWallTop( cursorPos ) )
 		{
-			if ( quadX == -32 )
-				quadX = 0;
-			quadX = 31 + quadX;
+			zFloorFound = true;
+			break;
 		}
-		if ( quadY < 0 )
-			quadY = 31 + quadY;
-
-		bool lower  = ( quadX / quadY ) >= 1.0;
-		bool lower2 = ( ( 32. - quadX ) / quadY ) > 1.0;
-
-		bool north = lower && lower2;
-		bool south = !lower && !lower2;
-		bool east  = lower && !lower2;
-		bool west  = !lower && lower2;
-
-		int selX = 0;
-		int selY = 0;
-
-		if ( south )
-		{
-			//qDebug() << "south" << quadX << " " << quadY << " " << row << " " <<  column;
-			selX = row + 1 + column;
-			selY = row + 1 - column;
-		}
-		if ( west )
-		{
-			//qDebug() << "west" << quadX << " " << quadY << " " << row << " " <<  column;
-			selX = row + column;
-			selY = row + 1 - column;
-		}
-		if ( north )
-		{
-			//qDebug() << "north" << quadX << " " << quadY << " " << row << " " <<  column;
-			selX = row + column;
-			selY = row - column;
-		}
-		if ( east )
-		{
-			//qDebug() << "east" << quadX << " " << quadY << " " << row << " " <<  column;
-			selX = row + 1 + column;
-			selY = row - column;
-		}
-
-		switch ( rot )
-		{
-			case 0:
-				cursorPos.x = qMin( qMax( 0, selX - zDiff - 1 ), dim - 1 );
-				cursorPos.y = qMin( qMax( 0, selY - zDiff - 1 ), dim - 1 );
-				cursorPos.z = qMin( qMax( 0, viewLevel ), dimZ - 1 );
-
-				if ( !Global::wallsLowered && cursorPos.valid() && isSelectableWall( cursorPos.seOf() ) )
-				{
-					cursorPos.x += 1;
-					cursorPos.y += 1;
-				}
-
-				break;
-			case 1:
-				cursorPos.x = qMin( qMax( 0, selY - zDiff - 1 ), dim - 1 );
-				cursorPos.y = qMin( qMax( 0, dim - selX + zDiff ), dim - 1 );
-				cursorPos.z = qMin( qMax( 0, viewLevel ), dimZ - 1 );
-				if ( !Global::wallsLowered && cursorPos.valid() && isSelectableWall( cursorPos.neOf() ) )
-				{
-					cursorPos.x += 1;
-					cursorPos.y -= 1;
-				}
-				break;
-			case 2:
-				cursorPos.x = qMin( qMax( 0, dim - selX + zDiff ), dim - 1 );
-				cursorPos.y = qMin( qMax( 0, dim - selY + zDiff ), dim - 1 );
-				cursorPos.z = qMin( qMax( 0, viewLevel ), dimZ - 1 );
-				if ( !Global::wallsLowered && cursorPos.valid() && isSelectableWall( cursorPos.nwOf() ) )
-				{
-					cursorPos.x -= 1;
-					cursorPos.y -= 1;
-				}
-				break;
-			case 3:
-				cursorPos.x = qMin( qMax( 0, dim - selY + zDiff ), dim - 1 );
-				cursorPos.y = qMin( qMax( 0, selX - zDiff - 1 ), dim - 1 );
-				cursorPos.z = qMin( qMax( 0, viewLevel ), dimZ - 1 );
-				if ( !Global::wallsLowered && cursorPos.valid() && isSelectableWall( cursorPos.swOf() ) )
-				{
-					cursorPos.x -= 1;
-					cursorPos.y += 1;
-				}
-				break;
-		}
+		pickSurface( 12.0 );
 
 		if ( cursorPos.z > 0 )
 		{
@@ -574,8 +517,40 @@ void AggregatorSelection::updateSelection()
 				}
 			}
 			unsigned int tileID = 0;
+			const bool downwardExcavation = action == "DigStairsDown" || action == "DigRampDown" || action == "DigHole";
 			for ( auto p : selection )
 			{
+				if ( downwardExcavation )
+				{
+					// Keep the entry diamond at the confirmed target and align the
+					// item ghost's top face with it. Do not move the job or ray pick.
+					const bool wallTop = hasVisibleWallTop( p.first );
+					if ( action == "DigStairsDown" || action == "DigRampDown" )
+					{
+						for ( const auto& component : sprites )
+						{
+							const Position offset = component.second.first;
+							if ( !component.first || offset.z >= 0 )
+								continue;
+							SelectionData ghost;
+							ghost.pos = p.first + offset;
+							ghost.pos.setToBounds();
+							ghost.spriteID = component.first->uID;
+							ghost.localRot = ( rotation + component.second.second ) % 4;
+							ghost.valid = p.second;
+							ghost.previewYOffset = ingnomia::ui::excavationPreviewLift( wallTop, ghost.pos.z - p.first.z );
+							m_selectionData.insert( posToInt( ghost.pos, m_rotation ), ghost );
+						}
+					}
+					SelectionData sd;
+					sd.pos = p.first;
+					sd.spriteID = Global::eventConnector->game()->sf()->createSprite(
+						wallTop ? "SelectionWallTop" : "SelectionFloorTop", { "None" } )->uID;
+					sd.isFloor = !wallTop;
+					sd.valid = p.second;
+					m_selectionData.insert( posToInt( sd.pos, m_rotation ), sd );
+					continue;
+				}
 				if ( p.second )
 				{
 					for ( auto as : sprites )

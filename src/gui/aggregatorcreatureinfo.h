@@ -25,6 +25,7 @@
 
 #include <QObject>
 #include <QElapsedTimer>
+#include <QHash>
 
 #include <array>
 
@@ -40,12 +41,14 @@ struct GuiCreatureInfo
 	unsigned int id = 0;    ///< Creature UID.
 	QString position;       ///< Current world position used to anchor inspection actions.
 	QString profession;     ///< Current profession name.
+	bool professionReported = false; ///< True when this creature type supports professions.
 	int str = 0;            ///< Strength attribute.
 	int dex = 0;            ///< Dexterity attribute.
 	int con = 0;            ///< Constitution attribute.
 	int intel = 0;          ///< Intelligence attribute.
 	int wis = 0;            ///< Wisdom attribute.
 	int cha = 0;            ///< Charisma attribute.
+	std::array<bool, 6> attributesReported{}; ///< Authoritative flags for Str, Dex, Con, Int, Wis, Cha.
 	int hunger = 0;         ///< Current hunger level.
 	int thirst = 0;         ///< Current thirst level.
 	int sleep = 0;          ///< Current sleep level.
@@ -60,10 +63,14 @@ struct GuiCreatureInfo
 		int level{};
 		bool active{};
 	};
-	QList<Skill> skills;    ///< Authoritative DB-defined gnome skills.
+	QList<Skill> skills;    ///< Skills reported by this specific gnome.
+	bool skillsReported = false; ///< True when this creature type supports skills.
 
+	unsigned int roleID = 0; ///< Assigned military role controlling equipment, or zero.
+	QString roleName;        ///< Display name of the assigned equipment role.
 	Uniform uniform;        ///< Current military uniform (empty if unassigned).
 	Equipment equipment;    ///< Currently worn equipment.
+	bool equipmentReported = false; ///< True when this creature type supports equipment.
 	QStringList inventory;  ///< Authoritative carried inventory designations.
 	bool inventoryReported = false; ///< True when the creature inventory was queried.
 
@@ -90,7 +97,7 @@ private:
 
 	unsigned int m_currentID = 0;                         ///< Creature currently shown in the GUI.
 	unsigned int m_previousID = 0;                        ///< Previously shown creature (unused but reserved).
-	QStringList m_skillIds;                                ///< DB-defined skills in population order.
+	QHash<unsigned int, QList<GuiCreatureInfo::Skill>> m_gnomeSkillSnapshots;
 	QElapsedTimer m_lastUpdate;                           ///< Prevents full detail rebuilds every game tick.
 
 

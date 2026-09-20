@@ -1,103 +1,104 @@
 #version 430 core
 
 layout(location = 0) noperspective in vec2 vTexCoords;
-layout(location = 1) flat in uint vFluidLevel;
-layout(location = 2) flat in uint vWaterFlow;
+layout(location = 1) noperspective in float vFluidLevel;
+layout(location = 2) noperspective in vec2 vWaterFlow;
 layout(location = 3) flat in uvec4 vNeighborLevels;
-layout(location = 4) flat in uvec3 vTile;
-layout(location = 5) in vec2 vScreenUv;
-layout(location = 6) flat in vec3 vBaseNormal;
 layout(location = 7) flat in uint vIsSide;
 layout(location = 8) noperspective in vec2 vWaterUv;
 
+layout(location = 9) noperspective in float vWaterLight;
+layout(location = 10) flat in float vWaterSky;
 layout(location = 0) out vec4 fColor;
 
-uniform sampler2D uSceneColor;
-uniform sampler2D uSceneDepth;
 uniform sampler2D uDuDvMap;
-uniform sampler2D uNormalMap;
-uniform vec2 uViewportSize;
 uniform float uWaterTime;
 uniform int uWaterQuality;
-uniform float uDaylight;
+uniform int uWorldRotation;
+#include "lighting.glsl"
 
-vec2 flowDirection(uint flow)
+vec2 rotateDirection(vec2 p)
 {
-	vec2 direction = vec2(0.0);
-	if ((flow & 0x01u) != 0u) direction += vec2(0.0, -1.0);
-	if ((flow & 0x02u) != 0u) direction += vec2(1.0, 0.0);
-	if ((flow & 0x04u) != 0u) direction += vec2(0.0, 1.0);
-	if ((flow & 0x08u) != 0u) direction += vec2(-1.0, 0.0);
-	return length(direction) > 0.0 ? normalize(direction) : vec2(0.15, 0.07);
+    if (uWorldRotation == 1) return vec2(-p.y, p.x);
+    if (uWorldRotation == 2) return -p;
+    if (uWorldRotation == 3) return vec2(p.y, -p.x);
+    return p;
+}
+
+vec2 unrotateDirection(vec2 p)
+{
+    if (uWorldRotation == 1) return vec2(p.y, -p.x);
+    if (uWorldRotation == 2) return -p;
+    if (uWorldRotation == 3) return vec2(-p.y, p.x);
+    return p;
+}
+
+// Terrain floors are drawn from 32x16-pixel diamonds. Sample on that same
+// native pixel grid, anchored in the world so zooming/panning cannot make the
+// water grain slide over the shore. Keep geometry and its fixed depth intact.
+vec2 surfacePixel(vec2 world)
+{
+    vec2 rotated = rotateDirection(world);
+    vec2 pixel = floor(vec2(16.0 * (rotated.x - rotated.y),
+                            8.0 * (rotated.x + rotated.y))) + 0.5;
+    return unrotateDirection(vec2(pixel.x / 32.0 + pixel.y / 16.0,
+                                  pixel.y / 16.0 - pixel.x / 32.0));
+}
+
+float ripples(vec2 p, float time)
+{
+    vec2 warp = texture(uDuDvMap, p * 0.12 + vec2(0.005, -0.004) * time).rg * 2.0 - 1.0;
+    p += warp * 0.30;
+    // Short, broken wavelets similar in scale to the authored water sprite,
+    // rather than long specular ribbons. Palette bands give crisp pixel edges.
+    return sin(dot(p, vec2(4.7, 2.3))) * 0.55
+         + sin(dot(p, vec2(-2.1, 5.3)) + 1.7) * 0.30
+         + sin(dot(p, vec2(8.1, -3.5)) + 4.1) * 0.15;
 }
 
 void main()
 {
-	vec2 screenUv = gl_FragCoord.xy / max(uViewportSize, vec2(1.0));
-	float depthMix = clamp(float(vFluidLevel) / 10.0, 0.0, 1.0);
-	vec3 waterDeep = vec3(0.025, 0.16, 0.28);
-	vec3 waterShallow = vec3(0.10, 0.42, 0.52);
-	if (uWaterQuality == 0)
-	{
-		vec3 flatColor = mix(waterShallow, waterDeep, depthMix) * mix(0.60, 1.0, uDaylight);
-		fColor = vec4(flatColor, vIsSide != 0u ? 0.78 : 0.70);
-		return;
-	}
+    // The four opaque colours of terrain.png's authored WaterFloor sprite
+    // (source rectangle 128 0 32 36), before the game's daylight tint.
+    const vec3 deep = vec3(35.0, 60.0, 134.0) / 255.0;
+    const vec3 body = vec3(45.0, 88.0, 175.0) / 255.0;
+    const vec3 ripple = vec3(36.0, 130.0, 229.0) / 255.0;
+    const vec3 glint = vec3(102.0, 189.0, 255.0) / 255.0;
+    float shallow = 1.0 - clamp(vFluidLevel / 10.0, 0.0, 1.0);
+    if (uWaterQuality == 0)
+    {
+        fColor = vec4(shadeWorldColor(mix(deep, body, shallow), vWaterSky, vWaterLight, true), 1.0);
+        return;
+    }
 
-	vec2 flow = flowDirection(vWaterFlow);
-	// vWaterUv is continuous across the tessellated water surface.  Sampling
-	// from tile-local coordinates was the source of the visible grid: every
-	// cell started a new DuDv/normal pattern and a new refracted patch.
-	vec2 worldUv = vWaterUv;
-	// Use broad, overlapping waves.  The generated DuDv map is tileable, but
-	// sampling it at its native frequency made the diagonal isometric surface
-	// look like a stack of narrow strips.
-	vec2 dudvA = texture(uDuDvMap, worldUv * 0.58 + flow * uWaterTime * 0.018).rg * 2.0 - 1.0;
-	vec2 dudvB = texture(uDuDvMap, worldUv * 0.91 - flow.yx * uWaterTime * 0.013 + vec2(0.37, 0.61)).rg * 2.0 - 1.0;
-	// Two low-amplitude, world-space layers keep the surface alive without
-	// making the wave pattern track the tile grid.
-	float broadWave = 0.5 + 0.5 * sin(dot(worldUv, vec2(19.0, 13.0)) + uWaterTime * 0.42);
-	vec2 distortion = (dudvA + dudvB) * (0.004 + broadWave * 0.002);
-	vec2 refractUv = clamp(screenUv + distortion, vec2(0.002), vec2(0.998));
-	vec3 scene = texture(uSceneColor, refractUv).rgb;
-	vec2 reflectionUv = clamp(vec2(screenUv.x, 1.0 - screenUv.y) + distortion * 1.6, vec2(0.002), vec2(0.998));
-	vec3 reflectedScene = texture(uSceneColor, reflectionUv).rgb;
-	vec3 environment = mix(vec3(0.08, 0.14, 0.18), vec3(0.34, 0.52, 0.62), uDaylight);
-	float reflectionValidity = smoothstep(0.02, 0.16, min(reflectionUv.y, 1.0 - reflectionUv.y));
-	vec3 reflection = mix(environment, reflectedScene, reflectionValidity * 0.35);
-	vec3 mappedNormal = texture(uNormalMap, worldUv * 0.72 + dudvA * 0.06).rgb * 2.0 - 1.0;
-	vec3 normal = normalize(vBaseNormal + vec3(mappedNormal.xy * 0.32, mappedNormal.z * 0.18));
-	vec3 viewDirection = normalize(vec3(-0.45, -0.55, 0.70));
-	vec3 lightDirection = normalize(vec3(-0.35, -0.25, 0.90));
-	float fresnel = 0.12 + 0.58 * pow(1.0 - clamp(dot(normal, viewDirection), 0.0, 1.0), 3.0);
-	float specular = pow(max(dot(reflect(-lightDirection, normal), viewDirection), 0.0), 32.0) * uDaylight;
-	vec3 base = mix(waterShallow, waterDeep, depthMix);
-	// Keep the river bed as a subtle refraction cue, not as a texture visible
-	// through every cell.  This lets one continuous water body read above the
-	// authored sand/soil floor.
-	vec3 color = mix(base, scene, 0.04);
-	color = mix(color, reflection, fresnel);
-	color += vec3(0.72, 0.88, 0.92) * specular * 0.55;
+    vec2 world = surfacePixel(vWaterUv / 0.045);
+    // Eight small animation steps per second fit the sprite animation style.
+    float time = floor(uWaterTime * 8.0) / 8.0;
+    vec2 velocity = vec2(0.10, -0.045) + vWaterFlow * 0.50;
+    // Reset each bounded offset while its contribution is invisible. Shared
+    // coordinates/flow keep adjacent tiles part of one continuous water body.
+    float phaseA = fract(time / 6.0);
+    float phaseB = fract(time / 6.0 + 0.5);
+    float weightA = 1.0 - abs(phaseA * 2.0 - 1.0);
+    float wave = mix(ripples(world - velocity * phaseB * 6.0, time),
+                     ripples(world - velocity * phaseA * 6.0, time), weightA);
+    if (uWaterQuality > 1)
+        wave += 0.06 * sin(dot(world, vec2(17.0, 11.0)) - time * 1.5);
 
-	// Foam belongs on a real fluid/land boundary only.  The old expression
-	// applied an edge highlight to every cell edge, which outlined the water
-	// grid even inside a large body.
-	float shore = 0.0;
-	if (vNeighborLevels.x == 0u) shore = max(shore, 1.0 - smoothstep(0.0, 0.16, vTexCoords.y));
-	if (vNeighborLevels.y == 0u) shore = max(shore, 1.0 - smoothstep(0.0, 0.16, 1.0 - vTexCoords.x));
-	if (vNeighborLevels.z == 0u) shore = max(shore, 1.0 - smoothstep(0.0, 0.16, 1.0 - vTexCoords.y));
-	if (vNeighborLevels.w == 0u) shore = max(shore, 1.0 - smoothstep(0.0, 0.16, vTexCoords.x));
-	float foamNoise = clamp(0.5 + 0.5 * dudvB.x, 0.0, 1.0);
-	float foam = shore * (1.0 - depthMix) * (0.22 + 0.20 * foamNoise);
-	color = mix(color, vec3(0.72, 0.90, 0.88), clamp(foam, 0.0, 0.45));
+    float tone = wave + shallow * 0.15;
+    vec3 color = deep;
+    if (tone > 0.05) color = body;
+    if (tone > 0.57) color = ripple;
+    if (tone > 0.83) color = glint;
 
-	float sceneDepth = texture(uSceneDepth, screenUv).r;
-	float depthSeparation = clamp(abs(sceneDepth - gl_FragCoord.z) * 80.0, 0.0, 1.0);
-	// Full water should read as one continuous body. Preserve a little
-	// transparency for shallow edges, but make a full cell effectively opaque.
-	float alpha = mix(0.99, 0.975, depthMix) * mix(0.94, 1.0, depthSeparation);
-	if (vIsSide != 0u)
-		alpha = max(alpha, 0.78);
-	color *= mix(0.60, 1.0, uDaylight);
-	fColor = vec4(color, alpha);
+    // Sparse, one-pixel wavelets at real shores; never outline wet/wet edges.
+    float shore = 1.0;
+    if (vNeighborLevels.x == 0u) shore = min(shore, vTexCoords.y);
+    if (vNeighborLevels.y == 0u) shore = min(shore, 1.0 - vTexCoords.x);
+    if (vNeighborLevels.z == 0u) shore = min(shore, 1.0 - vTexCoords.y);
+    if (vNeighborLevels.w == 0u) shore = min(shore, vTexCoords.x);
+    if (vIsSide == 0u && shore < 0.055 && wave > 0.55) color = ripple;
+    if (vIsSide != 0u) color = wave > 0.25 ? body : deep;
+
+    fColor = vec4(shadeWorldColor(color, vWaterSky, vWaterLight, true), 1.0);
 }

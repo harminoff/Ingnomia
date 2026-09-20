@@ -16,13 +16,28 @@ std::string folded( std::string value )
 							{ return static_cast<char>( std::tolower( c ) ); } );
 	return value;
 }
+std::string singularLabel( std::string value )
+{
+	value = folded( std::move( value ) );
+	if ( value.size() > 3 && value.ends_with( "ies" ) )
+		value.replace( value.size() - 3, 3, "y" );
+	else if ( value.size() > 1 && value.ends_with( 's' ) && !value.ends_with( "ss" ) )
+		value.pop_back();
+	return value;
+}
+bool redundantItemLabel( const InventoryRow& group, const InventoryRow& item )
+{
+	return group.id.depth == InventoryDepth::Group && item.id.depth == InventoryDepth::Item
+		&& group.id.category == item.id.category && group.id.group == item.id.group
+		&& singularLabel( group.name ) == singularLabel( item.name );
+}
 bool same( const InventoryRowId& a, const InventoryRowId& b )
 {
 	return a == b;
 }
 bool isSection( InventoryDepth depth )
 {
-	return depth == InventoryDepth::Category || depth == InventoryDepth::Group;
+	return depth == InventoryDepth::Category || depth == InventoryDepth::Group || depth == InventoryDepth::Item;
 }
 bool isChildOf( const InventoryRowId& child, const InventoryRowId& parent )
 {
@@ -36,17 +51,30 @@ bool isChildOf( const InventoryRowId& child, const InventoryRowId& parent )
 }
 } // namespace
 Management6BController::Management6BController( CommandPort& c, ViewPort& v ) :
-	commands_( c ), view_( v )
+	commands_( c ), views_{ &v }
 {
 	notify();
+}
+void Management6BController::addViewPort( ViewPort& view )
+{
+	if ( std::ranges::find( views_, &view ) != views_.end() ) return;
+	views_.push_back( &view );
+	view.stateChanged( state_ );
+}
+void Management6BController::removeViewPort( ViewPort& view )
+{
+	std::erase( views_, &view );
 }
 void Management6BController::notify()
 {
 	++state_.revision.value;
-	view_.stateChanged( state_ );
+	const auto views = views_;
+	for ( auto* view : views )
+		if ( view ) view->stateChanged( state_ );
 }
 void Management6BController::beginWorld( WorldEpoch w )
 {
+	inventoryExpansionInitialized_ = false;
 	state_                     = {};
 	state_.world               = w;
 	state_.acceptsWorldActions = static_cast<bool>( w );
@@ -54,6 +82,7 @@ void Management6BController::beginWorld( WorldEpoch w )
 }
 void Management6BController::endWorld()
 {
+	inventoryExpansionInitialized_ = false;
 	state_ = {};
 	notify();
 }
@@ -62,7 +91,11 @@ void Management6BController::open( View v )
 	state_.open = true;
 	state_.view = v;
 	if ( v == View::Inventory )
+	{
 		state_.inventoryOpen = true;
+		collapseInventorySections();
+		inventoryExpansionInitialized_ = !state_.inventory.empty();
+	}
 	else
 	{
 		state_.populationOpen = true;
@@ -136,6 +169,11 @@ void Management6BController::refresh()
 		dispatch( state_.view == View::Professions ? "profession.refresh" : "population.refresh", NoPayload {} );
 	}
 }
+void Management6BController::inventoryChanged()
+{
+	if ( state_.inventoryOpen && !state_.loadingInventory && !state_.staleInventory )
+		requestInventoryRefresh();
+}
 void Management6BController::setPopulationFilter( std::string v )
 {
 	state_.populationFilter = std::move( v );
@@ -163,6 +201,14 @@ void Management6BController::setInventoryCategory( std::string v )
 	state_.inventoryPage     = 0;
 	state_.selectedInventory.reset();
 	notify();
+}
+void Management6BController::collapseInventorySections()
+{
+	state_.collapsedInventory.clear();
+	for ( const auto& row : state_.inventory )
+		if ( isSection( row.id.depth ) ) state_.collapsedInventory.push_back( row.id );
+	state_.inventoryPage = 0;
+	state_.selectedInventory.reset();
 }
 void Management6BController::toggleInventoryExpanded( InventoryRowId id )
 {
@@ -210,6 +256,23 @@ std::vector<PopulationRow> Management6BController::visiblePopulation() const
 std::vector<InventoryRow> Management6BController::visibleInventory() const
 {
 	auto candidates = state_.inventory;
+	std::vector<InventoryRowId> flattenedItems;
+	for ( const auto& group : state_.inventory )
+	{
+		if ( group.id.depth != InventoryDepth::Group ) continue;
+		std::vector<const InventoryRow*> items;
+		for ( const auto& row : state_.inventory )
+			if ( row.id.depth == InventoryDepth::Item && row.id.category == group.id.category && row.id.group == group.id.group ) items.push_back( &row );
+		if ( items.size() == 1 && redundantItemLabel( group, *items.front() ) ) flattenedItems.push_back( items.front()->id );
+	}
+	std::erase_if( candidates, [&]( const auto& row ) { return std::ranges::find( flattenedItems, row.id ) != flattenedItems.end(); } );
+	const auto directChild = [&]( const InventoryRowId& child, const InventoryRowId& parent )
+	{
+		if ( isChildOf( child, parent ) ) return true;
+		if ( child.depth != InventoryDepth::Material || parent.depth != InventoryDepth::Group ) return false;
+		return child.category == parent.category && child.group == parent.group
+			&& std::ranges::any_of( flattenedItems, [&]( const auto& item ) { return item.category == child.category && item.group == child.group && item.item == child.item; } );
+	};
 	const auto q = folded( state_.inventoryFilter );
 	if ( !state_.inventoryCategory.empty() )
 		std::erase_if( candidates, [&]( const auto& r ) { return r.id.category.value != state_.inventoryCategory || r.id.depth == InventoryDepth::Category; } );
@@ -225,14 +288,16 @@ std::vector<InventoryRow> Management6BController::visibleInventory() const
 							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.depth != InventoryDepth::Category; } );
 						   if ( r.id.depth == InventoryDepth::Group )
 							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.group == r.id.group && child.id.depth != InventoryDepth::Group; } );
+						   if ( r.id.depth == InventoryDepth::Item )
+							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.group == r.id.group && child.id.item == r.id.item && child.id.depth == InventoryDepth::Material; } );
 						   return true;
 					   } );
 	auto before = [&]( const InventoryRow& a, const InventoryRow& b )
 	{
 		if ( state_.inventorySort == Sort::Total )
 			return std::tie( a.total, a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) > std::tie( b.total, b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
-		if ( state_.inventorySort == Sort::Value )
-			return std::tie( a.totalValue, a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) > std::tie( b.totalValue, b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
+		if ( state_.inventorySort == Sort::Stock )
+			return std::tie( a.stockpiled, a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) > std::tie( b.stockpiled, b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
 		return std::tie( a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) < std::tie( b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
 	};
 	std::vector<InventoryRow> out;
@@ -248,7 +313,7 @@ std::vector<InventoryRow> Management6BController::visibleInventory() const
 			return;
 		std::vector<std::size_t> children;
 		for ( std::size_t i = 0; i < candidates.size(); ++i )
-			if ( !emitted[i] && isChildOf( candidates[i].id, row.id ) )
+			if ( !emitted[i] && directChild( candidates[i].id, row.id ) )
 				children.push_back( i );
 		std::ranges::stable_sort( children, [&]( std::size_t a, std::size_t b ) { return before( candidates[a], candidates[b] ); } );
 		for ( const auto child : children )
@@ -257,7 +322,7 @@ std::vector<InventoryRow> Management6BController::visibleInventory() const
 	std::vector<std::size_t> roots;
 	for ( std::size_t i = 0; i < candidates.size(); ++i )
 	{
-		const auto hasParent = std::ranges::any_of( candidates, [&]( const auto& parent ) { return isChildOf( candidates[i].id, parent.id ); } );
+		const auto hasParent = std::ranges::any_of( candidates, [&]( const auto& parent ) { return directChild( candidates[i].id, parent.id ); } );
 		if ( !hasParent )
 			roots.push_back( i );
 	}
@@ -265,7 +330,7 @@ std::vector<InventoryRow> Management6BController::visibleInventory() const
 	for ( const auto root : roots )
 		append( root );
 	for ( std::size_t i = 0; i < candidates.size(); ++i )
-		if ( !emitted[i] && !std::ranges::any_of( candidates, [&]( const auto& parent ) { return isChildOf( candidates[i].id, parent.id ); } ) )
+		if ( !emitted[i] && !std::ranges::any_of( candidates, [&]( const auto& parent ) { return directChild( candidates[i].id, parent.id ); } ) )
 			append( i );
 	return out;
 }
@@ -282,7 +347,7 @@ std::vector<PopulationRow> Management6BController::populationPage() const
 }
 std::vector<InventoryRow> Management6BController::inventoryPage() const
 {
-	return page( visibleInventory(), state_.inventoryPage );
+	return visibleInventory();
 }
 void Management6BController::changePopulationPage( std::int32_t d )
 {
@@ -482,6 +547,11 @@ bool Management6BController::applyInventory( Snapshot<std::vector<InventoryRow>>
 	if ( !accepts( s.world, s.revision, state_.inventoryRevision ) )
 		return false;
 	state_.inventory         = std::move( s.value );
+	if ( !inventoryExpansionInitialized_ )
+	{
+		collapseInventorySections();
+		inventoryExpansionInitialized_ = true;
+	}
 	state_.inventoryRevision = s.revision;
 	state_.loadingInventory  = false;
 	state_.staleInventory    = false;

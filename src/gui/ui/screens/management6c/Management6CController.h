@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Management6CState.h"
+#include <array>
 
 namespace ingnomia::ui::management6c
 {
@@ -50,6 +51,8 @@ class Management6CController
 {
 public:
 	Management6CController( CommandPort&, ViewPort& );
+	void addViewPort( ViewPort& );
+	void removeViewPort( ViewPort& );
 	[[nodiscard]] const Management6CState& state() const noexcept { return state_; }
 
 	void beginWorld( WorldEpoch );
@@ -99,6 +102,7 @@ public:
 	void moveSelectedSquad( MoveDirection );
 	void requestRemoveSelectedSquad();
 	void removeSelectedMember();
+	void assignSelectedMemberToSelectedSquad();
 	void moveSelectedMember( MoveDirection );
 	void setSelectedAttitude( MilitaryAttitude );
 	void moveSelectedPriority( MoveDirection );
@@ -106,6 +110,7 @@ public:
 	void renameSelectedRole( std::string );
 	void requestRemoveSelectedRole();
 	void assignSelectedMemberToRole();
+	void assignMemberRole( CreatureId, MilitaryRoleId );
 	void setSelectedRoleCivilian( bool );
 	void setSelectedUniform( CatalogId, std::optional<CatalogId> );
 	void cancelDestructive();
@@ -132,11 +137,14 @@ private:
 		std::size_t previousMissionIndex );
 	void updateHiddenSelectionFlags();
 	void configureMissionDraft();
+	void requestAvailableGnomes();
 	void notify();
 
 	CommandPort& commands_;
-	ViewPort& view_;
+	std::vector<ViewPort*> views_;
 	Management6CState state_;
+	std::array<std::string, 5> filtersByView_{};
+	std::array<Sort, 5> sortsByView_{};
 	std::uint64_t nextRequest_{ 1 };
 	std::uint64_t nextModal_{ 1 };
 };

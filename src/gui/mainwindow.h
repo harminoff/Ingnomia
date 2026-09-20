@@ -24,6 +24,7 @@
 
 #include "../base/position.h"
 #include "../base/tile.h"
+#include "ui/state/UiFoundationTypes.h"
 
 #include <QElapsedTimer>
 #include <QVariant>
@@ -31,23 +32,27 @@
 #include <QTimer>
 
 #include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
 class QOpenGLContext;
+namespace Rml { class Element; }
 
 namespace ingnomia::ui {
 class RmlUiHost;
+class RmlUiDetachedContext;
+class RmlUiDetachedWindow;
 namespace shell { class ShellController; class ShellQtCommandPort; class ShellRmlBinding; }
 namespace hud { class HudController; class HudQtCommandPort; class HudRmlBinding; }
-namespace inspector { class InspectorController; class InspectorQtCommandPort; class InspectorRmlBinding; }
+namespace inspector { struct CreatureInspectorState; class InspectorController; class InspectorQtCommandPort; class InspectorRmlBinding; }
 namespace management6b {
 class Management6BController;
 class Management6BQtCommandPort;
 class Management6BQtDataAdapter;
 class Management6BRmlBinding;
 }
-namespace management6a { class Management6AIntegration; }
+namespace management6a { class Management6AIntegration; class Management6AController; class Management6ARmlBinding; }
 namespace management6c {
 class Management6CQtCommandPort;
 class Management6CRmlBinding;
@@ -123,10 +128,13 @@ public:
 	/// @brief Dispatches a diagnostic click through the live inspector RmlUi listener.
 	///        This is opt-in and exists only for production inspector probes.
 	bool activateInspectorElement( std::string_view id );
+	/// @brief Activates an element in every live inspector window for multi-window UI probes.
+	int activateInspectorElementInAllWindows( std::string_view id );
 	/// @brief Opens a deterministic synthetic creature in the live inspector for UI probes.
 	///        This does not touch the simulation and is only enabled by an explicit
 	///        INGNOMIA_AUTOMATE_UI_FIXTURE launch environment.
 	bool showInspectorCreatureFixture();
+	bool showInventoryFixture();
 	/// @brief Returns the current typed HUD status for opt-in production probes.
 	std::string hudStatus() const;
 	/// @brief Dispatches a diagnostic click through the live shell RmlUi listener.
@@ -183,8 +191,27 @@ private:
 	void shutdownRmlUi();
 	void resizeRmlUi();
 	bool rmlUiActive() const;
+	bool beginRmlWindowDrag( QPointF position );
+	void updateRmlWindowDrag( QPointF position );
+	void endRmlWindowDrag();
 	int frameTimerIntervalMs() const;
 	void restartFrameTimer();
+	bool openDetachedCreatureInspector( const ingnomia::ui::inspector::CreatureInspectorState&, std::optional<ingnomia::ui::WorldPosition> position );
+	void closeDetachedCreatureInspector( int slot );
+	bool ensureDetachedManagement6A();
+	bool ensureDetachedManagement6B();
+	bool ensureDetachedManagement6C();
+	bool openDetachedOrdersTools( std::string_view elementId );
+	bool ensureDetachedOrdersTools( std::string_view elementId );
+	void hideDetachedManagement6A();
+	void hideDetachedManagement6B();
+	void hideDetachedManagement6C();
+	void hideDetachedOrdersTools();
+	void hideDetachedOrdersTools( std::string_view panelKey );
+	void hideDetachedManagementWindows();
+	void destroyDetachedManagementWindows();
+	void closeDetachedManagement6B();
+	void closeDetachedManagement6C();
 
 	void keyboardZPlus( bool shift = false, bool ctrl = false );
 	void keyboardZMinus( bool shift = false, bool ctrl = false );
@@ -214,11 +241,43 @@ private:
 	struct CreatureInspectorWindow
 	{
 		int slot{};
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
 		ingnomia::ui::inspector::InspectorRmlBinding* binding{};
 		std::unique_ptr<ingnomia::ui::inspector::InspectorQtCommandPort> commands;
 		std::unique_ptr<ingnomia::ui::inspector::InspectorController> controller;
 	};
 	std::vector<CreatureInspectorWindow> m_creatureInspectorWindows;
+	std::vector<std::string> m_creatureProfessionChoices;
+	struct Management6AWindow
+	{
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
+		std::unique_ptr<ingnomia::ui::management6a::Management6ARmlBinding> binding;
+	};
+	struct Management6BWindow
+	{
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
+		std::unique_ptr<ingnomia::ui::management6b::Management6BRmlBinding> binding;
+	};
+	struct Management6CWindow
+	{
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
+		std::unique_ptr<ingnomia::ui::management6c::Management6CRmlBinding> binding;
+	};
+	struct OrdersToolsWindow
+	{
+		std::string panelKey;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
+		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
+		std::unique_ptr<ingnomia::ui::hud::HudRmlBinding> binding;
+	};
+	std::vector<std::unique_ptr<OrdersToolsWindow>> m_ordersToolsWindows;
+	std::unique_ptr<Management6AWindow> m_management6aWindow;
+	std::unique_ptr<Management6BWindow> m_management6bWindow;
+	std::unique_ptr<Management6CWindow> m_management6cWindow;
 	ingnomia::ui::management6b::Management6BRmlBinding* m_management6bBinding = nullptr; ///< Borrowed from m_rmlUiHost.
 	std::unique_ptr<ingnomia::ui::management6b::Management6BQtCommandPort> m_management6bCommands;
 	std::unique_ptr<ingnomia::ui::management6b::Management6BController> m_management6bController;
@@ -247,6 +306,11 @@ private:
 	bool m_leftDown  = false;                    ///< True while the left mouse button is pressed.
 	bool m_rightDown = false;                    ///< True while the right mouse button is pressed.
 	bool m_isMove    = false;                    ///< True when the current drag is classified as a camera pan.
+	bool m_rmlWindowDragging = false;            ///< True while an RmlUi move_target handle is moving a panel.
+	Rml::Element* m_rmlWindowDragTarget = nullptr; ///< Non-owning target element for the active panel drag.
+	Rml::Element* m_rmlWindowDragParent = nullptr; ///< Non-owning offset parent for the active panel drag.
+	QPointF m_rmlWindowDragStartPointer;
+	QPointF m_rmlWindowDragStartOffset;
 
 	bool m_pendingUpdate = false;                ///< True when a QEvent::UpdateRequest is already queued.
 	bool m_uiCaptureDone = false;                ///< One-shot diagnostic framebuffer capture guard.

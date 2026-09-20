@@ -2,6 +2,7 @@
 #include "InspectorQtCommandPort.h"
 #include "../../../aggregatoragri.h"
 #include "../../../aggregatorcreatureinfo.h"
+#include "../../../aggregatormilitary.h"
 #include "../../../aggregatorrenderer.h"
 #include "../../../aggregatorselection.h"
 #include "../../../aggregatorstockpile.h"
@@ -14,6 +15,25 @@
 
 namespace ingnomia::ui::inspector
 {
+namespace
+{
+std::optional<QString> domainSlot( UniformSlot value )
+{
+	switch( value )
+	{
+		case UniformSlot::HeadArmor: return "HeadArmor";
+		case UniformSlot::ChestArmor: return "ChestArmor";
+		case UniformSlot::ArmArmor: return "ArmArmor";
+		case UniformSlot::HandArmor: return "HandArmor";
+		case UniformSlot::LegArmor: return "LegArmor";
+		case UniformSlot::FootArmor: return "FootArmor";
+		case UniformSlot::LeftHandHeld: return "LeftHandHeld";
+		case UniformSlot::RightHandHeld: return "RightHandHeld";
+		case UniformSlot::Back: return "Back";
+	}
+	return std::nullopt;
+}
+}
 InspectorQtCommandPort::InspectorQtCommandPort(EventConnector*c):connector_(c){}
 CommandResult InspectorQtCommandPort::reject(const char*e)const{return{CommandStatus::Rejected,false,e};}
 CommandResult InspectorQtCommandPort::queue(std::function<void()>fn)const{if(!connector_||!QMetaObject::invokeMethod(connector_,std::move(fn),Qt::QueuedConnection))return reject("ui.error.bridge_queue_failed");return{CommandStatus::Accepted,true,{}};}
@@ -29,6 +49,8 @@ CommandResult InspectorQtCommandPort::dispatch(const UiActionEnvelope&a)
 		return queue([c=connector_,t]{if(!c)return;switch(t.kind){case EntityKind::Tile:c->aggregatorTileInfo()->onShowTileInfo(t.id);break;case EntityKind::Creature:c->aggregatorCreatureInfo()->onRequestCreatureUpdate(t.id);c->aggregatorCreatureInfo()->onRequestProfessionList();break;case EntityKind::Workshop:c->aggregatorWorkshop()->onOpenWorkshopInfo(t.id);break;case EntityKind::Stockpile:c->aggregatorStockpile()->onOpenStockpileInfo(t.id);break;case EntityKind::Farm:c->aggregatorAgri()->onUpdateFarm(t.id);break;case EntityKind::Pasture:c->aggregatorAgri()->onUpdatePasture(t.id);break;case EntityKind::Grove:c->aggregatorAgri()->onUpdateGrove(t.id);break;default:break;}});}
 	if(a.id.value=="population.set_profession"){
 		const auto*p=std::get_if<SetProfessionPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");return queue([c=connector_,v=*p]{if(!c)return;auto*info=c->aggregatorCreatureInfo();info->onSetProfession(v.creature.value,QString::fromStdString(v.profession.value));info->onRequestCreatureUpdate(v.creature.value);});}
+	if(a.id.value=="military.set_uniform_slot"){
+		const auto*p=std::get_if<SetUniformSlotPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");const auto slot=domainSlot(p->slot);if(!slot)return reject("ui.error.uniform_slot_unavailable");const auto material=p->material?QString::fromStdString(p->material->value):QStringLiteral("any");return queue([c=connector_,v=*p,slot=*slot,material]{if(!c)return;auto*military=c->aggregatorMilitary();if(!military)return;military->onSetArmorType(v.role.value,slot,QString::fromStdString(v.type.value),material);c->aggregatorCreatureInfo()->update();});}
 	if(a.id.value=="inspect.clear")return queue([c=connector_]{if(!c)return;c->aggregatorCreatureInfo()->onRequestCreatureUpdate(0);c->aggregatorWorkshop()->onCloseWindow();c->aggregatorStockpile()->onCloseWindow();c->aggregatorAgri()->onCloseWindow();});
 	if(a.id.value=="tile.execute_context_action"){
 		const auto*p=std::get_if<TileContextPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");if(p->action==TileContextAction::Manage)return queue([c=connector_,id=p->tile.value]{if(c)c->onManageCommand(id);});

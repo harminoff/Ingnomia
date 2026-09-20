@@ -15,10 +15,14 @@ namespace ingnomia::ui::management6a
 class Management6ARmlBinding final : public ViewPort
 {
 public:
+	using DocumentLoader = std::function<Rml::ElementDocument*( const char* )>;
 	explicit Management6ARmlBinding( Rml::Context& );
 	~Management6ARmlBinding() override;
 	bool initialize( Management6AController& );
 	void shutdown();
+	void setDocumentLoader( DocumentLoader loader ) { documentLoader_ = std::move( loader ); }
+	void setPresentationEnabled( bool enabled ) { presentationEnabled_ = enabled; }
+	void setCloseHandler( std::function<void()> handler ) { closeHandler_ = std::move( handler ); }
 	void stateChanged( const Management6AState& ) override;
 	[[nodiscard]] bool activateElement( std::string_view );
 	[[nodiscard]] bool setFormValueForProbe( std::string_view id, std::string_view value );
@@ -38,7 +42,10 @@ public:
 private:
 	class Callback final : public Rml::EventListener { public: explicit Callback(std::function<void(Rml::Event&)> fn):fn_(std::move(fn)){}void ProcessEvent(Rml::Event& event)override;private:std::function<void(Rml::Event&)>fn_;};
 	Rml::Element* element( const char* ) const;
-	void bind( const char*, const char*, std::function<void(Rml::Event&)> );
+	void bind( const char*, const char*, std::function<void(Rml::Event&)>, bool capture = false );
+	void bindStockpileTooltip( const char*, std::function<std::string()> );
+	void showStockpileTooltip( const std::string&, Rml::Element* );
+	void hideStockpileTooltip();
 	void bindClick( const char* id, std::function<void()> fn ) { bind( id, "click", [fn=std::move(fn)](Rml::Event&){fn();} ); }
 	void text( const char*, const std::string& );
 	void visible( const char*, bool );
@@ -47,6 +54,7 @@ private:
 	std::string formValue( const char* ) const;
 	void formValue( const char*, const std::string& );
 	std::int32_t priority( const char*, std::int32_t fallback, std::int32_t maximum ) const;
+	std::int32_t normalizePriority( const char*, std::int32_t fallback, std::int32_t maximum );
 	void renderWorkshop( const WorkshopState& );
 	void renderStockpile( const StockpileState& );
 	void renderAgriculture( const AgricultureState& );
@@ -56,13 +64,17 @@ private:
 	Rml::ElementDocument* workshop_{};
 	Rml::ElementDocument* stockpile_{};
 	Rml::ElementDocument* agriculture_{};
-	struct Listener { Rml::Element* target{}; std::string event; std::unique_ptr<Callback> callback; };
+	struct Listener { Rml::Element* target{}; std::string event; std::unique_ptr<Callback> callback; bool capture{}; };
 	std::vector<Listener> listeners_;
+	DocumentLoader documentLoader_;
+	std::function<void()> closeHandler_;
+	bool presentationEnabled_{ true };
 	bool tradeConfirmationVisible_{};
 	ManagementView activeView_{ ManagementView::None };
 	static constexpr std::size_t pageSize_ = 48;
 	std::size_t workshopPage_{};
-	std::size_t stockpilePage_{};
 	std::size_t agriculturePage_{};
+	bool haulingOptionsExpanded_{};
+	bool normalizingPriority_{};
 };
 } // namespace ingnomia::ui::management6a

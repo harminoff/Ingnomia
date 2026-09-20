@@ -393,3 +393,21 @@ CLAUDE.md
 
 # Recoverable Wave 8 legacy-content quarantine; never package or stage.
 /migration-quarantine/
+
+# Local agent indexes and runtime verification evidence.
+/.codegraph/
+/.codex/
+/.verification/
+/screenshots/
+/*.png
+/*.layout.json
+/*.trace.json
+/*.trace.txt*
+/*-layout.json
+/*-trace.json
+/*-trace*.txt
+/*.stdout.txt
+/*.stderr.txt
+/*.error.txt
+/hud-domdump.txt
+/real-creature-layout-lifecycle.txt

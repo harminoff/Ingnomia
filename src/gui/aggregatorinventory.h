@@ -161,6 +161,7 @@ struct GuiBuildItem
 {
     QString id;                              ///< Build entry string ID.
     QString name;                            ///< Localised display name.
+    QString type;                            ///< Build-menu subtype (workshop tab, item group, or terrain material family).
     BuildItemType biType;                    ///< Build category (workshop, wall, floor, …).
 
     // The source rectangle is kept as data, rather than turning it into a
@@ -208,6 +209,7 @@ private:
     void setBuildItemValues( GuiBuildItem& gbi, BuildSelection selection );
     void setBuildItemSprite( GuiBuildItem& gbi, BuildSelection selection );
     void setInventoryItemSprite( GuiInventoryItem& item );
+    void setInventoryMaterialSprite( GuiInventoryMaterial& material, const QString& itemID );
     void setAvailableMats( GuiBuildRequiredItem& gbri );
 
     QHash<QString, QString> m_itemToGroupCache;     ///< Item ID → group ID lookup cache.
@@ -234,6 +236,7 @@ public slots:
 
 signals:
 	void signalInventoryCategories( const QList<GuiInventoryCategory>& categories );
+	void signalInventoryChanged();
 
 	void signalInventoryHistory( const QString& itemSID, const QString& materialSID,
 		const QList<GuiInventoryHistoryPoint>& points );

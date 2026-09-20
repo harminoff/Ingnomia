@@ -165,6 +165,11 @@ GuiUniformItem AggregatorMilitary::createUniformItem( QString slot, QVariantMap 
 		gui.possibleTypesForSlot.append( row.value( "Type" ).toString() );
 	}
 
+    gui.possibleMaterials.append( "any" );
+    const auto materialTypes = DB::select2( "MaterialType", "Uniform_Slots", "Type", gui.armorType );
+    if( !materialTypes.isEmpty() )
+        for( const auto& id : DB::select2( "ID", "Materials", "Type", materialTypes.first().toString() ) )
+            gui.possibleMaterials.append( id.toString() );
 	return gui;
 }
 
@@ -250,6 +255,13 @@ void AggregatorMilitary::onRemoveGnomeFromSquad( unsigned int gnomeID )
 	{
 		sendSquadUpdate();
 	}
+}
+
+/// @brief Assigns a gnome directly to a selected squad and emits the authoritative roster.
+void AggregatorMilitary::onAssignGnomeToSquad( unsigned int gnomeID, unsigned int squadID )
+{
+	if( !g ) return;
+	if( g->mil()->assignGnomeToSquad( gnomeID, squadID ) ) sendSquadUpdate();
 }
 
 /// @brief Moves a gnome one slot up in its squad order and refreshes the GUI.

@@ -40,6 +40,11 @@ private:
         int readFramebuffer = 0;
         int program = 0;
         int vertexArray = 0;
+        int arrayBuffer = 0;
+        int elementArrayBuffer = 0;
+        int activeTexture = 0;
+        int texture0 = 0;
+        int texture1 = 0;
     };
 
     class CameraAwareRenderInterface;

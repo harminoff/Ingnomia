@@ -42,7 +42,7 @@
     background-color: #aebdc4;
     border-bottom-color: #718591;
 }
-.l-inspector-toolbar span { min-width: 0; color: #29465c; overflow-wrap: anywhere; }
+.l-inspector-toolbar span { min-width: 0; color: #29465c; word-break: break-word; }
 .l-inspector-scroll { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; flex: 1 1 auto; min-width: 0; width: 376dp; min-width: 376dp; max-width: 376dp; padding: 8dp; background-color: #cbd5d9; box-sizing: border-box; overflow-y: scroll; }
 .l-inspector-scroll scrollbarvertical { width: 14dp; background-color: #d5dde0; }
 .l-inspector-scroll scrollbarvertical track { background-color: #cbd5d9; border-left-width: 1dp; border-left-color: #718591; }
@@ -59,17 +59,57 @@
 .l-inspector-scroll > .c-inspector-section { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; flex: 0 0 auto; width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
 .l-inspector-scroll > .c-inspector-section.is-hidden { display: none; }
 #inspector_tile.is-hidden, #inspector_creature.is-hidden { display: none; }
+#inspector_blueprint.is-hidden { display: none; }
+.l-inspector-panel.is-blueprint { top: 92dp; bottom: auto; height: 430dp; max-height: 72%; }
+.l-inspector-panel.is-blueprint .l-inspector-scroll { overflow-y: auto; }
+.c-blueprint-inspector { gap: 8dp; }
+.c-blueprint-status {
+    padding: 8dp 10dp;
+    color: #641e16;
+    background-color: #fff4ce;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    font-weight: bold;
+}
+.c-blueprint-status.is-ready { color: #164b24; background-color: #e8f3e8; }
+.c-blueprint-group { margin: 0; }
+.c-blueprint-list-head, .c-blueprint-detail {
+    display: flex;
+    align-items: center;
+    min-height: 25dp;
+    padding: 3dp 6dp;
+    color: #000000;
+    background-color: #c0c0c0;
+    border-bottom: 1dp #808080;
+    box-sizing: border-box;
+}
+.c-blueprint-list-head { font-weight: bold; }
+.c-blueprint-list-head span:first-child { flex: 1 1 auto; }
+.c-blueprint-list-head span:nth-child(2) { flex: 0 0 130dp; }
+.c-blueprint-list-head span:last-child { flex: 0 0 48dp; text-align: right; }
+.c-blueprint-list { background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+.c-blueprint-list .c-inspector-row__detail { flex: 0 0 130dp; }
+.c-blueprint-list .c-inspector-row__count { flex: 0 0 42dp; text-align: right; }
+.c-blueprint-list .c-inspector-row.is-missing, .c-blueprint-list .c-inspector-row.is-missing .c-inspector-row__detail { color: #8b1e16; }
+.c-blueprint-detail { justify-content: space-between; background-color: #f3f5ef; }
+.c-blueprint-detail:nth-child(even) { background-color: #e3ebee; }
+.c-blueprint-detail strong { color: #142333; font-weight: normal; }
+.c-blueprint-actions { margin-top: 2dp; }
+.c-blueprint-actions .c-button { flex: 1 1 104dp; }
 #inspector_creature { display: flex; flex-direction: column; align-items: stretch; align-self: stretch; flex: 0 0 auto; width: 360dp; min-width: 360dp; max-width: 360dp; box-sizing: border-box; }
 #inspector_creature > * { display: block; align-self: stretch; width: 360dp; min-width: 360dp; max-width: 360dp; box-sizing: border-box; }
 #inspector_creature > p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#creature_profession { margin: 3dp 0 7dp; padding: 6dp 8dp; color: #1b344b; background-color: #e3ebee; border: 1dp #b3c0c5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; word-break: normal; }
-#creature_activity { margin: 7dp 0; padding: 4dp 0 6dp; color: #526a78; border-bottom: 1dp #aebdc4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; word-break: normal; }
+#creature_profession { margin: 3dp 0 7dp; padding: 6dp 8dp; color: #1b344b; background-color: #e3ebee; border: 1dp #b3c0c5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
+#creature_activity { margin: 7dp 0; padding: 4dp 0 6dp; color: #526a78; border-bottom: 1dp #aebdc4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
 #creature_professions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; width: 100%; min-width: 0; }
 #creature_professions .c-dropdown-button { flex: 1 1 112dp; min-width: 112dp; }
 #creature_professions_empty { color: #526a78; }
 #creature_skills, #creature_equipment, #creature_inventory { display: flex; flex-direction: column; align-items: stretch; width: 100%; min-width: 0; }
 .c-inspector-section h3 { margin: 7dp 0 4dp 0; color: #24415a; font-size: 14dp; }
-.c-inspector-section p { color: #29465c; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.c-inspector-section p { color: #29465c; white-space: normal; word-break: break-word; }
 .l-inspector-actions { gap: 4dp; margin-top: 5dp; }
 .l-inspector-actions .c-button { min-width: 96dp; }
 .c-inspector-row {
@@ -93,7 +133,7 @@
 .c-inspector-row:nth-child(even) { background-color: #e3ebee; }
 .c-creature-attribute-grid, .c-creature-needs-summary { display: flex; flex-wrap: wrap; gap: 4dp; width: 100%; min-width: 0; box-sizing: border-box; }
 .c-creature-attribute, .c-creature-need-summary { flex: 1 1 30%; min-width: 82dp; display: flex; justify-content: space-between; gap: 4dp; padding: 4dp 5dp; color: #29465c; background-color: #e3ebee; border: 1dp #b3c0c5; box-sizing: border-box; overflow: hidden; }
-.c-creature-attribute span, .c-creature-need-summary span { min-width: 0; overflow-wrap: anywhere; }
+.c-creature-attribute span, .c-creature-need-summary span { min-width: 0; word-break: break-word; }
 .c-creature-attribute strong, .c-creature-need-summary strong { flex: 0 0 auto; color: #142333; }
 .c-tile-world-label {
     position: absolute;
@@ -168,6 +208,247 @@
     z-index: 30;
 }
 
+.l-inspector-panel.is-detached {
+    left: 0dp;
+    top: 0dp;
+    right: auto;
+    bottom: 0dp;
+    width: 100%;
+    max-width: none;
+    border-width: 0dp;
+}
+
+/* A detached inspector owns the whole native client area. The embedded
+   preview keeps its map-overlay placement, but that placement would leave a
+   narrow panel aligned to the right with an empty column in a native window. */
+.l-creature-preview.is-detached {
+    left: 0dp;
+    top: 0dp;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    min-width: 0dp;
+    max-width: none;
+    border-width: 0dp;
+    padding: 4dp;
+    box-sizing: border-box;
+}
+
+.c-creature-preview-panel {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.c-creature-preview-panel > p {
+    margin: 4dp 0;
+    color: #526a78;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.c-creature-preview-profession-editor {
+    flex: 0 0 auto;
+    width: 100%;
+    margin: 0 0 4dp;
+    padding: 5dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #808080;
+    border-bottom-color: #808080;
+    box-sizing: border-box;
+}
+#creature_preview_profession_heading {
+    display: block;
+    margin: 0 0 4dp;
+    color: #000000;
+    font-size: 11dp;
+    line-height: 14dp;
+}
+.c-creature-preview-profession-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+    height: 27dp;
+    min-height: 27dp;
+    padding: 0;
+    color: #000000;
+    background-color: #ffffff;
+    border-width: 2dp;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+    text-align: left;
+}
+#creature_preview_profession_value {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4dp 6dp;
+    color: #000000;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+.c-creature-preview-profession-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 22dp;
+    width: 22dp;
+    height: 23dp;
+    color: #000000;
+    background-color: #c0c0c0;
+    border-left-width: 1dp;
+    border-left-color: #808080;
+    pointer-events: none;
+}
+.c-creature-preview-profession-toggle:hover .c-creature-preview-profession-arrow { background-color: #d4d0c8; }
+.c-creature-preview-profession-toggle.is-open .c-creature-preview-profession-arrow {
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.c-creature-preview-profession-menu {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: 150dp;
+    margin-top: 2dp;
+    padding: 2dp;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border-width: 2dp;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+}
+.c-creature-preview-profession-menu.is-hidden { display: none; }
+.c-creature-preview-profession-option {
+    display: block;
+    width: 100%;
+    min-height: 24dp;
+    padding: 4dp 6dp;
+    color: #000000;
+    background-color: #ffffff;
+    border-width: 0;
+    text-align: left;
+}
+.c-creature-preview-profession-option:hover,
+.c-creature-preview-profession-option.is-selected { color: #ffffff; background-color: #000080; }
+#creature_preview_professions_empty { margin: 4dp 0 0; }
+.c-creature-preview-panel #creature_preview_skills {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+    min-width: 0;
+}
+.c-creature-preview-skill-sort {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    margin-top: 14dp;
+    gap: 3dp;
+    box-sizing: border-box;
+}
+.c-creature-preview-skill-sort .c-creature-preview-rail-heading {
+    margin-bottom: 2dp;
+}
+.c-creature-preview-skill-sort .c-button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 27dp;
+    padding: 4dp 6dp;
+    color: #142333;
+    background-color: #c0c0c0;
+    font-size: 12dp;
+    line-height: 15dp;
+    text-align: left;
+    box-sizing: border-box;
+}
+.c-creature-preview-skill-sort .c-button > span {
+    color: #142333;
+    font-size: 12dp;
+    line-height: 15dp;
+}
+.c-creature-preview-skills-scroll {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    background-color: #cbd5d9;
+    border-width: 1dp;
+    border-top-color: #718591;
+    border-left-color: #718591;
+    border-right-color: #f7faf8;
+    border-bottom-color: #f7faf8;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached #creature_preview_skills {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    background-color: transparent;
+    border-width: 0dp;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical {
+    width: 14dp;
+    margin-right: 0dp;
+    background-color: #c0c0c0;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical slidertrack {
+    background-color: #dfdfdf;
+    border-left: 1dp #808080;
+    border-right: 1dp #ffffff;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderbar {
+    min-height: 28dp;
+    width: 12dp;
+    margin-left: 1dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderbar:hover {
+    background-color: #f1ca4f;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderarrowdec,
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderarrowinc {
+    width: 14dp;
+    height: 14dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    color: #000000;
+    font-size: 9dp;
+    line-height: 10dp;
+    text-align: center;
+}
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderarrowdec { decorator: text("^"); }
+.l-creature-preview.is-detached #creature_preview_skills_scroll scrollbarvertical sliderarrowinc { decorator: text("v"); }
+
 .l-creature-preview > .c-title-bar {
     display: flex;
     align-items: center;
@@ -176,6 +457,45 @@
     padding: 4dp 6dp 4dp 8dp;
     background-color: #356c9d;
     border-bottom-color: #214665;
+}
+
+/* Detached inspectors draw their own compact Win98-style frame. Keep Back
+   available for full-profile return, while the native host remains frameless. */
+.l-creature-preview.is-detached > .c-title-bar {
+    min-height: 26dp;
+    padding: 2dp 6dp 2dp 8dp;
+    border-width: 0dp;
+    margin: -4dp -4dp 0dp;
+}
+.l-inspector-panel.is-detached .l-inspector-title {
+    min-height: 26dp;
+    padding: 2dp 6dp 2dp 8dp;
+    border-width: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-heading,
+.l-inspector-panel.is-detached .l-inspector-title > .c-title-bar__drag-handle > div:last-child {
+    display: flex;
+    align-items: baseline;
+    gap: 6dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-heading h2,
+.l-inspector-panel.is-detached .l-inspector-title h2 {
+    margin: 0;
+    line-height: 18dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-heading h2 {
+    flex: 0 1 auto;
+}
+.c-creature-preview-heading-coords {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    color: #d8e6ed;
+    font-size: 10dp;
+    line-height: 14dp;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .c-creature-preview-heading { flex: 1; min-width: 0; }
@@ -190,15 +510,53 @@
     white-space: nowrap;
 }
 .l-creature-preview .c-button--compact { min-width: 70dp; min-height: 24dp; padding: 2dp 6dp; }
+.l-creature-preview.is-detached #creature_preview_close,
+.l-inspector-panel.is-detached #inspector_close {
+    display: flex;
+    flex: 0 0 22dp;
+    width: 22dp;
+    min-width: 22dp;
+    height: 20dp;
+    min-height: 20dp;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: #142333;
+    background-color: #cbd5d9;
+    border-width: 2dp;
+    border-top-color: #f7faf8;
+    border-left-color: #f7faf8;
+    border-right-color: #4d6476;
+    border-bottom-color: #4d6476;
+    font-size: 14dp;
+    line-height: 14dp;
+}
+.l-creature-preview.is-detached #creature_preview_close > span,
+.l-inspector-panel.is-detached #inspector_close > span {
+    display: block;
+    color: #142333;
+    font-size: 14dp;
+    line-height: 14dp;
+    text-align: center;
+}
 .c-creature-preview-body { padding: 8dp; }
 .c-creature-preview-camera { display: flex; flex-direction: column; align-items: center; margin-bottom: 8dp; padding: 4dp; background-color: #aebdc4; border-width: 1dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
 .c-creature-preview-camera__scene { position: relative; flex: 0 0 330dp; width: 330dp; height: 330dp; margin: 0; overflow: hidden; background-color: #78a7b7; border-width: 1dp; border-color: #4d6476; box-sizing: border-box; }
-.c-creature-preview-camera__image { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: fill; }
-.c-creature-preview-camera__reticle { position: absolute; right: 7dp; top: 5dp; color: #fff5bd; font-size: 17dp; line-height: 18dp; }
-.c-creature-preview-camera__live { position: absolute; left: 6dp; top: 5dp; padding: 1dp 4dp; color: #ffffff; background-color: #8c3f2d; font-size: 9dp; font-weight: bold; }
-.c-creature-preview-camera__caption { align-self: stretch; display: flex; gap: 6dp; padding-top: 4dp; color: #29465c; font-size: 10dp; line-height: 12dp; }
-.c-creature-preview-camera__caption span:last-child { flex: 1; min-width: 0; color: #526a78; text-align: right; overflow-wrap: anywhere; }
-.c-creature-preview-activity-line { width: 100%; min-width: 0; padding: 5dp 0 7dp; color: #526a78; font-size: 11dp; line-height: 14dp; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1dp #aebdc4; box-sizing: border-box; }
+.c-creature-preview-camera__image { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; }
+.l-creature-preview.is-detached .c-creature-preview-body { padding: 0dp; }
+.l-creature-preview.is-detached .c-creature-preview-camera {
+    width: 100%;
+    margin-bottom: 4dp;
+    padding: 0dp;
+    background-color: transparent;
+    border-width: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-camera__scene {
+    flex-basis: 272dp;
+    width: 100%;
+    height: 272dp;
+}
+.c-creature-preview-activity-line { width: 100%; min-width: 0; padding: 5dp 0 7dp; color: #526a78; font-size: 11dp; line-height: 14dp; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; border-bottom: 1dp #aebdc4; box-sizing: border-box; }
 .c-creature-preview-avatar {
     flex: 0 0 58dp;
     width: 58dp;
@@ -220,7 +578,7 @@
 .c-creature-preview-body h3 { margin: 8dp 0 4dp; color: #24415a; font-size: 12dp; text-transform: uppercase; letter-spacing: .4dp; }
 .c-creature-preview-stats { display: flex; flex-wrap: wrap; gap: 4dp; width: 100%; min-width: 0; box-sizing: border-box; }
 .c-creature-preview-stat { flex: 1 1 30%; min-width: 86dp; min-height: 24dp; display: flex; justify-content: space-between; align-items: center; gap: 4dp; padding: 4dp 5dp; color: #29465c; background-color: #e3ebee; border: 1dp #b3c0c5; box-sizing: border-box; overflow: hidden; }
-.c-creature-preview-stat span { min-width: 0; overflow-wrap: anywhere; }
+.c-creature-preview-stat span { min-width: 0; word-break: break-word; }
 .c-creature-preview-stat strong { flex: 0 0 auto; color: #142333; white-space: nowrap; }
 .c-creature-preview-needs { display: flex; flex-direction: column; gap: 4dp; width: 100%; min-width: 0; padding-right: 8dp; box-sizing: border-box; }
 .c-creature-preview-need { display: flex; align-items: center; gap: 5dp; width: 100%; min-width: 0; overflow: visible; color: #29465c; font-size: 11dp; box-sizing: border-box; }
@@ -233,3 +591,506 @@
 .c-creature-preview-meter > span.is-danger { background-color: #b84b43; }
 .c-creature-preview-meter > span.is-unavailable { background-color: #879aa2; }
 .c-creature-preview-actions { justify-content: center; margin-top: 8dp; }
+
+/* Creature inspector workbench */
+.l-creature-preview.is-detached {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    padding: 2dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached > .c-title-bar {
+    flex: 0 0 auto;
+    min-height: 28dp;
+    margin: 0;
+    padding: 2dp 4dp;
+    background-color: #356c9d;
+    border-width: 1dp;
+    border-top-color: #5b8eb8;
+    border-left-color: #5b8eb8;
+    border-right-color: #214665;
+    border-bottom-color: #214665;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached .c-creature-preview-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: stretch;
+    min-width: 0;
+    min-height: 0;
+    padding: 4dp;
+    gap: 4dp;
+    background-color: #c0c0c0;
+    box-sizing: border-box;
+}
+.c-creature-preview-rail {
+    display: flex;
+    flex: 0 0 112dp;
+    flex-direction: column;
+    width: 112dp;
+    min-width: 112dp;
+    min-height: 0;
+    padding: 4dp;
+    background-color: #c0c0c0;
+    border-width: 1dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+}
+.c-creature-preview-rail-heading {
+    margin: 0 0 5dp;
+    color: #404040;
+    font-size: 10dp;
+    line-height: 13dp;
+    text-transform: uppercase;
+}
+.c-creature-preview-nav {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 3dp;
+}
+.c-creature-preview-nav .c-button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 27dp;
+    padding: 4dp 6dp;
+    color: #142333;
+    background-color: #c0c0c0;
+    text-align: left;
+    box-sizing: border-box;
+}
+.c-creature-preview-nav .c-button > span {
+    color: #142333;
+    font-size: 12dp;
+    line-height: 15dp;
+}
+.c-creature-preview-nav .c-button.is-selected,
+.c-creature-preview-skill-sort .c-button.is-selected {
+    padding: 5dp 5dp 3dp 7dp;
+    color: #142333;
+    background-color: #b8b8b8;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.c-creature-preview-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background-color: #f4f4f1;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached .c-creature-preview-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 8dp;
+    overflow-y: auto;
+    background-color: #f4f4f1;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached #creature_preview_camera_panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.l-creature-preview.is-detached #creature_preview_expertise_panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.l-creature-preview.is-detached #creature_preview_camera_panel.is-hidden,
+.l-creature-preview.is-detached #creature_preview_stats_panel.is-hidden,
+.l-creature-preview.is-detached #creature_preview_expertise_panel.is-hidden,
+.l-creature-preview.is-detached #creature_preview_equipment_panel.is-hidden,
+.l-creature-preview.is-detached #creature_preview_inventory_panel.is-hidden {
+    display: none;
+}
+.l-creature-preview.is-detached .c-creature-preview-camera {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    margin: 0 0 6dp;
+    padding: 2dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached .c-creature-preview-camera__scene {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-height: 220dp;
+    border-width: 0dp;
+}
+.c-creature-preview-camera-actions {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    margin-top: 14dp;
+    gap: 3dp;
+    box-sizing: border-box;
+}
+.c-creature-preview-camera-actions .c-creature-preview-rail-heading {
+    margin-bottom: 2dp;
+}
+.c-creature-preview-camera-actions .c-button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 27dp;
+    padding: 4dp 6dp;
+    color: #142333;
+    background-color: #c0c0c0;
+    font-size: 12dp;
+    line-height: 15dp;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+/* Equipment paper doll: the nine clickable positions are the authoritative
+ * uniform slots. Neck and rings remain visual landmarks from the original UI. */
+#creature_preview_equipment_panel {
+    overflow: hidden;
+}
+.c-equipment-scope {
+    margin: 0 0 6dp;
+    color: #404040;
+    font-size: 10dp;
+    line-height: 13dp;
+}
+.c-equipment-workbench {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8dp;
+    width: 100%;
+    min-width: 0;
+}
+.c-equipment-doll {
+    display: flex;
+    flex: 0 0 184dp;
+    flex-direction: column;
+    align-items: center;
+    gap: 4dp;
+    width: 184dp;
+    min-width: 184dp;
+    padding: 7dp 5dp 8dp;
+    background-color: #808080;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    box-sizing: border-box;
+}
+.c-equipment-doll__row {
+    display: flex;
+    justify-content: center;
+    gap: 10dp;
+    width: 100%;
+    min-height: 48dp;
+}
+.c-equipment-doll__row--top { margin-bottom: 4dp; }
+.c-equipment-doll__row--rings { min-height: 38dp; margin: -3dp 0 0; }
+.c-equipment-doll__row--feet { margin-top: -2dp; }
+.c-equipment-doll__spacer { width: 46dp; min-width: 46dp; height: 46dp; }
+.c-equipment-slot {
+    display: flex;
+    flex: 0 0 46dp;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 46dp;
+    height: 48dp;
+    min-width: 46dp;
+    min-height: 48dp;
+    padding: 2dp;
+    color: #d7d7d7;
+    background-color: #151a1d;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    box-sizing: border-box;
+}
+button.c-equipment-slot:hover { background-color: #222a2e; }
+button.c-equipment-slot:active,
+button.c-equipment-slot.is-selected {
+    padding: 3dp 1dp 1dp 3dp;
+    background-color: #30383c;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+button.c-equipment-slot:disabled { opacity: .72; }
+.c-equipment-slot--decorative { opacity: .58; }
+.c-equipment-slot__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34dp;
+    height: 32dp;
+    overflow: hidden;
+}
+.c-equipment-slot__icon img { width: 32dp; height: 32dp; image-rendering: pixelated; object-fit: contain; }
+.c-equipment-slot__empty { color: #737d82; font-size: 15dp; font-weight: bold; }
+.c-equipment-slot__label {
+    width: 100%;
+    color: #d7d7d7;
+    font-size: 8dp;
+    line-height: 10dp;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.c-equipment-editor {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-height: 304dp;
+    padding: 6dp;
+    overflow-y: auto;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-sizing: border-box;
+}
+.c-equipment-editor h3 { margin-top: 0; }
+.c-equipment-editor > p { margin: 2dp 0 6dp; color: #404040; font-size: 10dp; }
+.c-equipment-editor__label { margin: 5dp 0 3dp; color: #404040; font-size: 10dp; text-transform: uppercase; }
+.c-equipment-editor__choices { display: flex; flex-direction: column; gap: 2dp; width: 100%; }
+.c-equipment-editor__choices .c-button { width: 100%; min-width: 0; min-height: 23dp; padding: 3dp 5dp; text-align: left; }
+.c-equipment-editor__choices .c-button.is-selected {
+    padding: 4dp 4dp 2dp 6dp;
+    background-color: #b8b8b8;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.c-equipment-editor__actions { display: flex; justify-content: flex-end; gap: 4dp; margin-top: 7dp; }
+.c-equipment-editor__actions .c-button { min-width: 64dp; }
+/* Inventory-aligned detached inspector. Keep this final scoped block
+ * authoritative over the older contextual-inspector palette above. */
+.l-creature-preview.is-detached {
+    color: #000000;
+    background-color: #c0c0c0;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached .c-title-bar__drag-handle > * { pointer-events: none; }
+.l-creature-preview.is-detached .c-creature-preview-heading small,
+.l-creature-preview.is-detached .c-creature-preview-heading h2,
+.l-creature-preview.is-detached .c-creature-preview-heading-coords { color: #ffffff; }
+.l-creature-preview.is-detached .c-creature-preview-body { padding: 6dp; gap: 4dp; }
+.l-creature-preview.is-detached .c-creature-preview-rail {
+    padding: 4dp;
+    background-color: #c0c0c0;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.l-creature-preview.is-detached .c-creature-preview-rail-heading {
+    color: #404040;
+    font-weight: bold;
+    letter-spacing: .5dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-nav .c-button,
+.l-creature-preview.is-detached .c-creature-preview-skill-sort .c-button,
+.l-creature-preview.is-detached .c-creature-preview-camera-actions .c-button {
+    color: #000000;
+    background-color: #c0c0c0;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-nav .c-button > span,
+.l-creature-preview.is-detached .c-creature-preview-skill-sort .c-button > span { color: #000000; }
+.l-creature-preview.is-detached .c-creature-preview-nav .c-button:hover,
+.l-creature-preview.is-detached .c-creature-preview-skill-sort .c-button:hover,
+.l-creature-preview.is-detached .c-creature-preview-camera-actions .c-button:hover { background-color: #d4d0c8; }
+.l-creature-preview.is-detached .c-creature-preview-nav .c-button.is-selected,
+.l-creature-preview.is-detached .c-creature-preview-skill-sort .c-button.is-selected {
+    color: #000000;
+    background-color: #d4d0c8;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.l-creature-preview.is-detached .c-creature-preview-content,
+.l-creature-preview.is-detached .c-creature-preview-panel { background-color: #ffffff; }
+.l-creature-preview.is-detached .c-creature-preview-content {
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-editor {
+    margin: 0 0 4dp;
+    padding: 4dp;
+    background-color: #c0c0c0;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #808080;
+    border-bottom-color: #808080;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached #creature_preview_profession_heading {
+    color: #000000;
+    font-size: 10dp;
+    font-weight: bold;
+    line-height: 13dp;
+    text-transform: uppercase;
+    letter-spacing: .5dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-toggle {
+    min-height: 27dp;
+    color: #000000;
+    background-color: #ffffff;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-menu {
+    color: #000000;
+    background-color: #ffffff;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-option { color: #000000; background-color: #ffffff; }
+.l-creature-preview.is-detached .c-creature-preview-profession-option:hover,
+.l-creature-preview.is-detached .c-creature-preview-profession-option.is-selected { color: #ffffff; background-color: #000080; }
+.l-creature-preview.is-detached .c-creature-preview-skills-scroll {
+    color: #000000;
+    background-color: #ffffff;
+    border-width: 2dp;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    border-radius: 0dp;
+}
+.l-creature-preview.is-detached #creature_preview_skills .c-inspector-row {
+    min-height: 30dp;
+    padding: 5dp 8dp;
+    color: #000000;
+    background-color: #ffffff;
+    border-bottom: 1dp #c0c0c0;
+    box-sizing: border-box;
+}
+.l-creature-preview.is-detached #creature_preview_skills .c-inspector-row:nth-child(even) { background-color: #dfdfdf; }
+.l-creature-preview.is-detached #creature_preview_skills .c-inspector-row:hover { background-color: #d4d0c8; }
+.l-creature-preview.is-detached #creature_preview_skills .c-inspector-row__label { color: #000000; }
+.l-creature-preview.is-detached #creature_preview_skills .c-inspector-row__detail {
+    flex: 0 0 112dp;
+    width: 112dp;
+    color: #000000;
+    text-align: right;
+}
+.l-creature-preview.is-detached .c-window__resize-grip { display: block; }
+/* Inventory-search aligned Profession control. The choices overlay the skills
+ * list like a desktop combo box instead of reflowing the Expertise panel. */
+.l-creature-preview.is-detached .c-creature-preview-profession-editor {
+    position: relative;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    width: 100%;
+    min-height: 48dp;
+    margin: 0 0 4dp;
+    padding: 5dp;
+    gap: 4dp;
+    overflow: visible;
+    z-index: 40;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-field {
+    display: flex;
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 5dp;
+}
+.l-creature-preview.is-detached #creature_preview_profession_heading {
+    flex: 0 0 auto;
+    margin: 0;
+    color: #000000;
+    font-size: 11dp;
+    font-weight: normal;
+    line-height: 15dp;
+    text-transform: none;
+    letter-spacing: 0dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-toggle {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 25dp;
+    height: 25dp;
+}
+.l-creature-preview.is-detached .c-creature-preview-profession-menu {
+    position: absolute;
+    left: 72dp;
+    right: 5dp;
+    top: 35dp;
+    width: auto;
+    max-height: 180dp;
+    margin: 0;
+    z-index: 50;
+}
+.l-creature-preview.is-detached #creature_preview_professions_empty {
+    flex: 1 1 100%;
+    margin: 0 0 0 72dp;
+}

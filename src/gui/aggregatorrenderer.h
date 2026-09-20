@@ -34,6 +34,9 @@ class Game;
 ///        previous creature position. Laid out to match the world shaders.
 struct TileData
 {
+	// Render-only topology bits in flags2; the saved TileFlag values use flags.
+	static constexpr unsigned int WaterBlocking = 0x80000000u;
+	static constexpr unsigned int WaterFloor = 0x40000000u;
 	unsigned int flags  = 0;                ///< Primary tile flags (walkable, occupied, …).
 	unsigned int flags2 = 0;                ///< Secondary flags overflow.
 
@@ -65,6 +68,7 @@ struct CreatureRenderData
 {
 	unsigned int spriteUID = 0;
 	Position previousPosition;
+	quint64 motionTick = 0;
 	quint32 motionDurationTicks = 1;
 };
 
@@ -103,6 +107,7 @@ struct SelectionData
 	bool valid              = true; ///< True if this tile is a valid placement target.
 	bool isFloor            = false;///< True if the preview sprite is a floor (vs wall).
 	quint8 localRot         = 0;    ///< Rotation index for the preview sprite.
+	float previewYOffset   = 0.f;  ///< Render-only lift in unscaled pixels; never changes the job position.
 };
 //Q_DECLARE_TYPEINFO( SelectionData, Q_PRIMITIVE_TYPE );
 Q_DECLARE_METATYPE( SelectionData );
@@ -153,9 +158,12 @@ private:
 	TileDataUpdate aggregateTile( unsigned int tileID ) const;
 	QHash<unsigned int, Position> m_previousCreaturePositions;
 	QHash<unsigned int, quint64> m_lastCreatureMotionTicks;
+	QHash<unsigned int, CreatureCameraTarget> m_creatureMotionSegments;
+	quint64 m_latestSimulationTick = 0;
 
 public slots:
 	void onWorldParametersChanged();
+	void onSimulationTick( quint64 tick );
 	void onAllTileInfo();
 	void onUpdateAnyTileInfo( const QSet<unsigned int>& changeSet );
 	void onThoughtBubbleUpdate();
@@ -164,6 +172,7 @@ public slots:
 
 signals:
 	void signalWorldParametersChanged();
+	void signalSimulationTick( quint64 tick );
 	void signalTileUpdates( const TileDataUpdateInfo& updates );
 	void signalThoughtBubbles( const ThoughtBubbleInfo& bubbles );
 	void signalAxleData( const AxleDataInfo& data );

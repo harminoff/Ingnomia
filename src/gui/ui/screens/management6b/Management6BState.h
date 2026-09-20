@@ -23,7 +23,7 @@ enum class Sort : std::uint8_t
 	Name,
 	Profession,
 	Total,
-	Value
+	Stock
 };
 enum class ManagedScheduleActivity : std::uint8_t
 {

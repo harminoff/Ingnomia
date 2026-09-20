@@ -37,6 +37,7 @@
 #include "../gfx/spritefactory.h"
 #include "eventconnector.h"
 #include "mainwindow.h"
+#include "isometricplacement.h"
 #include "aggregatorselection.h"
 
 #include <QCoreApplication>
@@ -99,6 +100,7 @@ MainWindowRenderer::MainWindowRenderer( MainWindow* parent ) :
 {
 	connect( Global::eventConnector->aggregatorRenderer(), &AggregatorRenderer::signalWorldParametersChanged, this, &MainWindowRenderer::cleanupWorld );
 
+	connect( Global::eventConnector->aggregatorRenderer(), &AggregatorRenderer::signalSimulationTick, this, &MainWindowRenderer::onSimulationTick );
 	connect( Global::eventConnector->aggregatorRenderer(), &AggregatorRenderer::signalTileUpdates, this, &MainWindowRenderer::onTileUpdates );
 	connect( Global::eventConnector->aggregatorRenderer(), &AggregatorRenderer::signalAxleData, this, &MainWindowRenderer::onAxelData );
 	connect( Global::eventConnector->aggregatorRenderer(), &AggregatorRenderer::signalThoughtBubbles, this, &MainWindowRenderer::onThoughtBubbles );
@@ -229,6 +231,7 @@ void MainWindowRenderer::initializeGL()
 	initializeWaterTargets();
 	initializeWaterTextures();
 	m_waterClock.start();
+	m_cameraPreviewLastPaintMs.fill( -1 );
 
 	qDebug() << "initialize GL - done";
 }
@@ -287,6 +290,7 @@ void MainWindowRenderer::cleanupWorld()
 
 	m_pendingUpdates.clear();
 	m_creatureCameraTargets.clear();
+	m_cameraPreviewLastPaintMs.fill( -1 );
 	m_selectionData.clear();
 	m_thoughBubbles = ThoughtBubbleInfo();
 	m_axleData      = AxleDataInfo();
@@ -298,25 +302,18 @@ void MainWindowRenderer::cleanupWorld()
 	m_creatureRenderTick = 0.0f;
 }
 
-/// @brief Slot: enqueues an incoming tile-update batch to be uploaded and applied next frame.
-/// @param updates Batch of per-tile TileDataUpdate packets.
-void MainWindowRenderer::onTileUpdates( const TileDataUpdateInfo& updates )
+/// @brief Advances the render interpolation clock at every fixed simulation boundary.
+/// @param simulationTick Authoritative tick after the simulation step completed.
+void MainWindowRenderer::onSimulationTick( quint64 simulationTick )
 {
-	static int traceBatches = 0;
-	if ( traceBatches < 4 )
-		traceRender( QString( "tile batch %1 size=%2" ).arg( ++traceBatches ).arg( updates.updates.size() ) );
-
-	bool containsCreatureMotion = false;
-	for ( const auto& update : updates.updates )
-	{
-		if ( update.tile.creatureOffsetX != 0 || update.tile.creatureOffsetY != 0 || update.tile.creatureOffsetZ != 0 )
-		{
-			containsCreatureMotion = true;
-			break;
-		}
-	}
-	const bool isNewSimulationTick = updates.simulationTick == 0 || updates.simulationTick != m_lastCreatureMotionTick;
-	if ( containsCreatureMotion && isNewSimulationTick )
+	// OpenRCT2 derives a render alpha from every completed fixed simulation tick,
+	// then draws all tracked entities at that same point between their pre/post
+	// snapshots. Tile changes are sparse in Ingnomia, so they cannot be the clock:
+	// skipping quiet ticks makes the fractional render position jump when the next
+	// path step dirties a tile.
+	const bool isNewSimulationTick = simulationTick != 0
+		&& simulationTick != m_lastCreatureMotionTick;
+	if ( isNewSimulationTick )
 	{
 		if ( !m_creatureMotionClock.isValid() )
 			m_creatureMotionClock.start();
@@ -325,14 +322,56 @@ void MainWindowRenderer::onTileUpdates( const TileDataUpdateInfo& updates )
 		if ( m_lastCreatureMotionStartMs >= 0 )
 		{
 			const qint64 elapsed = now - m_lastCreatureMotionStartMs;
+			const quint64 tickDelta = simulationTick > m_lastCreatureMotionTick
+				? simulationTick - m_lastCreatureMotionTick : 1;
+			const qint64 interval = elapsed / static_cast<qint64>( tickDelta );
 			// Track normal simulation cadence, but ignore long pauses and reload gaps.
-			if ( elapsed >= 10 && elapsed <= 250 )
-				m_creatureMotionIntervalMs = elapsed;
+			if ( interval >= 1 && interval <= 250 )
+				m_creatureMotionIntervalMs = interval;
 		}
 		m_lastCreatureMotionStartMs = now;
 		m_creatureInterpolation = 0.0f;
-		m_lastCreatureMotionTick = updates.simulationTick;
+		m_lastCreatureMotionTick = simulationTick;
 	}
+	emit redrawRequired();
+}
+
+/// @brief Returns the sun's continuous visibility for the current in-game minute.
+///        The simulation still uses GameState::daylight for gameplay decisions; this
+///        curve is render-only so sunrise and sunset do not pop between two states.
+static float scheduledDaylight()
+{
+	const int sunrise = GameState::sunrise;
+	const int sunset  = GameState::sunset;
+	if ( sunset <= sunrise )
+		return GameState::daylight ? 1.0f : 0.0f;
+
+	constexpr float twilightMinutes = 90.0f;
+	const float current = static_cast<float>( GameState::hour * Global::util->minutesPerHour + GameState::minute );
+	const auto smooth = []( float value ) {
+		const float t = std::clamp( value, 0.0f, 1.0f );
+		return t * t * ( 3.0f - 2.0f * t );
+	};
+
+	if ( current < static_cast<float>( sunrise ) - twilightMinutes )
+		return 0.0f;
+	if ( current < static_cast<float>( sunrise ) + twilightMinutes )
+		return smooth( ( current - ( static_cast<float>( sunrise ) - twilightMinutes ) ) / ( 2.0f * twilightMinutes ) );
+	if ( current < static_cast<float>( sunset ) - twilightMinutes )
+		return 1.0f;
+	if ( current < static_cast<float>( sunset ) + twilightMinutes )
+		return 1.0f - smooth( ( current - ( static_cast<float>( sunset ) - twilightMinutes ) ) / ( 2.0f * twilightMinutes ) );
+	return 0.0f;
+}
+
+/// @brief Slot: enqueues an incoming tile-update batch to be uploaded and applied next frame.
+/// @param updates Batch of per-tile TileDataUpdate packets.
+void MainWindowRenderer::onTileUpdates( const TileDataUpdateInfo& updates )
+{
+	static int traceBatches = 0;
+	if ( traceBatches < 4 )
+		traceRender( QString( "tile batch %1 size=%2" ).arg( ++traceBatches ).arg( updates.updates.size() ) );
+
 	m_creatureCameraTargets = updates.creatureCameraTargets;
 	m_pendingUpdates.push_back( updates.updates );
 	emit redrawRequired();
@@ -368,6 +407,10 @@ QString MainWindowRenderer::copyShaderToString( QString name )
 		code += in.readLine();
 		code += "\n";
 	}
+
+	// Expand our shared lighting helper without a driver-specific GLSL include extension.
+	if ( name != "lighting" && code.contains( "#include \"lighting.glsl\"" ) )
+		code.replace( "#include \"lighting.glsl\"", copyShaderToString( "lighting" ) );
 
 	return code;
 }
@@ -757,9 +800,10 @@ void MainWindowRenderer::paintWorld()
 		return;
 	}
 
-	// Render the opaque world into a color/depth target first. Water is then
-	// composited against this completed scene, which gives it stable depth
-	// ordering around trees, walls, creatures, and shorelines.
+	// Render the opaque world into a color/depth target first, then copy both
+	// attachments to the window before drawing the opaque pixel-art water overlay.
+	// The water shader no longer samples the scene textures; the copied depth is
+	// what preserves stable ordering around trees, walls, creatures, and shorelines.
 	glBindFramebuffer( GL_FRAMEBUFFER, m_sceneFbo );
 	glViewport( 0, 0, m_sceneWidth, m_sceneHeight );
 	glEnable( GL_BLEND );
@@ -909,7 +953,7 @@ void MainWindowRenderer::paintWater( bool forceFlat )
 		return;
 
 	DebugScope s( "paint water" );
-	const int waterQuality = forceFlat || !m_sceneColor || !m_sceneDepth || !m_waterDuDv || !m_waterNormal
+	const int waterQuality = forceFlat || !m_waterDuDv
 		? 0
 		: qBound( 0, Global::cfg->get( "waterQuality" ).toInt(), 2 );
 	GLboolean oldDepthMask = GL_TRUE;
@@ -924,25 +968,13 @@ void MainWindowRenderer::paintWater( bool forceFlat )
 	const bool depthWasEnabled = glIsEnabled( GL_DEPTH_TEST );
 	glUseProgram( m_waterShader );
 	setCommonUniforms( m_waterShader );
-	setUniformi( m_waterShader, "uSceneColor", 29 );
-	setUniformi( m_waterShader, "uSceneDepth", 30 );
 	setUniformi( m_waterShader, "uDuDvMap", 27 );
-	setUniformi( m_waterShader, "uNormalMap", 28 );
 	setUniformi( m_waterShader, "uWaterQuality", waterQuality );
 	setUniformf( m_waterShader, "uWaterTime", static_cast<float>( m_waterClock.elapsed() ) / 1000.0f );
 	setUniformf( m_waterShader, "uDaylight", static_cast<float>( m_daylight ) );
-	const GLint viewportLocation = glGetUniformLocation( m_waterShader, "uViewportSize" );
-	if ( viewportLocation >= 0 )
-		glUniform2f( viewportLocation, static_cast<float>( m_sceneWidth ), static_cast<float>( m_sceneHeight ) );
-
+	setUniformf( m_waterShader, "uLightMin", m_lightMin );
 	glActiveTexture( GL_TEXTURE0 + 27 );
 	glBindTexture( GL_TEXTURE_2D, m_waterDuDv );
-	glActiveTexture( GL_TEXTURE0 + 28 );
-	glBindTexture( GL_TEXTURE_2D, m_waterNormal );
-	glActiveTexture( GL_TEXTURE0 + 29 );
-	glBindTexture( GL_TEXTURE_2D, m_sceneColor );
-	glActiveTexture( GL_TEXTURE0 + 30 );
-	glBindTexture( GL_TEXTURE_2D, m_sceneDepth );
 
 	const Position volume = m_volume.size();
 	const GLsizei tiles = volume.x * volume.y * volume.z;
@@ -973,12 +1005,9 @@ void MainWindowRenderer::paintWater( bool forceFlat )
 	glDepthMask( oldDepthMask );
 	if ( !blendWasEnabled ) glDisable( GL_BLEND );
 	if ( !depthWasEnabled ) glDisable( GL_DEPTH_TEST );
-	for ( int unit = 27; unit <= 30; ++unit )
-	{
-		glActiveTexture( GL_TEXTURE0 + unit );
-		glBindTexture( GL_TEXTURE_2D, 0 );
-		glBindTexture( GL_TEXTURE_2D_ARRAY, m_textures[unit] );
-	}
+	glActiveTexture( GL_TEXTURE0 + 27 );
+	glBindTexture( GL_TEXTURE_2D, 0 );
+	glBindTexture( GL_TEXTURE_2D_ARRAY, m_textures[27] );
 	glActiveTexture( static_cast<GLenum>( oldActiveTexture ) );
 	glUseProgram( static_cast<GLuint>( oldProgram ) );
 }
@@ -1021,37 +1050,124 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 {
 	if ( !target || slot < 0 || slot >= cameraPreviewSlotCount || !m_cameraPreviewFbo[slot] || !m_texesInitialized || !m_worldShader ) return;
 
-	// Match the preview camera to the creature shader's interpolated position. The
-	// inspector state reports integer tile positions, but the renderer may currently
-	// be drawing the creature between its previous and current tiles.
-	float cameraX = static_cast<float>( target->position.x );
-	float cameraY = static_cast<float>( target->position.y );
-	float cameraZ = static_cast<float>( target->position.z );
-	const auto cameraTarget = m_creatureCameraTargets.constFind( target->creatureID );
-	if ( cameraTarget != m_creatureCameraTargets.constEnd() && cameraTarget->currentPosition == target->position )
+	// Keep the follow camera near 60 Hz even when the game is running on a high-
+	// refresh monitor. The old 33 ms gate made both camera motion and the sampled
+	// creature interpolation visibly step at 30 FPS. A 12 ms floor lands at about
+	// 60-72 updates on common 60/120/144 Hz displays without submitting a second
+	// world pass at the full 144/240 Hz monitor rate.
+	constexpr qint64 previewIntervalMs = 12;
+	const qint64 nowMs = m_waterClock.isValid() ? m_waterClock.elapsed() : 0;
+	if ( m_cameraPreviewLastPaintMs[slot] >= 0
+		&& nowMs - m_cameraPreviewLastPaintMs[slot] < previewIntervalMs )
+		return;
+	m_cameraPreviewLastPaintMs[slot] = nowMs;
+	if ( qEnvironmentVariableIsSet( "INGNOMIA_LOAD_TRACE_PATH" ) )
 	{
+		static std::array<qint64, cameraPreviewSlotCount> cadenceWindowStartMs{};
+		static std::array<int, cameraPreviewSlotCount> cadenceFrameCount{};
+		if ( cadenceWindowStartMs[slot] == 0 )
+			cadenceWindowStartMs[slot] = nowMs;
+		++cadenceFrameCount[slot];
+		const qint64 cadenceElapsedMs = nowMs - cadenceWindowStartMs[slot];
+		if ( cadenceElapsedMs >= 1000 )
+		{
+			traceRender( QString( "camera preview cadence slot=%1 frames=%2 elapsedMs=%3 avgMs=%4" )
+				.arg( slot ).arg( cadenceFrameCount[slot] ).arg( cadenceElapsedMs )
+				.arg( static_cast<double>( cadenceElapsedMs ) / cadenceFrameCount[slot], 0, 'f', 2 ) );
+			cadenceWindowStartMs[slot] = nowMs;
+			cadenceFrameCount[slot] = 0;
+		}
+	}
+
+	// Match the preview camera to the creature shader's interpolated position. The
+	// inspector state keeps the tile where the creature was selected, so it becomes
+	// stale as soon as that creature walks. Creature ID is the stable identity: use
+	// the renderer's latest current position for both the camera and render volume,
+	// and retain the selected tile only as a fallback while data is unavailable.
+	Position trackedPosition = target->position;
+	float cameraX = static_cast<float>( trackedPosition.x );
+	float cameraY = static_cast<float>( trackedPosition.y );
+	float cameraZ = static_cast<float>( trackedPosition.z );
+	float cameraMotionProgress = 1.0f;
+	const auto cameraTarget = m_creatureCameraTargets.constFind( target->creatureID );
+	if ( cameraTarget != m_creatureCameraTargets.constEnd() )
+	{
+		trackedPosition = cameraTarget->currentPosition;
+		cameraX = static_cast<float>( trackedPosition.x );
+		cameraY = static_cast<float>( trackedPosition.y );
+		cameraZ = static_cast<float>( trackedPosition.z );
 		const float motionAge = std::max( 0.0f, m_creatureRenderTick - static_cast<float>( cameraTarget->motionTick ) );
 		const float motionDuration = std::max( 1.0f, static_cast<float>( cameraTarget->motionDurationTicks ) );
-		const float previousWeight = 1.0f - std::clamp( motionAge / motionDuration, 0.0f, 1.0f );
+		cameraMotionProgress = std::clamp( motionAge / motionDuration, 0.0f, 1.0f );
+		const float previousWeight = 1.0f - cameraMotionProgress;
 		cameraX += static_cast<float>( cameraTarget->previousPosition.x - cameraTarget->currentPosition.x ) * previousWeight;
 		cameraY += static_cast<float>( cameraTarget->previousPosition.y - cameraTarget->currentPosition.y ) * previousWeight;
 		cameraZ += static_cast<float>( cameraTarget->previousPosition.z - cameraTarget->currentPosition.z ) * previousWeight;
+
+		// The runtime probe samples progress buckets instead of every frame. Besides
+		// keeping traces compact, this verifies that a single pre/post segment survives
+		// long enough for the follow camera to visit intermediate coordinates.
+		if ( qEnvironmentVariableIsSet( "INGNOMIA_LOAD_TRACE_PATH" )
+			&& cameraTarget->previousPosition != cameraTarget->currentPosition )
+		{
+			static std::array<quint64, cameraPreviewSlotCount> tracedMotionTicks{};
+			static std::array<int, cameraPreviewSlotCount> tracedProgressBuckets{};
+			const int progressBucket = qBound( 0, static_cast<int>( cameraMotionProgress * 10.0f ), 10 );
+			if ( tracedMotionTicks[slot] != cameraTarget->motionTick )
+			{
+				tracedMotionTicks[slot] = cameraTarget->motionTick;
+				tracedProgressBuckets[slot] = -1;
+			}
+			if ( progressBucket != tracedProgressBuckets[slot] )
+			{
+				traceRender( QString( "camera preview tween slot=%1 tick=%2 progress=%3 camera=%4,%5,%6 previous=%7,%8,%9 current=%10,%11,%12" )
+					.arg( slot ).arg( cameraTarget->motionTick ).arg( cameraMotionProgress, 0, 'f', 3 )
+					.arg( cameraX, 0, 'f', 3 ).arg( cameraY, 0, 'f', 3 ).arg( cameraZ, 0, 'f', 3 )
+					.arg( cameraTarget->previousPosition.x ).arg( cameraTarget->previousPosition.y ).arg( cameraTarget->previousPosition.z )
+					.arg( cameraTarget->currentPosition.x ).arg( cameraTarget->currentPosition.y ).arg( cameraTarget->currentPosition.z ) );
+				tracedProgressBuckets[slot] = progressBucket;
+			}
+		}
+	}
+	// The renderer trace is opt-in. Record each distinct live tile after it diverges
+	// from the originally selected tile so automated follow-camera runs can prove
+	// that the preview continues tracking rather than merely looking centered once.
+	static std::array<Position, cameraPreviewSlotCount> lastFollowTracePosition{};
+	static std::array<bool, cameraPreviewSlotCount> hasFollowTracePosition{};
+	if ( trackedPosition != target->position &&
+		( !hasFollowTracePosition[slot] || lastFollowTracePosition[slot] != trackedPosition ) )
+	{
+		traceRender( QString( "camera preview follow slot=%1 selected=%2,%3,%4 tracked=%5,%6,%7" )
+			.arg( slot )
+			.arg( target->position.x ).arg( target->position.y ).arg( target->position.z )
+			.arg( trackedPosition.x ).arg( trackedPosition.y ).arg( trackedPosition.z ) );
+		lastFollowTracePosition[slot] = trackedPosition;
+		hasFollowTracePosition[slot] = true;
 	}
 
 	// The inspector has its own camera. It renders a small target-centered slice into
 	// a private texture instead of cropping the player's framebuffer, so moving or
 	// rotating the main map camera cannot change what the creature window shows.
 	GLint drawFramebuffer = 0, readFramebuffer = 0, viewport[4] = {}, activeTexture = 0, vertexArray = 0;
-	GLint drawBuffer = 0, readBuffer = 0, depthFunction = GL_LESS;
+	GLint drawBuffer = 0, readBuffer = 0, depthFunction = GL_LESS, currentProgram = 0;
+	GLint arrayBuffer = 0, elementArrayBuffer = 0, texture2d = 0, texture2dArray = 0;
+	GLint renderbuffer = 0;
 	GLboolean blend = GL_FALSE, depth = GL_FALSE, stencil = GL_FALSE, scissor = GL_FALSE, cull = GL_FALSE, depthMask = GL_TRUE;
+	GLboolean framebufferSrgb = GL_FALSE;
 	GLboolean colorMask[4] = { GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE };
 	glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &drawFramebuffer );
 	glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &readFramebuffer );
 	glGetIntegerv( GL_VIEWPORT, viewport );
 	glGetIntegerv( GL_ACTIVE_TEXTURE, &activeTexture );
 	glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &vertexArray );
+	glGetIntegerv( GL_CURRENT_PROGRAM, &currentProgram );
+	glGetIntegerv( GL_ARRAY_BUFFER_BINDING, &arrayBuffer );
+	glGetIntegerv( GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementArrayBuffer );
 	glGetIntegerv( GL_DRAW_BUFFER, &drawBuffer );
 	glGetIntegerv( GL_READ_BUFFER, &readBuffer );
+	glGetIntegerv( GL_TEXTURE_BINDING_2D, &texture2d );
+	glGetIntegerv( GL_TEXTURE_BINDING_2D_ARRAY, &texture2dArray );
+	glGetIntegerv( GL_RENDERBUFFER_BINDING, &renderbuffer );
 	glGetIntegerv( GL_DEPTH_FUNC, &depthFunction );
 	glGetBooleanv( GL_COLOR_WRITEMASK, colorMask );
 	blend = glIsEnabled( GL_BLEND );
@@ -1059,6 +1175,7 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	stencil = glIsEnabled( GL_STENCIL_TEST );
 	scissor = glIsEnabled( GL_SCISSOR_TEST );
 	cull = glIsEnabled( GL_CULL_FACE );
+	framebufferSrgb = glIsEnabled( GL_FRAMEBUFFER_SRGB );
 	glGetBooleanv( GL_DEPTH_WRITEMASK, &depthMask );
 
 	const auto savedProjection = m_projectionMatrix;
@@ -1071,10 +1188,13 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	// Render a generous target-centered volume. The projection below is anchored
 	// to the selected tile, so edge-of-map targets stay centered instead of being
 	// clipped by a camera that was clamped to the main map viewport.
-	const int radius = 16;
-	m_volume.min = { qMax( 0, target->position.x - radius ), qMax( 0, target->position.y - radius ), qMax( 0, target->position.z - m_renderDepth ) };
-	m_volume.max = { qMin( static_cast<int>( Global::dimX ) - 1, target->position.x + radius ), qMin( static_cast<int>( Global::dimY ) - 1, target->position.y + radius ), qMin( target->position.z, static_cast<int>( Global::dimZ ) - 1 ) };
-	m_viewLevel = target->position.z;
+	// The square preview only exposes roughly five isometric tiles from its center.
+	// Ten tiles of XY padding safely covers tall sprites and map-edge views while
+	// cutting enough hidden instances to pay for the smoother camera refresh.
+	const int radius = 10;
+	m_volume.min = { qMax( 0, trackedPosition.x - radius ), qMax( 0, trackedPosition.y - radius ), qMax( 0, trackedPosition.z - m_renderDepth ) };
+	m_volume.max = { qMin( static_cast<int>( Global::dimX ) - 1, trackedPosition.x + radius ), qMin( static_cast<int>( Global::dimY ) - 1, trackedPosition.y + radius ), qMin( trackedPosition.z, static_cast<int>( Global::dimZ ) - 1 ) };
+	m_viewLevel = trackedPosition.z;
 	m_renderSize = radius * 2 + 1;
 	// The preview camera deliberately uses a stable rotation. It is independent of
 	// the player's camera, while retaining the same isometric projection as the map.
@@ -1120,6 +1240,8 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT );
 	glBindVertexArray( m_vao );
 	paintTiles();
+	// Keep water visible in the inspector camera with the same depth-aware pass as the main map.
+	paintWater();
 	glBindVertexArray( 0 );
 	const auto previewVolume = m_volume.size();
 
@@ -1137,6 +1259,7 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	if ( stencil ) glEnable( GL_STENCIL_TEST ); else glDisable( GL_STENCIL_TEST );
 	if ( scissor ) glEnable( GL_SCISSOR_TEST ); else glDisable( GL_SCISSOR_TEST );
 	if ( cull ) glEnable( GL_CULL_FACE ); else glDisable( GL_CULL_FACE );
+	if ( framebufferSrgb ) glEnable( GL_FRAMEBUFFER_SRGB ); else glDisable( GL_FRAMEBUFFER_SRGB );
 	glDepthFunc( static_cast<GLenum>( depthFunction ) );
 	glDepthMask( depthMask );
 	glColorMask( colorMask[0], colorMask[1], colorMask[2], colorMask[3] );
@@ -1145,9 +1268,10 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	if ( !tracedPreview )
 	{
 		tracedPreview = true;
-		traceRender( QString( "camera preview own-pass slot=%1 target=%2,%3,%4 volume=%5,%6,%7 fbo=%8" )
+		traceRender( QString( "camera preview own-pass slot=%1 target=%2,%3,%4 tracked=%5,%6,%7 volume=%8,%9,%10 fbo=%11" )
 			.arg( slot )
 			.arg( target->position.x ).arg( target->position.y ).arg( target->position.z )
+			.arg( trackedPosition.x ).arg( trackedPosition.y ).arg( trackedPosition.z )
 			.arg( previewVolume.x ).arg( previewVolume.y ).arg( previewVolume.z )
 			.arg( m_cameraPreviewFbo[slot] ) );
 	}
@@ -1157,8 +1281,19 @@ void MainWindowRenderer::paintCameraPreview( const CameraPreviewTarget* target, 
 	glDrawBuffer( static_cast<GLenum>( drawBuffer ) );
 	glReadBuffer( static_cast<GLenum>( readBuffer ) );
 	glViewport( viewport[0], viewport[1], viewport[2], viewport[3] );
-	glActiveTexture( static_cast<GLenum>( activeTexture ) );
+	// Restore VAO ownership before restoring its element buffer. Binding an
+	// element buffer while VAO 0 is active is invalid in core GL and leaves the
+	// preview VAO's index buffer active on some drivers. That stale index buffer
+	// is then consumed by RmlUi's text batches, which presents as HUD captions
+	// appearing inside unrelated sidebar buttons.
 	glBindVertexArray( static_cast<GLuint>( vertexArray ) );
+	glBindBuffer( GL_ARRAY_BUFFER, static_cast<GLuint>( arrayBuffer ) );
+	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>( elementArrayBuffer ) );
+	glActiveTexture( static_cast<GLenum>( activeTexture ) );
+	glBindTexture( GL_TEXTURE_2D, static_cast<GLuint>( texture2d ) );
+	glBindTexture( GL_TEXTURE_2D_ARRAY, static_cast<GLuint>( texture2dArray ) );
+	glBindRenderbuffer( GL_RENDERBUFFER, static_cast<GLuint>( renderbuffer ) );
+	glUseProgram( static_cast<GLuint>( currentProgram ) );
 }
 
 /// @brief Slot invoked when camera parameters change: recomputes render params and emits
@@ -1249,18 +1384,62 @@ void MainWindowRenderer::paintTiles()
 	}
 	m_creatureRenderTick = creatureRenderTick;
 	setUniformf( m_worldShader, "uCreatureRenderTick", creatureRenderTick );
+	if ( qEnvironmentVariableIsSet( "INGNOMIA_LOAD_TRACE_PATH" ) )
+	{
+		bool targetOk = false;
+		const unsigned int requestedTarget = qEnvironmentVariable( "INGNOMIA_RENDER_TRACE_CREATURE_ID" ).toUInt( &targetOk );
+		auto target = targetOk ? m_creatureCameraTargets.constFind( requestedTarget ) : m_creatureCameraTargets.constEnd();
+		if ( target == m_creatureCameraTargets.constEnd() )
+		{
+			for ( auto it = m_creatureCameraTargets.constBegin(); it != m_creatureCameraTargets.constEnd(); ++it )
+				if ( it->previousPosition != it->currentPosition ) { target = it; break; }
+		}
+		if ( target != m_creatureCameraTargets.constEnd()
+			&& target->previousPosition != target->currentPosition )
+		{
+			const float duration = std::max( 1.0f, static_cast<float>( target->motionDurationTicks ) );
+			const float progress = std::clamp(
+				( creatureRenderTick - static_cast<float>( target->motionTick ) ) / duration, 0.0f, 1.0f );
+			static unsigned int tracedCreature = 0;
+			static quint64 tracedTick = 0;
+			static int tracedBucket = -1;
+			const int bucket = qBound( 0, static_cast<int>( progress * 10.0f ), 10 );
+			if ( tracedCreature != target.key() || tracedTick != target->motionTick )
+			{
+				tracedCreature = target.key();
+				tracedTick = target->motionTick;
+				tracedBucket = -1;
+			}
+			if ( bucket != tracedBucket )
+			{
+				const float previousWeight = 1.0f - progress;
+				const float renderX = static_cast<float>( target->currentPosition.x )
+					+ static_cast<float>( target->previousPosition.x - target->currentPosition.x ) * previousWeight;
+				const float renderY = static_cast<float>( target->currentPosition.y )
+					+ static_cast<float>( target->previousPosition.y - target->currentPosition.y ) * previousWeight;
+				traceRender( QString( "main creature tween id=%1 tick=%2 progress=%3 render=%4,%5 previous=%6,%7 current=%8,%9" )
+					.arg( target.key() ).arg( target->motionTick ).arg( progress, 0, 'f', 3 )
+					.arg( renderX, 0, 'f', 3 ).arg( renderY, 0, 'f', 3 )
+					.arg( target->previousPosition.x ).arg( target->previousPosition.y )
+					.arg( target->currentPosition.x ).arg( target->currentPosition.y ) );
+				tracedBucket = bucket;
+			}
+		}
+	}
 
 	setUniformi( m_worldShader, "uUndiscoveredTex", Global::undiscoveredUID * 4 );
 	setUniformi( m_worldShader, "uWaterTex", Global::waterSpriteUID * 4 );
 
-	if ( GameState::daylight )
-	{
-		m_daylight = qMin( 1.0, m_daylight + 0.025 );
-	}
-	else
-	{
-		m_daylight = qMax( 0.0, m_daylight - 0.025 );
-	}
+	const float daylightTarget = scheduledDaylight();
+	const qint64 daylightNowMs = m_waterClock.isValid() ? m_waterClock.elapsed() : 0;
+	const float daylightDeltaSeconds = m_lastDaylightUpdateMs < 0
+		? 0.0f
+		: std::clamp( static_cast<float>( daylightNowMs - m_lastDaylightUpdateMs ) / 1000.0f, 0.0f, 0.25f );
+	m_lastDaylightUpdateMs = daylightNowMs;
+	// A short render-time settle removes one-frame jumps when loading or pausing,
+	// while the in-game sunrise/twilight curve controls the actual schedule.
+	const float daylightResponse = 1.0f - std::exp( -daylightDeltaSeconds / 1.5f );
+	m_daylight += ( daylightTarget - m_daylight ) * daylightResponse;
 	setUniformf( m_worldShader, "uDaylight", m_daylight );
 	setUniformf( m_worldShader, "uLightMin", m_lightMin );
 	//setUniformf( m_worldShader, "uDaylight", 1.0f );
@@ -1331,6 +1510,7 @@ void MainWindowRenderer::paintSelection()
 		setUniformi( m_selectionShader, "uSpriteID", (GLint)sd.spriteID );
 		setUniformi( m_selectionShader, "uRotation", (GLint)sd.localRot );
 		setUniformi( m_selectionShader, "uValid", sd.valid ? 1 : 0 );
+		setUniformf( m_selectionShader, "uPreviewYOffset", sd.previewYOffset );
 
 		glDrawArraysInstancedBaseInstance( GL_TRIANGLE_STRIP, 0, 4, 1, 0 );
 	}
@@ -1497,10 +1677,15 @@ void MainWindowRenderer::setScale( float scale )
 	onRenderParamsChanged();
 }
 
-/// @brief Sets the top z-level being displayed.
+/// @brief Sets the top z-level without shifting the canvas on screen.
 /// @param level New view level (z coordinate).
 void MainWindowRenderer::setViewLevel( int level )
 {
+	// Use the authoritative level, not the last painted level: several wheel
+	// events can arrive before the next frame. The caller clamps to the world.
+	m_moveY = ingnomia::ui::cameraYAfterLayerChange( m_moveY, GameState::viewLevel, level );
+	GameState::moveY = m_moveY;
+	GameState::viewLevel = level;
 	m_viewLevel = level;
 	onRenderParamsChanged();
 }

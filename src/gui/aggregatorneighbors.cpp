@@ -72,10 +72,12 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 			{
 				case KingdomType::GNOME:
 				name += " a gnome kingdom";
+				gni.type = "Gnome kingdom";
 				gni.diploMission = true;
 				break;
 			case KingdomType::GOBLIN:
 				name += " a goblin kingdom";
+				gni.type = "Goblin kingdom";
 
 				gni.spyMission = true;
 				gni.sabotageMission = true;
@@ -85,6 +87,7 @@ void AggregatorNeighbors::onRequestNeighborsUpdate()
 				break;
 			default:
 				name += " we don't know what they are";
+				gni.type = "Unknown kingdom type";
 				break;
 			}
 

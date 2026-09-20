@@ -21,6 +21,7 @@
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QThread>
+#include <QWindow>
 
 #include <algorithm>
 
@@ -36,6 +37,16 @@ Rml::String toRml( const QString& value )
     return Rml::String( bytes.constData(), static_cast<size_t>( bytes.size() ) );
 }
 } // namespace
+
+RmlUiDetachedContext::~RmlUiDetachedContext() = default;
+
+RmlUiDetachedContext::RmlUiDetachedContext( QWindow* window, QString contextName, Rml::Context* context ) :
+    m_window( window ),
+    m_contextName( std::move( contextName ) ),
+    m_context( context ),
+    m_input( context )
+{
+}
 
 RmlUiHost::RmlUiHost() = default;
 
@@ -75,6 +86,7 @@ bool RmlUiHost::initialize( const Config& config )
     }
 
     activeHost = this;
+    m_ownerWindow = config.window;
     m_contextName = config.contextName;
     m_system = std::make_unique<QtRmlSystemInterface>( config.window );
     m_files = std::make_unique<QtRmlFileInterface>( config.assetRoot );
@@ -133,6 +145,12 @@ bool RmlUiHost::shutdown()
     if ( !activeHost && !m_system && !m_files && !m_renderer && !m_coreInitialized && !m_context ) return true;
     if ( !requireGuiThread( "shutdown" ) || !requireCurrentContext( "shutdown" ) ) return false;
 
+    if ( !m_detachedContexts.empty() )
+    {
+        qCritical() << "RmlUi host shutdown requested while detached contexts are still alive";
+        return false;
+    }
+
     m_input.cancelInteraction();
     m_input.setContext( nullptr );
 #if defined(INGNOMIA_DEVELOPER_UI)
@@ -187,6 +205,7 @@ bool RmlUiHost::shutdown()
     m_files.reset();
     m_system.reset();
     m_contextName.clear();
+    m_ownerWindow.clear();
     if ( activeHost == this ) activeHost = nullptr;
     qInfo() << "RmlUi host shutdown completed";
     return true;
@@ -206,6 +225,118 @@ bool RmlUiHost::resize( QSize physicalSize, float densityIndependentPixelRatio )
     return true;
 }
 
+std::unique_ptr<RmlUiDetachedContext> RmlUiHost::createDetachedContext( QWindow* window,
+    const QString& contextName, QSize physicalSize, float densityIndependentPixelRatio )
+{
+    if ( !initialized() || !window || contextName.isEmpty() || !requireCurrentContext( "createDetachedContext" ) )
+        return nullptr;
+    if ( std::any_of( m_detachedContexts.begin(), m_detachedContexts.end(),
+        [&]( const RmlUiDetachedContext* value ) { return value && value->name() == contextName; } ) )
+    {
+        qCritical() << "RmlUi detached context name is already in use:" << contextName;
+        return nullptr;
+    }
+
+    const int width = std::max( 1, physicalSize.width() );
+    const int height = std::max( 1, physicalSize.height() );
+    // Keep all contexts on the primary render interface. RmlUi's core then
+    // gives them one RenderManager, so font/geometry resources cannot cross
+    // renderer instances while each native window remains independently
+    // movable and is rendered on the same GUI thread.
+    Rml::Context* context = Rml::CreateContext( toRml( contextName ), { width, height }, m_renderer->interface() );
+    if ( !context )
+    {
+        qCritical() << "RmlUi detached context creation failed:" << contextName;
+        return nullptr;
+    }
+    context->SetDensityIndependentPixelRatio( std::clamp( densityIndependentPixelRatio, 0.25f, 8.0f ) );
+    auto detached = std::unique_ptr<RmlUiDetachedContext>( new RmlUiDetachedContext( window, contextName, context ) );
+    m_detachedContexts.push_back( detached.get() );
+    setSystemWindow( m_ownerWindow.data() );
+    return detached;
+}
+
+bool RmlUiHost::destroyDetachedContext( std::unique_ptr<RmlUiDetachedContext>& detached )
+{
+    if ( !detached ) return true;
+    if ( !initialized() || !requireCurrentContext( "destroyDetachedContext" ) ) return false;
+    setSystemWindow( detached->window() );
+    if ( detached->context() )
+    {
+        detached->input().cancelInteraction();
+        detached->context()->UnloadAllDocuments();
+        if ( !Rml::RemoveContext( toRml( detached->name() ) ) )
+            qWarning() << "RmlUi detached context was already absent during shutdown:" << detached->name();
+    }
+    std::erase( m_detachedContexts, detached.get() );
+    detached.reset();
+    setSystemWindow( m_ownerWindow.data() );
+    return true;
+}
+
+bool RmlUiHost::resizeDetached( RmlUiDetachedContext& detached, QSize physicalSize, float densityIndependentPixelRatio )
+{
+    if ( !initialized() || !detached.context() || !requireCurrentContext( "resizeDetached" ) ) return false;
+    const int width = std::max( 1, physicalSize.width() );
+    const int height = std::max( 1, physicalSize.height() );
+    detached.context()->SetDimensions( { width, height } );
+    detached.context()->SetDensityIndependentPixelRatio( std::clamp( densityIndependentPixelRatio, 0.25f, 8.0f ) );
+    if ( !m_renderer ) return false;
+    m_renderer->setViewport( width, height );
+    return true;
+}
+
+bool RmlUiHost::updateDetached( RmlUiDetachedContext& detached )
+{
+    if ( !initialized() || !detached.context() || !requireCurrentContext( "updateDetached" ) ) return false;
+    setSystemWindow( detached.window() );
+    // Context::Update performs layout and input processing, not rasterization.
+    // Keep the host's single render/resource boundary untouched here; the
+    // native surface is selected explicitly by renderDetached() below.
+    const bool result = detached.context()->Update();
+    setSystemWindow( m_ownerWindow.data() );
+    return result;
+}
+
+bool RmlUiHost::renderDetached( RmlUiDetachedContext& detached )
+{
+    if ( !initialized() || !detached.context() || !requireCurrentContext( "renderDetached" ) ) return false;
+    setSystemWindow( detached.window() );
+    auto* renderer = m_renderer.get();
+    const auto dimensions = detached.context()->GetDimensions();
+    if ( renderer ) renderer->setViewport( dimensions.x, dimensions.y );
+    if ( !renderer || !renderer->beginFrame() )
+    {
+        setSystemWindow( m_ownerWindow.data() );
+        return false;
+    }
+    detached.context()->Render();
+    const bool result = renderer->endFrame();
+    setSystemWindow( m_ownerWindow.data() );
+    return result;
+}
+
+Rml::ElementDocument* RmlUiHost::loadDocument( RmlUiDetachedContext& detached, const QString& logicalPath, bool show )
+{
+    if ( !initialized() || !detached.context() || !requireCurrentContext( "loadDetachedDocument" ) ) return nullptr;
+    setSystemWindow( detached.window() );
+    Rml::ElementDocument* document = detached.context()->LoadDocument( toRml( logicalPath ) );
+    if ( !document )
+    {
+        qCritical() << "RmlUi detached document load failed:" << logicalPath;
+        setSystemWindow( m_ownerWindow.data() );
+        return nullptr;
+    }
+    if ( show ) document->Show();
+    setSystemWindow( m_ownerWindow.data() );
+    return document;
+}
+
+void RmlUiHost::setSystemWindow( QWindow* window )
+{
+    if ( m_system ) m_system->setWindow( window ? window : m_ownerWindow.data() );
+}
+
 void RmlUiHost::setCameraPreviewTexture( unsigned int texture, int width, int height )
 {
     if ( m_renderer ) m_renderer->setCameraPreviewTexture( texture, width, height );
@@ -218,12 +349,17 @@ void RmlUiHost::setCameraPreviewTexture( const std::string& source, unsigned int
 
 bool RmlUiHost::update()
 {
-    return initialized() && m_context->Update();
+    if ( !initialized() ) return false;
+    setSystemWindow( m_ownerWindow.data() );
+    return m_context->Update();
 }
 
 bool RmlUiHost::render()
 {
     if ( !initialized() || !requireCurrentContext( "render" ) ) return false;
+    setSystemWindow( m_ownerWindow.data() );
+    const auto dimensions = m_context->GetDimensions();
+    m_renderer->setViewport( dimensions.x, dimensions.y );
     if ( !m_renderer->beginFrame() ) return false;
     m_context->Render();
     return m_renderer->endFrame();

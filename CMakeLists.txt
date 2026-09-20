@@ -56,26 +56,29 @@ file(GLOB_RECURSE INGNOMIA_CONTENT_FILES CONFIGURE_DEPENDS
 	"${CMAKE_SOURCE_DIR}/content/*"
 )
 set(INGNOMIA_CONTENT_STAMP "${CMAKE_BINARY_DIR}/content.stamp")
+set(INGNOMIA_COPY_DIRECTORY_COMMAND copy_directory)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.26")
+	set(INGNOMIA_COPY_DIRECTORY_COMMAND copy_directory_if_different)
+endif()
+if(CMAKE_CONFIGURATION_TYPES)
+	set(INGNOMIA_RUNTIME_CONTENT_DIR "${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/content")
+else()
+	set(INGNOMIA_RUNTIME_CONTENT_DIR "${CMAKE_BINARY_DIR}/content")
+endif()
 add_custom_command(
 	OUTPUT ${INGNOMIA_CONTENT_STAMP}
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	COMMAND ${CMAKE_COMMAND} -E ${INGNOMIA_COPY_DIRECTORY_COMMAND}
 		${CMAKE_SOURCE_DIR}/content
-		${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/content
+		${INGNOMIA_RUNTIME_CONTENT_DIR}
 	# RmlUi's file interface intentionally sandboxes resources under content/rmlui.
 	# Keep the generated DB-backed item crops available inside that root as well as
 	# in the canonical content/tilesheet package used by the game world.
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	COMMAND ${CMAKE_COMMAND} -E ${INGNOMIA_COPY_DIRECTORY_COMMAND}
 		${CMAKE_SOURCE_DIR}/content/tilesheet
-		${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/content/rmlui/tilesheet
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
-		${CMAKE_SOURCE_DIR}/content
-		${CMAKE_BINARY_DIR}/content
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
-		${CMAKE_SOURCE_DIR}/content/tilesheet
-		${CMAKE_BINARY_DIR}/content/rmlui/tilesheet
+		${INGNOMIA_RUNTIME_CONTENT_DIR}/rmlui/tilesheet
 	COMMAND ${CMAKE_COMMAND} -E touch ${INGNOMIA_CONTENT_STAMP}
 	DEPENDS ${INGNOMIA_CONTENT_FILES}
-	COMMENT "Staging content to ${CMAKE_BINARY_DIR}/$<CONFIG>/content"
+	COMMENT "Incrementally staging content to ${INGNOMIA_RUNTIME_CONTENT_DIR}"
 	VERBATIM
 )
 add_custom_target(stage_content DEPENDS ${INGNOMIA_CONTENT_STAMP})
@@ -133,6 +136,9 @@ target_compile_definitions(${PROJECT_NAME}
 option(INGNOMIA_BUILD_UI_FOUNDATION_TESTS "Build framework-neutral UI foundation tests" ${BUILD_TESTING})
 if(INGNOMIA_BUILD_UI_FOUNDATION_TESTS)
 	add_subdirectory(tests/ui-foundation)
+endif()
+if(BUILD_TESTING)
+	add_subdirectory(tests/water)
 endif()
 
 configure_file(

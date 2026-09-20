@@ -208,9 +208,9 @@ void World::initWater()
 						here.flags += TileFlag::TF_WATER;
 						Position pos( x, y, z );
 						m_water.insert( pos.toInt() );
-						// Existing generated/save water is already an authored basin.
-						// Keep it settled on load; aquifiers and later topology changes
-						// explicitly wake the simulation when new flow is needed.
+						// Saves may contain an unfinished flow or unsupported water.
+						// Evaluate every wet cell once; only a verified settled body sleeps.
+						m_activeWater.insert( pos.toInt() );
 						here.flow = WF_NOFLOW;
 					}
 				}
@@ -764,6 +764,7 @@ void World::removePlant( Position pos )
 		getTile( pos ).wallSpriteUID = 0;
 		m_plants.remove( pos.toInt() );
 		getTile( pos ).wallSpriteUID = 0;
+		wakeWaterAround( pos );
 		addToUpdateList( pos );
 	}
 }
@@ -1074,6 +1075,7 @@ void World::changeFluidLevel( Position pos, int diff )
 		tile.flow = WF_NOFLOW;
 		tile.flags -= TileFlag::TF_WATER;
 	}
+	wakeWaterAround( pos );
 	addToUpdateList( pos );
 }
 
@@ -1494,16 +1496,35 @@ void World::processWaterFlow()
 
 	constexpr int surfaceCapacity = 10;
 	constexpr int maxStoredMass = surfaceCapacity + 255;
-	QSet<unsigned int> sparseIDs = m_activeWater;
-	for ( const unsigned int tileID : std::as_const( m_activeWater ) )
+	QSet<unsigned int> active;
+	for ( const auto id : std::as_const( m_activeWater ) )
+		if ( id < static_cast<unsigned int>( worldTileCount ) ) active.insert( id );
+	QSet<unsigned int> sparseIDs = active;
+	QVector<unsigned int> queue = active.values().toVector();
+	// A breach must wake the connected body, including its sleeping interior.
+	// Expand through existing water only and include one dry cell of shoreline;
+	// this never flood-fills the empty volume of the world.
+	for ( qsizetype cursor = 0; cursor < queue.size(); ++cursor )
 	{
-		if ( tileID >= static_cast<unsigned int>( worldTileCount ) )
-			continue;
+		const unsigned int tileID = queue[cursor];
 		const Neighbors adjacent( tileID, m_dimX, m_dimY, m_dimZ );
 		for ( const unsigned int neighbor : { adjacent.above, adjacent.below, adjacent.north, adjacent.south, adjacent.east, adjacent.west } )
 		{
 			if ( neighbor != invalidWaterTile && neighbor < static_cast<unsigned int>( worldTileCount ) )
+			{
 				sparseIDs.insert( neighbor );
+				const Tile& next = m_world[neighbor];
+				const Tile& here = m_world[tileID];
+				const bool sealed = ( neighbor == adjacent.above && ( next.floorType & FT_SOLIDFLOOR ) ) ||
+					( neighbor == adjacent.below && ( here.floorType & FT_SOLIDFLOOR ) );
+				if ( !sealed && !( next.wallType & WT_MOVEBLOCKING ) && !( here.wallType & WT_MOVEBLOCKING ) &&
+					!isWaterBoundary( neighbor, m_dimX, m_dimY, m_dimZ ) &&
+					( next.fluidLevel > 0 || next.pressure > 0 ) && !active.contains( neighbor ) )
+				{
+					active.insert( neighbor );
+					queue.append( neighbor );
+				}
+			}
 		}
 	}
 
@@ -1520,8 +1541,8 @@ void World::processWaterFlow()
 		} );
 	}
 
-	const WaterFlowConfig config { surfaceCapacity, maxStoredMass, 1 };
-	const WaterFlowResult flow = solveWaterFlow( cells, m_dimX, m_dimY, m_dimZ, m_activeWater, config );
+	const WaterFlowConfig config { surfaceCapacity, maxStoredMass, surfaceCapacity };
+	const WaterFlowResult flow = solveWaterFlow( cells, m_dimX, m_dimY, m_dimZ, active, config );
 	m_activeWater = flow.nextActive;
 
 	QVector<unsigned int> touched = flow.touched.values().toVector();
@@ -1640,6 +1661,7 @@ QPair<unsigned short, unsigned short> World::mineWall( Position pos, Position& w
 
 	discover( pos );
 	wakeWaterAround( pos );
+	addToUpdateList( pos );
 	if ( tile.wallType == WallType::WT_NOWALL )
 		wakeWaterAround( pos.aboveOf() );
 
@@ -1684,6 +1706,8 @@ QPair<unsigned short, unsigned short> World::removeWall( Position pos, Position&
 
 	discover( pos );
 	wakeWaterAround( pos );
+	wakeWaterAround( pos.aboveOf() );
+	addToUpdateList( pos );
 
 	QString ncd = QString::number( pos.toInt() );
 	ncd += ";";

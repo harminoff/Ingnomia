@@ -112,7 +112,7 @@ public:
 	void clear();
 	void rotate();
 	bool leftClick( Position& pos, bool shift, bool ctrl );
-	void updateSelection( Position& pos, bool shift, bool ctrl );
+	void updateSelection( const Position& pos, bool shift, bool ctrl );
 	void rightClick( Position& pos );
 	void setAction( QString action );
 	void setItemID( QString item )
@@ -158,10 +158,7 @@ public:
 		return m_selectionSize;
 	}
 	int rotation();
-	bool isFloor()
-	{
-		return m_isFloor;
-	}
+	bool isFloor() const;
 	void setControlActive( bool active )
 	{
 		m_ctrlActive = active;

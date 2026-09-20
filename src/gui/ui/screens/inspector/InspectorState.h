@@ -11,8 +11,25 @@ namespace ingnomia::ui::inspector
 {
 enum class InspectorKind : std::uint8_t { None, Tile, Creature, Workshop, Stockpile, Agriculture };
 
-struct TextCountRow { std::string label; std::string detail; std::uint32_t count{}; bool operator==( const TextCountRow& ) const = default; };
+struct TextCountRow { std::string label; std::string detail; std::uint32_t count{}; bool available{}; bool operator==( const TextCountRow& ) const = default; };
 struct CreatureRow { CreatureId id; std::string label; EntityKind kind{ EntityKind::Creature }; bool operator==( const CreatureRow& ) const = default; };
+
+struct EquipmentTypeChoice
+{
+	CatalogId type;
+	std::vector<CatalogId> materials;
+	bool operator==( const EquipmentTypeChoice& ) const = default;
+};
+
+struct EquipmentSlotState
+{
+	UniformSlot slot{ UniformSlot::ChestArmor };
+	std::string label, item, material, icon;
+	CatalogId desiredType;
+	std::optional<CatalogId> desiredMaterial;
+	std::vector<EquipmentTypeChoice> choices;
+	bool operator==( const EquipmentSlotState& ) const = default;
+};
 
 struct TileInspectorState
 {
@@ -34,10 +51,17 @@ struct CreatureInspectorState
 {
 	CreatureId id;
 	std::string name, profession, activity;
+	bool professionReported{};
 	std::int32_t strength{}, dexterity{}, constitution{}, intelligence{}, wisdom{}, charisma{};
+	std::array<bool, 6> attributesReported{};
 	std::int32_t hunger{}, thirst{}, sleep{}, happiness{};
 	std::array<bool, 4> needsReported{};
 	std::vector<TextCountRow> skills, equipment, inventory;
+	MilitaryRoleId equipmentRole;
+	std::string equipmentRoleName;
+	std::vector<EquipmentSlotState> equipmentSlots;
+	bool equipmentReported{};
+	bool skillsReported{};
 	bool inventoryReported{};
 	bool operator==( const CreatureInspectorState& ) const = default;
 };
@@ -104,7 +128,12 @@ struct InspectorState
 	std::optional<StockpileInspectorState> stockpile;
 	std::optional<AgricultureInspectorState> agriculture;
 	SelectionConfigurationState selection;
+	bool creatureStatsOpen{};
+	bool creatureSkillsOpen{};
 	bool creatureDetailsOpen{};
+	std::optional<UniformSlot> equipmentSlotEditor;
+	CatalogId equipmentDraftType;
+	std::optional<CatalogId> equipmentDraftMaterial;
 	std::optional<RequestId> pendingAction;
 	std::string status;
 	bool operator==( const InspectorState& ) const = default;

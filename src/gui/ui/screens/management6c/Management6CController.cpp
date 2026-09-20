@@ -84,20 +84,34 @@ const char* missionTypeName( MissionType type )
 } // namespace
 
 Management6CController::Management6CController( CommandPort& commands, ViewPort& view ) :
-	commands_( commands ), view_( view )
+	commands_( commands ), views_{ &view }
 {
 	notify();
 }
 
+void Management6CController::addViewPort( ViewPort& view )
+{
+	if ( std::ranges::find( views_, &view ) != views_.end() ) return;
+	views_.push_back( &view );
+	view.stateChanged( state_ );
+}
+void Management6CController::removeViewPort( ViewPort& view )
+{
+	std::erase( views_, &view );
+}
 void Management6CController::notify()
 {
 	++state_.revision.value;
-	view_.stateChanged( state_ );
+	const auto views = views_;
+	for ( auto* view : views )
+		if ( view ) view->stateChanged( state_ );
 }
 
 void Management6CController::beginWorld( WorldEpoch world )
 {
 	state_ = {};
+	filtersByView_ = {};
+	sortsByView_ = {};
 	state_.world = world;
 	state_.acceptsWorldActions = static_cast<bool>( world );
 	notify();
@@ -106,16 +120,34 @@ void Management6CController::beginWorld( WorldEpoch world )
 void Management6CController::endWorld()
 {
 	state_ = {};
+	filtersByView_ = {};
+	sortsByView_ = {};
 	notify();
 }
 
 void Management6CController::open( View view )
 {
+    const bool wasMilitary = state_.view == View::Squads || state_.view == View::Roles || state_.view == View::Priorities;
+    const auto previous = static_cast<std::size_t>( state_.view );
+    filtersByView_[previous] = wasMilitary ? state_.militaryFilter : state_.diplomacyFilter;
+    sortsByView_[previous] = wasMilitary ? state_.militarySort : state_.diplomacySort;
+    const auto next = static_cast<std::size_t>( view );
+    if( view == View::Squads || view == View::Roles || view == View::Priorities )
+    {
+        state_.militaryFilter = filtersByView_[next];
+        state_.militarySort = sortsByView_[next];
+    }
+    else
+    {
+        state_.diplomacyFilter = filtersByView_[next];
+        state_.diplomacySort = sortsByView_[next];
+    }
 	state_.open = true;
 	state_.view = view;
-	if( view == View::Squads || view == View::Roles || view == View::Priorities ) state_.militaryOpen = true;
-	else state_.diplomacyOpen = true;
+	state_.militaryOpen = view == View::Squads || view == View::Roles || view == View::Priorities;
+	state_.diplomacyOpen = view == View::Neighbors || view == View::Missions;
 	state_.status.clear();
+	updateHiddenSelectionFlags();
 	notify();
 	refresh();
 }
@@ -178,6 +210,7 @@ void Management6CController::refresh()
 	{
 		state_.diplomacyLoad = LoadState::Loading;
 		state_.missionLoad = LoadState::Loading;
+		state_.availableGnomeLoad = LoadState::Idle;
 		notify();
 		dispatch( "diplomacy.refresh", NoPayload{} );
 	}
@@ -375,7 +408,7 @@ void Management6CController::selectNeighbor( NeighborId id )
 	configureMissionDraft();
 	updateHiddenSelectionFlags();
 	notify();
-	if( found->discovered ) dispatch( "diplomacy.refresh_available_gnomes", NoPayload{} );
+	if( state_.missionDraft.type != MissionType::None ) requestAvailableGnomes();
 }
 
 void Management6CController::selectMission( MissionId id )
@@ -657,6 +690,8 @@ bool Management6CController::applyNeighbors( Snapshot<std::vector<NeighborRow>> 
 	state_.pendingAction.reset();
 	state_.diplomacyLoad = state_.neighbors.empty() ? LoadState::Empty : LoadState::Ready;
 	reconcileDiplomacySelection( previousNeighbor, previousNeighborIndex, previousMission, previousMissionIndex );
+    if( state_.diplomacyOpen && state_.missionDraft.type != MissionType::None
+        && state_.availableGnomeLoad == LoadState::Idle ) requestAvailableGnomes();
 	notify();
 	return true;
 }
@@ -666,6 +701,7 @@ bool Management6CController::applyAvailableGnomes( Snapshot<std::vector<Availabl
 	if( !accepts( snapshot.world, snapshot.revision, state_.availableGnomeRevision ) ) return false;
 	state_.availableGnomes = std::move( snapshot.value );
 	state_.availableGnomeRevision = snapshot.revision;
+	state_.availableGnomeLoad = state_.availableGnomes.empty() ? LoadState::Empty : LoadState::Ready;
 	state_.pendingAction.reset();
 	if( state_.missionDraft.creature && std::ranges::none_of( state_.availableGnomes,
 		[&]( const AvailableGnomeRow& row ){ return row.id == *state_.missionDraft.creature; } ) )
@@ -774,6 +810,18 @@ void Management6CController::removeSelectedMember()
 	if( assigned ) dispatch( "military.remove_gnome", GnomeTargetPayload{ *state_.selectedMember } );
 }
 
+void Management6CController::assignSelectedMemberToSelectedSquad()
+{
+	if( !state_.selectedMember || !state_.selectedSquad ) return;
+	const auto destination = std::ranges::find_if( state_.roster.squads,
+		[&]( const SquadRow& row ){ return row.id == *state_.selectedSquad; } );
+	if( destination == state_.roster.squads.end() ) return;
+	const bool alreadyAssigned = std::ranges::any_of( destination->members,
+		[&]( const SquadMemberRow& member ){ return member.id == *state_.selectedMember; } );
+	if( !alreadyAssigned )
+		dispatch( "military.assign_squad", AssignSquadPayload{ *state_.selectedMember, *state_.selectedSquad } );
+}
+
 void Management6CController::moveSelectedMember( MoveDirection direction )
 {
 	if( !state_.selectedMember || ( direction != MoveDirection::Up && direction != MoveDirection::Down ) ) return;
@@ -821,6 +869,18 @@ void Management6CController::assignSelectedMemberToRole()
 		dispatch( "military.assign_role", AssignRolePayload{ *state_.selectedMember, *state_.selectedRole } );
 }
 
+void Management6CController::assignMemberRole( CreatureId creature, MilitaryRoleId role )
+{
+    if( !creature || !role || std::ranges::none_of( state_.roles,
+        [&]( const MilitaryRoleRow& row ){ return row.id == role; } ) ) return;
+    bool present = std::ranges::any_of( state_.roster.unassigned,
+        [&]( const SquadMemberRow& row ){ return row.id == creature; } );
+    for( const auto& squad : state_.roster.squads )
+        present = present || std::ranges::any_of( squad.members,
+            [&]( const SquadMemberRow& row ){ return row.id == creature; } );
+    if( present ) dispatch( "military.assign_role", AssignRolePayload{ creature, role } );
+}
+
 void Management6CController::setSelectedRoleCivilian( bool civilian )
 {
 	if( state_.selectedRole )
@@ -862,6 +922,17 @@ void Management6CController::confirmDestructive( ModalInstanceId modal )
 		state_.destructive.reset();
 		notify();
 	}
+}
+
+void Management6CController::requestAvailableGnomes()
+{
+    state_.availableGnomeLoad = LoadState::Loading;
+    notify();
+    if( !dispatch( "diplomacy.refresh_available_gnomes", NoPayload{} ) )
+    {
+        state_.availableGnomeLoad = LoadState::Error;
+        notify();
+    }
 }
 
 void Management6CController::configureMissionDraft()
@@ -941,7 +1012,8 @@ void Management6CController::selectMissionGnome( CreatureId creature )
 
 bool Management6CController::canStartDraftMission() const
 {
-	if( !state_.selectedNeighbor || !state_.missionDraft.creature ) return false;
+	if( state_.availableGnomeLoad != LoadState::Ready || state_.pendingAction
+		|| !state_.selectedNeighbor || !state_.missionDraft.creature ) return false;
 	const auto neighbor = std::ranges::find_if( state_.neighbors,
 		[&]( const NeighborRow& row ){ return row.id == *state_.selectedNeighbor; } );
 	if( neighbor == state_.neighbors.end() || !supportsMission( *neighbor, state_.missionDraft.type, state_.missionDraft.action ) ) return false;
@@ -952,8 +1024,9 @@ bool Management6CController::canStartDraftMission() const
 void Management6CController::startMission()
 {
 	if( !canStartDraftMission() ) return;
-	dispatch( "diplomacy.start_mission", StartMissionPayload{ state_.missionDraft.type,
-		state_.missionDraft.action, *state_.selectedNeighbor, *state_.missionDraft.creature } );
+	if( dispatch( "diplomacy.start_mission", StartMissionPayload{ state_.missionDraft.type,
+		state_.missionDraft.action, *state_.selectedNeighbor, *state_.missionDraft.creature } ) )
+		requestAvailableGnomes();
 }
 
 void Management6CController::onActionFinished( RequestId request, CommandResult result )

@@ -4,6 +4,8 @@
 #include "HudState.h"
 #include "../../../../base/enums.h"
 
+#include <vector>
+
 namespace ingnomia::ui::hud
 {
 enum class CommandStatus : std::uint8_t { Accepted, Rejected };
@@ -29,6 +31,8 @@ class HudController
 {
 public:
 	HudController( HudCommandPort& commands, HudViewPort& view );
+	void addViewPort( HudViewPort& view );
+	void removeViewPort( HudViewPort& view );
 	[[nodiscard]] const HudState& state() const noexcept { return state_; }
 	void beginWorld( WorldEpoch world );
 	void endWorld();
@@ -66,7 +70,7 @@ private:
 	bool dispatch( std::string_view id, UiActionPayload payload );
 	void notify();
 	HudCommandPort& commands_;
-	HudViewPort& view_;
+	std::vector<HudViewPort*> views_;
 	HudState state_;
 	std::uint64_t nextRequest_{ 1 };
 	std::uint64_t nextPrompt_{ 1 };
