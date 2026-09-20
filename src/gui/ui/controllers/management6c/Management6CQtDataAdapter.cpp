@@ -190,6 +190,8 @@ std::optional<Snapshot<std::vector<MilitaryRoleRow>>> Management6CQtDataAdapter:
 			if( !item.material.isEmpty() ) uniform.material = CatalogId{ text( item.material ) };
 			for( const auto& possible : item.possibleTypesForSlot )
 				if( !possible.isEmpty() ) uniform.possibleTypes.emplace_back( text( possible ) );
+			for( const auto& material : item.possibleMaterials )
+				if( !material.isEmpty() ) uniform.possibleMaterials.emplace_back( text( material ) );
 			row.uniform.push_back( std::move( uniform ) );
 		}
 		rows.push_back( std::move( row ) );

@@ -61,7 +61,7 @@ int main( int argc, char** argv )
 	// Downward flow is mass-conserving and never escapes the map boundary.
 	cells[source].mass = 6;
 	QSet<unsigned int> active { source };
-	const WaterFlowResult downward = solveWaterFlow( cells, dimX, dimY, dimZ, active );
+	const WaterFlowResult downward = solveWaterFlow( cells, dimX, dimY, dimZ, active, { 10, 265, 1 } );
 	require( totalMass( downward.mass ) == 6, "downward flow must conserve mass" );
 	require( downward.mass.value( source ) == 5, "source should lose one unit per edge per tick" );
 	require( downward.mass.value( below ) == 1, "receiver should gain one downward unit" );
@@ -160,6 +160,89 @@ int main( int argc, char** argv )
 	sparse.insert( sparseSource + largeX * largeY, WaterFlowCell {} );
 	const WaterFlowResult bounded = solveWaterFlow( sparse, largeX, largeY, largeZ, { sparseSource } );
 	require( bounded.visitedCellCount == 7, "solver work must be bounded by active cells plus halo" );
+
+	// A one-unit staircase used to sleep with a full end and a dry end. A
+	// connected surface must level across the entire basin, not just each pair.
+	QHash<unsigned int, WaterFlowCell> channel;
+	QSet<unsigned int> channelActive;
+	for ( unsigned int x = 1; x <= 11; ++x )
+	{
+		channel[x] = WaterFlowCell { 11 - static_cast<int>( x ), false, true, false };
+		channelActive.insert( x );
+	}
+	auto step = [&]( QHash<unsigned int, WaterFlowCell>& grid, QSet<unsigned int>& frontier, int x, int y, int z ) {
+		qint64 before = 0;
+		for ( const auto& cell : grid ) before += cell.mass;
+		const auto result = solveWaterFlow( grid, x, y, z, frontier );
+		for ( auto it = result.mass.cbegin(); it != result.mass.cend(); ++it ) grid[it.key()].mass = it.value();
+		qint64 after = 0;
+		for ( const auto& cell : grid )
+		{
+			require( cell.mass >= 0 && cell.mass <= 265, "mass must remain in storage bounds" );
+			after += cell.mass;
+		}
+		require( before == after, "each complete grid step must conserve volume" );
+		frontier = result.nextActive;
+	};
+	for ( int tick = 0; tick < 20 && !channelActive.isEmpty(); ++tick ) step( channel, channelActive, 13, 1, 1 );
+	for ( const auto& cell : channel ) require( cell.mass == 5, "a long basin must have one level surface" );
+	require( channelActive.isEmpty(), "level basin must stop consuming simulation work" );
+
+	// Remove a retaining wall at the end of a sleeping basin. Its finite volume
+	// must wet the whole new channel, then return to rest without evaporation.
+	for ( unsigned int x = 12; x <= 20; ++x ) channel[x] = WaterFlowCell { 0, false, true, false };
+	for ( auto it = channel.cbegin(); it != channel.cend(); ++it ) channelActive.insert( it.key() );
+	for ( int tick = 0; tick < 100 && !channelActive.isEmpty(); ++tick ) step( channel, channelActive, 22, 1, 1 );
+	require( channel[20].mass > 0, "breach must reach distant dry cells" );
+	for ( const auto& cell : channel ) require( cell.mass == 2 || cell.mass == 3, "breached body must equalize within one stored unit" );
+	require( channelActive.isEmpty(), "breached body must settle" );
+
+	// Full gravity transport and draining the last unit over a ledge.
+	QHash<unsigned int, WaterFlowCell> drain;
+	drain[5] = WaterFlowCell { 10, false, false, false };
+	drain[2] = WaterFlowCell { 0, false, true, false };
+	QSet<unsigned int> draining { 5 };
+	step( drain, draining, 3, 1, 3 );
+	require( drain[5].mass == 0 && drain[2].mass == 10, "gravity must drain a full cell before lateral spreading" );
+	drain[5].mass = 0;
+	drain[2].mass = 0;
+	drain[4] = WaterFlowCell { 1, false, true, false };
+	draining = { 4, 5 };
+	for ( int tick = 0; tick < 5 && !draining.isEmpty(); ++tick ) step( drain, draining, 3, 1, 3 );
+	require( drain[4].mass == 0 && drain[5].mass == 0 && drain[2].mass == 1, "last shallow unit must flow over a ledge" );
+
+	// Vertical pressure can empty only its excess; a floor seals the connection.
+	drain.clear();
+	drain[2] = WaterFlowCell { 11, false, true, false };
+	drain[5] = WaterFlowCell { 0, false, true, false };
+	draining = { 2 };
+	step( drain, draining, 3, 1, 3 );
+	require( drain[2].mass == 11 && drain[5].mass == 0, "solid ceiling must contain pressure" );
+	drain[5].solidFloor = false;
+	draining = { 2, 5 };
+	step( drain, draining, 3, 1, 3 );
+	require( drain[2].mass == 10 && drain[5].mass == 1, "only excess pressure may rise" );
+
+	// Irregular, stacked basins exercise simultaneous sources/receivers, walls,
+	// floors and map edges. No normal flow may manufacture pressure or mass.
+	QHash<unsigned int, WaterFlowCell> stress;
+	QSet<unsigned int> stressActive;
+	for ( int z = 0; z < 5; ++z ) for ( int y = 0; y < 11; ++y ) for ( int x = 0; x < 17; ++x )
+	{
+		const auto key = id( x, y, z, 17, 11 );
+		auto& cell = stress[key];
+		cell.boundary = x == 0 || x == 16 || y == 0 || y == 10 || z == 0 || z == 4;
+		cell.moveBlocking = ( key * 17 + 3 ) % 19 == 0;
+		cell.solidFloor = z == 1 || key % 13 == 0;
+		if ( !cell.boundary && !cell.moveBlocking ) cell.mass = ( key * 31 + 7 ) % 11;
+		stressActive.insert( key );
+	}
+	for ( int tick = 0; tick < 100; ++tick ) step( stress, stressActive, 17, 11, 5 );
+	for ( const auto& cell : stress )
+	{
+		require( cell.mass <= 10, "normal water must not generate compressed mass" );
+		if ( cell.boundary || cell.moveBlocking ) require( cell.mass == 0, "walls and map edges must remain dry" );
+	}
 
 	std::cout << "water_flow_tests: all checks passed\n";
 	return EXIT_SUCCESS;

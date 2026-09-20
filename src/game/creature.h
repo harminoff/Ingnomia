@@ -201,6 +201,7 @@ public:
 	void setImmobile( bool immobile );
 
 	void addAttribute( QString id, int level );
+	bool hasAttribute( QString id ) const;
 	int attribute( QString id ) const;
 	void addSkill( QString id, int level );
 	int getSkillLevel( QString id ) const;

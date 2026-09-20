@@ -14,6 +14,8 @@ class Management6AController
 {
 public:
 	Management6AController( CommandPort&, ViewPort& );
+	void addViewPort( ViewPort& );
+	void removeViewPort( ViewPort& );
 	[[nodiscard]] const Management6AState& state() const noexcept { return state_; }
 	void beginWorld( WorldEpoch );
 	void endWorld();
@@ -31,12 +33,21 @@ public:
 	bool patchAgricultureAnimals( Revision base, Revision next, const std::vector<StableRowPatch<CreatureId,PastureAnimalRow>>& );
 
 	void setSearch( std::string );
+	void setStockpileFilterSearch( std::string );
+	void setStockpileContentSearch( std::string );
+	void setStockpileContentSort( StockpileSortKey );
 	void toggleSort();
 	void selectWorkshopProduct( CatalogId );
 	void selectWorkshopJob( CraftJobId );
+	void setWorkshopOrderMode( CraftRepeatMode );
+	void setWorkshopOrderCount( std::uint32_t );
+	void cycleWorkshopOrderMaterial( std::size_t, std::int32_t direction = 1 );
 	void selectTradeRow( TradeRowId );
 	void selectStockpileFilter( StockpileFilterRowId );
 	void selectStockpileContent( StockpileContentRowId );
+	void toggleStockpileFilterExpansion( StockpileFilterRowId );
+	void restoreStockpileFilterSearch();
+	void setStockpilePane( StockpilePane );
 	void selectAgricultureProduct( CatalogId );
 	void selectAgricultureAnimal( CreatureId );
 	void nextWorkshopProduct();
@@ -56,6 +67,7 @@ public:
 	void setFisherOptions( bool, bool );
 	void queueSelectedCraft( CraftRepeatMode, std::uint32_t, std::vector<CatalogId> );
 	void queueSelectedCraftDefault();
+	void queueSelectedCraftOrder();
 	void setSelectedJob( CraftRepeatMode, std::uint32_t, bool, bool );
 	void moveSelectedJob( MoveDirection );
 	void cancelSelectedJob();
@@ -67,6 +79,7 @@ public:
 	void cancelTrade();
 	void setStockpileBasics( std::string, std::int32_t, bool, bool, bool );
 	void toggleSelectedStockpileFilter();
+	void setStockpileFilterMatches( bool active );
 	void setAgricultureBasics( std::string, std::int32_t, bool );
 	void applySelectedAgricultureProduct();
 	void setHarvestOptions( bool, bool, bool );
@@ -79,12 +92,14 @@ public:
 private:
 	bool dispatch( std::string_view, UiActionPayload, DispatchOrigin = DispatchOrigin::Workbench );
 	void rebuildWorkshop();
+	void resetWorkshopOrderDraft();
+	void normalizeWorkshopOrderDraft();
 	void rebuildStockpile();
 	void rebuildAgriculture();
 	void notify();
 	template<class Id, class Row> static bool applyPatches( std::vector<Row>&, const std::vector<StableRowPatch<Id,Row>>& );
 	CommandPort& commands_;
-	ViewPort& view_;
+	std::vector<ViewPort*> views_;
 	Management6AState state_;
 	std::uint64_t nextRequest_{ 1 };
 };

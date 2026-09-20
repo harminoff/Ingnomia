@@ -19,6 +19,8 @@ public:
 
     explicit QtRmlSystemInterface( QWindow* window, Translator translator = {} );
 
+    void setWindow( QWindow* window );
+
     double GetElapsedTime() override;
     int TranslateString( Rml::String& translated, const Rml::String& input ) override;
     bool LogMessage( Rml::Log::Type type, const Rml::String& message ) override;

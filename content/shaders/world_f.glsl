@@ -49,8 +49,7 @@ uniform int uWorldRotation;
 uniform bool uOverlay;
 uniform bool uDebug;
 uniform bool uWallsLowered;
-uniform float uDaylight;
-uniform float uLightMin;
+#include "lighting.glsl"
 uniform bool uPaintFrontToBack;
 
 uniform bool uShowJobs;
@@ -331,17 +330,9 @@ void main()
 	
 	if( !uDebug )
 	{
-		float light = float( vLightLevel ) / 20.;
-		if( ( vFlags & ( TF_SUNLIGHT | TF_INDIRECT_SUNLIGHT ) ) != 0 )
-		{
-			light = max( light , uDaylight );
-		}
-		float brightness = dot(texel.rgb, perceivedBrightness.xyz);
-		float lightMult = ( 1 - uLightMin ) * light + uLightMin;
-		const float minSaturation = 0.1;
-		float saturation = ( 1 - minSaturation ) * light + minSaturation;
-		// Desaturate, then darken
-		texel.rgb = mix(brightness * vec3(1,1,1), texel.rgb, saturation) * lightMult;
+        float sky = (vFlags & (TF_SUNLIGHT | TF_INDIRECT_SUNLIGHT)) != 0u ? 1.0 : 0.0;
+        texel.rgb = shadeWorldColor(texel.rgb, sky, float(vLightLevel) / 20.0,
+                                    (vFlags & TF_UNDISCOVERED) == 0u);
 	}
 	fColor = texel;
 }

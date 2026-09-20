@@ -30,6 +30,8 @@
 #include "gui/mainwindow.h"
 #include "gui/mainwindowrenderer.h"
 #include "gui/eventconnector.h"
+#include "gui/aggregatorcreatureinfo.h"
+#include "gui/aggregatorselection.h"
 #include "gui/aggregatorrenderer.h"
 #include "gui/aggregatortileinfo.h"
 #include "gui/aggregatordebug.h"
@@ -58,6 +60,9 @@
 #include <windows.h>
 #endif
 #include "version.h"
+#include "../tests/water/runtime_probe.h"
+#include "../tests/lighting/runtime_probe.h"
+#include "../tests/placement/runtime_probe.h"
 
 QTextStream* out = 0;
 bool verbose     = false;
@@ -257,6 +262,9 @@ int main( int argc, char* argv[] )
 	w.resize( width, height );
 	w.setPosition( Global::cfg->get( "WindowPosX" ).toInt(), Global::cfg->get( "WindowPosY" ).toInt() );
 	w.show();
+	scheduleWaterRuntimeProbe( a, gm );
+	scheduleLightingProbe( a, gm );
+	schedulePlacementProbe( a, gm );
 	// Test-only path: exercise the normal saved-game command from inside the Qt
 	// event loop when desktop input injection is unavailable. Normal launches are
 	// unchanged unless this explicit environment variable is present. The path
@@ -325,6 +333,11 @@ int main( int argc, char* argv[] )
 		} );
 	}
 	const QString automatedInspectorTile = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_TILE_ID" );
+	const QString automatedInspectorCreature = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_CREATURE_ID" );
+	const QString automatedInspectorSecondCreature = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_SECOND_CREATURE_ID" );
+	const QString automatedInspectorElementAll = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_ELEMENT_ALL" );
+	const QString automatedSelectCreature = qEnvironmentVariable( "INGNOMIA_AUTOMATE_SELECT_CREATURE_ID" );
+	const QString automatedSelectCreatureCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_SELECT_CREATURE_CAPTURE_PATH" );
 	const QString automatedInspectorProfession = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_PROFESSION" );
 	const QString automatedInspectorElement = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_ELEMENT" );
 	const QString automatedInspectorSecondElement = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_SECOND_ELEMENT" );
@@ -332,6 +345,7 @@ int main( int argc, char* argv[] )
 	const QString automatedInspectorGlCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_GL_CAPTURE_PATH" );
 	const QString automatedUiFixture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_UI_FIXTURE" );
 	const QString automatedUiFixtureCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_UI_FIXTURE_CAPTURE_PATH" );
+	const bool automatedInspectorReopen = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_REOPEN" ) == "1";
 	if ( qEnvironmentVariableIsSet( "INGNOMIA_UI_CAPTURE" ) && qEnvironmentVariableIsSet( "INGNOMIA_AUTOMATE_TRACE_PATH" ) )
 		automationTrace( QStringLiteral( "ui_capture_requested path=%1" ).arg( qEnvironmentVariable( "INGNOMIA_UI_CAPTURE" ) ) );
 	bool automatedInspectorRaiseCountOk = false;
@@ -412,18 +426,101 @@ int main( int argc, char* argv[] )
 				}
 			}
 		}
-		else automationTrace( QStringLiteral( "inspector_tile dispatched=false invalid" ) );
+	else automationTrace( QStringLiteral( "inspector_tile dispatched=false invalid" ) );
 	}
-	if ( automatedUiFixture.compare( "creature_profile", Qt::CaseInsensitive ) == 0 )
+	if ( !automatedInspectorCreature.isEmpty() )
+	{
+		bool creatureOk = false;
+		const auto creatureId = automatedInspectorCreature.toUInt( &creatureOk );
+		if ( creatureOk )
+		{
+			QTimer::singleShot( 9000, &a, [creatureId]() {
+				if ( !Global::eventConnector ) return;
+				Global::eventConnector->aggregatorCreatureInfo()->onRequestCreatureUpdate( creatureId );
+				Global::eventConnector->aggregatorCreatureInfo()->onRequestProfessionList();
+				automationTrace( QStringLiteral( "inspector_creature dispatched=true id=%1" ).arg( creatureId ) );
+			} );
+		}
+		else automationTrace( QStringLiteral( "inspector_creature dispatched=false invalid" ) );
+	}
+	if ( !automatedInspectorSecondCreature.isEmpty() )
+	{
+		bool creatureOk = false;
+		const auto creatureId = automatedInspectorSecondCreature.toUInt( &creatureOk );
+		if ( creatureOk )
+		{
+			QTimer::singleShot( 13000, &a, [creatureId]() {
+				if ( !Global::eventConnector ) return;
+				Global::eventConnector->aggregatorCreatureInfo()->onRequestCreatureUpdate( creatureId );
+				automationTrace( QStringLiteral( "inspector_creature_secondary dispatched=true id=%1" ).arg( creatureId ) );
+			} );
+		}
+		else automationTrace( QStringLiteral( "inspector_creature_secondary dispatched=false invalid" ) );
+	}
+	if ( !automatedInspectorElementAll.isEmpty() )
+		QTimer::singleShot( 15000, &a, [automatedInspectorElementAll]() {
+			const auto activated = MainWindow::getInstance().activateInspectorElementInAllWindows( automatedInspectorElementAll.toStdString() );
+			automationTrace( QStringLiteral( "inspector_element_all requested=%1 activated=%2" ).arg( automatedInspectorElementAll ).arg( activated ) );
+		} );
+	// Exercise the same signal path as a real tile click without desktop input
+	// injection. This deliberately emits AggregatorSelection::signalSelectCreature;
+	// the production queued connections then perform the normal creature lookup,
+	// profession refresh, and detached-window open sequence.
+	if ( !automatedSelectCreature.isEmpty() )
+	{
+		bool creatureOk = false;
+		const auto creatureId = automatedSelectCreature.toUInt( &creatureOk );
+		if ( creatureOk )
+		{
+			QTimer::singleShot( 9000, &a, [creatureId]() {
+				if ( !Global::eventConnector || !Global::eventConnector->aggregatorSelection() ) return;
+				auto* selection = Global::eventConnector->aggregatorSelection();
+				QMetaObject::invokeMethod( selection, [selection, creatureId]()
+					{ selection->signalSelectCreature( creatureId ); }, Qt::QueuedConnection );
+				automationTrace( QStringLiteral( "selection_creature dispatched=true id=%1" ).arg( creatureId ) );
+			} );
+		}
+		else automationTrace( QStringLiteral( "selection_creature dispatched=false invalid" ) );
+	}
+	if ( !automatedSelectCreature.isEmpty() )
+		QTimer::singleShot( 16000, &a, []() {
+			if ( Global::eventConnector )
+				QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+		} );
+	if ( !automatedSelectCreatureCapture.isEmpty() )
+		QTimer::singleShot( 12000, &a, [automatedSelectCreatureCapture]() {
+			qputenv( "INGNOMIA_UI_CAPTURE", automatedSelectCreatureCapture.toUtf8() );
+			qputenv( "INGNOMIA_UI_CAPTURE_FRAME", "1" );
+			MainWindow::getInstance().armUiCapture();
+			automationTrace( QStringLiteral( "selection_creature_capture armed=true path=%1" ).arg( automatedSelectCreatureCapture ) );
+		} );
+	if ( automatedUiFixture.compare( "creature_profile", Qt::CaseInsensitive ) == 0
+		|| automatedUiFixture.compare( "creature_equipment", Qt::CaseInsensitive ) == 0 )
 	{
 		QTimer::singleShot( 9000, &a, []() {
 			const bool shown = MainWindow::getInstance().showInspectorCreatureFixture();
 			automationTrace( QStringLiteral( "ui_fixture_creature_profile shown=%1" ).arg( shown ? "true" : "false" ) );
 		} );
-		QTimer::singleShot( 10000, &a, []() {
-			const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_preview_details" );
-			automationTrace( QStringLiteral( "ui_fixture_full_profile activated=%1" ).arg( activated ? "true" : "false" ) );
+		QTimer::singleShot( 10000, &a, [automatedUiFixture]() {
+			const bool equipment = automatedUiFixture.compare( "creature_equipment", Qt::CaseInsensitive ) == 0;
+			const bool activated = MainWindow::getInstance().activateInspectorElement( equipment ? "creature_preview_nav_equipment" : "creature_preview_nav_expertise" );
+			automationTrace( QStringLiteral( "ui_fixture_full_profile activated=%1 equipment=%2" ).arg( activated ? "true" : "false" ).arg( equipment ? "true" : "false" ) );
 		} );
+		if ( automatedUiFixture.compare( "creature_profile", Qt::CaseInsensitive ) == 0 )
+		{
+			QTimer::singleShot( 10400, &a, []() {
+				const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_preview_profession_toggle" );
+				automationTrace( QStringLiteral( "ui_fixture_profession_dropdown opened=%1" ).arg( activated ? "true" : "false" ) );
+			} );
+			QTimer::singleShot( 12500, &a, []() {
+				const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_preview_profession_choice_3" );
+				automationTrace( QStringLiteral( "ui_fixture_profession_choice activated=%1" ).arg( activated ? "true" : "false" ) );
+			} );
+		}		if ( automatedUiFixture.compare( "creature_equipment", Qt::CaseInsensitive ) == 0 )
+			QTimer::singleShot( 10600, &a, []() {
+				const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_equipment_slot_head" );
+				automationTrace( QStringLiteral( "ui_fixture_equipment_slot activated=%1" ).arg( activated ? "true" : "false" ) );
+			} );
 		if ( !automatedUiFixtureCapture.isEmpty() )
 		{
 			QTimer::singleShot( 11500, &a, [automatedUiFixtureCapture]() {
@@ -433,6 +530,46 @@ int main( int argc, char* argv[] )
 				automationTrace( QStringLiteral( "ui_fixture_capture armed=true path=%1" ).arg( automatedUiFixtureCapture ) );
 			} );
 		}
+		QTimer::singleShot( 16000, &a, []() {
+			if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+		} );
+	}
+	if ( automatedUiFixture.compare( "inventory", Qt::CaseInsensitive ) == 0 )
+	{
+		QTimer::singleShot( 9000, &a, []() {
+			const bool shown = MainWindow::getInstance().showInventoryFixture();
+			automationTrace( QStringLiteral( "ui_fixture_inventory shown=%1" ).arg( shown ? "true" : "false" ) );
+		} );
+		QTimer::singleShot( 16000, &a, []() {
+			if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+		} );
+	}
+	if ( automatedInspectorReopen )
+	{
+		QTimer::singleShot( 9000, &a, []()
+		{
+			const bool shown = MainWindow::getInstance().showInspectorCreatureFixture();
+			automationTrace( QStringLiteral( "inspector_reopen_initial shown=%1" ).arg( shown ? "true" : "false" ) );
+		} );
+		QTimer::singleShot( 10500, &a, []()
+		{
+			const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_preview_nav_expertise" );
+			automationTrace( QStringLiteral( "inspector_reopen_expand activated=%1" ).arg( activated ? "true" : "false" ) );
+		} );
+		QTimer::singleShot( 12000, &a, []()
+		{
+			const bool activated = MainWindow::getInstance().activateInspectorElement( "creature_preview_close" );
+			automationTrace( QStringLiteral( "inspector_reopen_close activated=%1" ).arg( activated ? "true" : "false" ) );
+		} );
+		QTimer::singleShot( 13500, &a, []()
+		{
+			const bool shown = MainWindow::getInstance().showInspectorCreatureFixture();
+			automationTrace( QStringLiteral( "inspector_reopen_second shown=%1" ).arg( shown ? "true" : "false" ) );
+		} );
+		QTimer::singleShot( 17500, &a, []()
+		{
+			if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+		} );
 	}
 	// Opt-in generic UI surface probe. This keeps the capture path reusable for
 	// every shell/HUD surface without adding test-only buttons or changing the

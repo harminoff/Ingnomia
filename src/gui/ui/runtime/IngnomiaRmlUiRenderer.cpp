@@ -114,6 +114,14 @@ bool IngnomiaRmlUiRenderer::beginFrame()
     glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &m_before.readFramebuffer );
     glGetIntegerv( GL_CURRENT_PROGRAM, &m_before.program );
     glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &m_before.vertexArray );
+    glGetIntegerv( GL_ARRAY_BUFFER_BINDING, &m_before.arrayBuffer );
+    glGetIntegerv( GL_ELEMENT_ARRAY_BUFFER_BINDING, &m_before.elementArrayBuffer );
+    glGetIntegerv( GL_ACTIVE_TEXTURE, &m_before.activeTexture );
+    glActiveTexture( GL_TEXTURE0 );
+    glGetIntegerv( GL_TEXTURE_BINDING_2D, &m_before.texture0 );
+    glActiveTexture( GL_TEXTURE1 );
+    glGetIntegerv( GL_TEXTURE_BINDING_2D, &m_before.texture1 );
+    glActiveTexture( static_cast<GLenum>( m_before.activeTexture ) );
     m_lastRestorationReport.clear();
     m_frameActive = true;
     m_renderer->BeginFrame();
@@ -140,6 +148,14 @@ bool IngnomiaRmlUiRenderer::endFrame()
     glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &after.readFramebuffer );
     glGetIntegerv( GL_CURRENT_PROGRAM, &after.program );
     glGetIntegerv( GL_VERTEX_ARRAY_BINDING, &after.vertexArray );
+    glGetIntegerv( GL_ARRAY_BUFFER_BINDING, &after.arrayBuffer );
+    glGetIntegerv( GL_ELEMENT_ARRAY_BUFFER_BINDING, &after.elementArrayBuffer );
+    glGetIntegerv( GL_ACTIVE_TEXTURE, &after.activeTexture );
+    glActiveTexture( GL_TEXTURE0 );
+    glGetIntegerv( GL_TEXTURE_BINDING_2D, &after.texture0 );
+    glActiveTexture( GL_TEXTURE1 );
+    glGetIntegerv( GL_TEXTURE_BINDING_2D, &after.texture1 );
+    glActiveTexture( static_cast<GLenum>( after.activeTexture ) );
 
     std::ostringstream report;
     const auto record = [&report]( const char* name, int expected, int actual ) {
@@ -151,6 +167,10 @@ bool IngnomiaRmlUiRenderer::endFrame()
     record( "read-framebuffer", m_before.readFramebuffer, after.readFramebuffer );
     record( "program", m_before.program, after.program );
     record( "vertex-array", m_before.vertexArray, after.vertexArray );
+    record( "array-buffer", m_before.arrayBuffer, after.arrayBuffer );
+    record( "element-array-buffer", m_before.elementArrayBuffer, after.elementArrayBuffer );
+    record( "texture0", m_before.texture0, after.texture0 );
+    record( "texture1", m_before.texture1, after.texture1 );
     m_lastRestorationReport = report.str();
 
     // The upstream backend documents restoration for its raster/blend/stencil
@@ -160,6 +180,13 @@ bool IngnomiaRmlUiRenderer::endFrame()
     glBindFramebuffer( GL_READ_FRAMEBUFFER, static_cast<GLuint>( m_before.readFramebuffer ) );
     glUseProgram( static_cast<GLuint>( m_before.program ) );
     glBindVertexArray( static_cast<GLuint>( m_before.vertexArray ) );
+    glBindBuffer( GL_ARRAY_BUFFER, static_cast<GLuint>( m_before.arrayBuffer ) );
+    glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, static_cast<GLuint>( m_before.elementArrayBuffer ) );
+    glActiveTexture( GL_TEXTURE0 );
+    glBindTexture( GL_TEXTURE_2D, static_cast<GLuint>( m_before.texture0 ) );
+    glActiveTexture( GL_TEXTURE1 );
+    glBindTexture( GL_TEXTURE_2D, static_cast<GLuint>( m_before.texture1 ) );
+    glActiveTexture( static_cast<GLenum>( m_before.activeTexture ) );
 
     m_frameActive = false;
     return true;

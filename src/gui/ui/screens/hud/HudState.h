@@ -47,6 +47,7 @@ struct BuildCatalogRow
 	};
 	CatalogId id;
 	std::string name;
+	std::string type;
     BuildKind kind{ BuildKind::Item };
     std::vector<CatalogId> defaultMaterials;
 	std::vector<RequiredComponent> components;

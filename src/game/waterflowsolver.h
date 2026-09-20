@@ -32,7 +32,7 @@ struct WaterFlowConfig
 {
 	int surfaceCapacity = 10;
 	int maxStoredMass = 265;
-	int maxTransferPerEdge = 1;
+	int maxTransferPerEdge = 10;
 };
 
 /// @brief Result of one deterministic water-flow step.
@@ -48,8 +48,9 @@ struct WaterFlowResult
 /// @brief Simulates one fixed-tick water step over a flat X/Y/Z grid.
 ///
 /// The input is a stable snapshot.  Downward flow is resolved first, then
-/// horizontal gradients are processed once per pair, and finally pressure can
-/// move upward.  No transfer can exceed receiver capacity or source mass.
+/// connected horizontal surfaces equalize, and finally stored pressure can
+/// move upward. The snapshot must include connected wet cells and their dry
+/// one-cell halo; dry terrain beyond that halo is visited on subsequent ticks.
 WaterFlowResult solveWaterFlow( const QHash<unsigned int, WaterFlowCell>& cells,
 	int dimX,
 	int dimY,

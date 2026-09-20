@@ -13,6 +13,8 @@ enum class ManagementView : std::uint8_t { None, Workshop, Stockpile, Agricultur
 enum class RequestStatus : std::uint8_t { Idle, Loading, Ready, Empty, Error, Stale };
 enum class SortDirection : std::uint8_t { Ascending, Descending };
 enum class TriState : std::uint8_t { Off, On, Mixed };
+enum class StockpilePane : std::uint8_t { Contents, AllowList };
+enum class StockpileSortKey : std::uint8_t { Item, Quantity };
 
 struct RequestState
 {
@@ -86,6 +88,9 @@ struct WorkshopState
 	SortDirection sort{ SortDirection::Ascending };
 	std::optional<CatalogId> selectedProduct;
 	std::optional<CraftJobId> selectedJob;
+	CraftRepeatMode orderMode{ CraftRepeatMode::Once };
+	std::uint32_t orderCount{ 1 };
+	std::vector<CatalogId> orderMaterials;
 	std::vector<WorkshopProductRow> visibleProducts;
 	std::vector<CraftQueueRow> visibleQueue;
 	std::vector<TradeRow> traderRows, playerRows;
@@ -108,6 +113,12 @@ struct StockpileFilterRow
 	StockpileFilterRowId id;
 	std::string label;
 	TriState state{ TriState::Off };
+	struct Icon
+	{
+		std::string sheet;
+		std::int32_t width{}, height{};
+		bool operator==( const Icon& ) const = default;
+	} icon;
 	bool operator==( const StockpileFilterRow& ) const = default;
 };
 
@@ -116,6 +127,7 @@ struct StockpileContentRow
 	StockpileContentRowId id;
 	std::string itemName, materialName;
 	std::uint32_t count{};
+	bool allowed{};
 	bool operator==( const StockpileContentRow& ) const = default;
 };
 
@@ -137,12 +149,19 @@ struct StockpileState
 	StockpileSnapshot value;
 	std::optional<WorldPosition> position;
 	std::string search;
+	std::string filterSearch;
+	std::string contentSearch;
+	std::string filterSearchBeforeReveal;
 	SortDirection sort{ SortDirection::Ascending };
+	StockpileSortKey contentSort{ StockpileSortKey::Item };
+	StockpilePane pane{ StockpilePane::Contents };
 	std::optional<StockpileFilterRowId> selectedFilter;
 	std::optional<StockpileContentRowId> selectedContent;
+	std::vector<StockpileFilterRowId> expandedFilters;
 	std::vector<StockpileFilterRow> visibleFilters;
 	std::vector<StockpileContentRow> visibleContents;
 	bool selectionFiltered{};
+	bool filterSearchRevealed{};
 	bool operator==( const StockpileState& ) const = default;
 };
 

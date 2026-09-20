@@ -235,6 +235,27 @@ void testEscapeRoutesThroughShell()
 	check( !std::get<SetPausedPayload>( commands.actions.back().payload ).paused, "pause Escape resumes the simulation" );
 }
 
+void testPauseButtonLeavesHudInteractive()
+{
+	Commands commands;
+	View view;
+	ShellController controller( commands, view );
+	controller.setWorld( WorldEpoch{ 31 } );
+	controller.finishWorldTransition( true );
+
+	controller.activate( ShellControl::TogglePause );
+	check( controller.state().route.value == "game.hud", "pause button leaves the HUD route active" );
+	check( commands.actions.back().id.value == "sim.set_paused", "pause button dispatches simulation pause" );
+	check( std::get<SetPausedPayload>( commands.actions.back().payload ).paused, "pause button requests paused state" );
+	controller.onPauseState( true, PauseReason::Player );
+
+	const auto beforeEscape = commands.actions.size();
+	check( controller.handleEscape(), "Escape opens the menu from a paused HUD" );
+	check( controller.state().route.value == "game.pause", "paused HUD Escape opens pause menu" );
+	check( commands.actions.size() == beforeEscape + 1 && commands.actions.back().id.value == "nav.open",
+		"paused HUD Escape opens the menu without another pause mutation" );
+}
+
 void testPauseSaveLifecycle()
 {
 	Commands commands;
@@ -304,6 +325,7 @@ int main()
 	testSettingsProjectionAndDispatch();
 	testConfirmationAndFocus();
 	testPauseResumeAndReturn();
+	testPauseButtonLeavesHudInteractive();
 	testEscapeRoutesThroughShell();
 	testPauseSaveLifecycle();
 	testWorldTransitionLifecycle();

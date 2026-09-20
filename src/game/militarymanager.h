@@ -206,6 +206,8 @@ public slots:
 	void moveSquadDown( unsigned int id );
 
 	bool removeGnome( unsigned int gnomeID );
+	/** Assigns a gnome to the requested squad, removing any previous membership. */
+	bool assignGnomeToSquad( unsigned int gnomeID, unsigned int squadID );
 	bool moveGnomeUp( unsigned int gnomeID );
 	bool moveGnomeDown( unsigned int gnomeID );
 

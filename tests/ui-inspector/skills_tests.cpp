@@ -38,6 +38,7 @@ int main()
 	CreatureInspectorState creature;
 	creature.id = CreatureId{ 22 };
 	creature.name = "Ada";
+	creature.skillsReported = true;
 	creature.skills.push_back( { "Mining", "level 4 | active", 0 } );
 	creature.skills.push_back( { "Building", "level 0 | inactive", 0 } );
 	controller.showCreature( creature );
@@ -48,9 +49,15 @@ int main()
 	check( controller.state().creature->skills[0].detail == "level 4 | active", "skill detail is retained" );
 	check( controller.state().creature->skills[1].label == "Building", "second skill is retained" );
 
+	CreatureInspectorState partialRefresh = creature;
+	partialRefresh.skills.clear();
+	controller.showCreature( partialRefresh );
+	check( controller.state().creature->skills.size() == 2, "partial live refresh preserves open skill data" );
+	check( controller.state().creature->skillsReported, "partial live refresh preserves skill support" );
+
 	controller.endWorld();
 	check( !controller.state().creature.has_value(), "world teardown clears creature skills" );
 
-	std::cout << "ui_inspector_skills: 5 checks passed\n";
+	std::cout << "ui_inspector_skills: 7 checks passed\n";
 	return 0;
 }

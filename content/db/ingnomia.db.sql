@@ -8786,7 +8786,7 @@ INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Ti
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('Coin',0,NULL,0,'0 0',0,'Material',NULL,0);
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('Statuette',0,NULL,0,'0 0',0,'Material',NULL,0);
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('SelectionFloorTop',0,NULL,0,'0 0',0,NULL,NULL,0);
-INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('SelectionWallTop',0,NULL,0,'0 0',0,NULL,NULL,0);
+INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('SelectionWallTop',0,'SelectionFloorTop',0,'0 -16',0,NULL,NULL,0);
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('ChiseledBlockFloor',0,NULL,0,'0 0',0,'Material',NULL,0);
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('ChiseledBlockWall',0,NULL,0,'0 0',0,'Material',NULL,0);
 INSERT INTO "Sprites" ("ID","Anim","BaseSprite","HasRandom","Offset","Rot90","Tint","DefaultMaterial","HasTransp") VALUES ('PetRock',0,NULL,0,'0 0',0,'Material',NULL,0);

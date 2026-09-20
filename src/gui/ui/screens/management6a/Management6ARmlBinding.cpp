@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cctype>
+#include <cstdio>
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -28,13 +30,58 @@ std::string check( TriState value )
 {
 	return value == TriState::On ? "[x]" : value == TriState::Mixed ? "[-]" : "[ ]";
 }
-std::string stateName( TriState value )
+std::string filterStateLabel( TriState value )
 {
-	return value == TriState::On ? "On" : value == TriState::Mixed ? "Mixed" : "Off";
+	return value == TriState::On ? "Allowed" : value == TriState::Mixed ? "Mixed" : "Blocked";
 }
-std::string disclosure( const StockpileFilterRow& row )
+std::string filterStateClass( TriState value )
 {
-	return row.id.depth == FilterDepth::Material ? std::string {} : row.state == TriState::Mixed ? "[v] " : "[>] ";
+	return value == TriState::On ? "allowed" : value == TriState::Mixed ? "mixed" : "blocked";
+}
+std::string filterDisclosure( const StockpileFilterRow& row )
+{
+	return row.id.depth == FilterDepth::Material ? std::string {} : row.state == TriState::Mixed ? "v" : ">";
+}
+std::string filterFallbackGlyph( const StockpileFilterRow& row )
+{
+	if ( row.id.depth == FilterDepth::Category )
+		return "C";
+	if ( row.id.depth == FilterDepth::Group )
+		return "G";
+	char glyph = '?';
+	for ( const unsigned char c : row.label )
+		if ( std::isalnum( c ) )
+		{
+			glyph = static_cast<char>( std::toupper( c ) );
+			break;
+		}
+	return std::string( 1, glyph );
+}
+std::string filterIcon( const StockpileFilterRow& row )
+{
+	if ( row.id.depth != FilterDepth::Material )
+		return "<span class='c-m6a-filter-icon c-m6a-filter-icon--generic' aria-hidden='true'><span class='c-m6a-filter-generic-glyph'><span></span><span></span><span></span></span></span>";
+	if ( row.icon.sheet.empty() || row.icon.width <= 0 || row.icon.height <= 0 )
+		return "<span class='c-m6a-filter-icon c-m6a-filter-icon--fallback' aria-hidden='true'><strong>" + filterFallbackGlyph( row ) + "</strong></span>";
+	for ( const unsigned char c : row.icon.sheet )
+		if ( !( std::isalnum( c ) || c == '_' || c == '-' || c == '.' ) )
+			return "<span class='c-m6a-filter-icon c-m6a-filter-icon--fallback' aria-hidden='true'><strong>" + filterFallbackGlyph( row ) + "</strong></span>";
+	constexpr double frame = 24.0;
+	const double scale = std::min( frame / static_cast<double>( row.icon.width ), frame / static_cast<double>( row.icon.height ) );
+	char style[128] {};
+	std::snprintf( style, sizeof style, "width:%.2fdp;height:%.2fdp;left:%.2fdp;top:%.2fdp;", static_cast<double>( row.icon.width ) * scale, static_cast<double>( row.icon.height ) * scale, ( 28.0 - static_cast<double>( row.icon.width ) * scale ) * 0.5, ( 26.0 - static_cast<double>( row.icon.height ) * scale ) * 0.5 );
+	return "<span class='c-m6a-filter-icon'><img class='c-m6a-filter-icon-image' src='/tilesheet/" + row.icon.sheet + "' style='" + style + "' /></span>";
+}
+Rml::Element* dataElement( Rml::Element* target, Rml::Element* boundary, const char* attribute )
+{
+	for ( auto* element = target; element && element != boundary; element = element->GetParentNode() )
+		if ( element->HasAttribute( attribute ) )
+			return element;
+	return nullptr;
+}
+std::string stockpileToggleText( std::string_view label, bool value )
+{
+	return std::string( label ) + ": " + ( value ? "On" : "Off" );
 }
 std::string toggleText( std::string_view label, bool value )
 {
@@ -69,6 +116,22 @@ std::string attr( const Rml::Element* element, const char* name )
 {
 	return element ? element->GetAttribute<Rml::String>( name, "" ) : std::string {};
 }
+bool priorityDigit( Rml::Input::KeyIdentifier key )
+{
+	const auto value = static_cast<int>( key );
+	return ( value >= static_cast<int>( Rml::Input::KI_0 ) && value <= static_cast<int>( Rml::Input::KI_9 ) ) ||
+	       ( value >= static_cast<int>( Rml::Input::KI_NUMPAD0 ) && value <= static_cast<int>( Rml::Input::KI_NUMPAD9 ) );
+}
+bool priorityEditingKey( Rml::Input::KeyIdentifier key )
+{
+	return key == Rml::Input::KI_BACK || key == Rml::Input::KI_DELETE || key == Rml::Input::KI_LEFT || key == Rml::Input::KI_RIGHT ||
+	       key == Rml::Input::KI_HOME || key == Rml::Input::KI_END || key == Rml::Input::KI_TAB || key == Rml::Input::KI_RETURN ||
+	       key == Rml::Input::KI_ESCAPE;
+}
+bool priorityTextIsNumeric( const Rml::String& value )
+{
+	return std::all_of( value.begin(), value.end(), []( unsigned char c ) { return std::isdigit( c ) != 0; } );
+}
 } // namespace
 void Management6ARmlBinding::Callback::ProcessEvent( Rml::Event& event )
 {
@@ -85,9 +148,11 @@ Management6ARmlBinding::~Management6ARmlBinding()
 bool Management6ARmlBinding::initialize( Management6AController& controller )
 {
 	controller_  = &controller;
-	workshop_    = context_.LoadDocument( "windows/workshop_manager.rml" );
-	stockpile_   = context_.LoadDocument( "windows/stockpile_manager.rml" );
-	agriculture_ = context_.LoadDocument( "panels/agriculture_manager.rml" );
+	const auto load = [this]( const char* path )
+		{ return documentLoader_ ? documentLoader_( path ) : context_.LoadDocument( path ); };
+	workshop_    = load( "windows/workshop_manager.rml" );
+	stockpile_   = load( "windows/stockpile_manager.rml" );
+	agriculture_ = load( "panels/agriculture_manager.rml" );
 	if ( !workshop_ || !stockpile_ || !agriculture_ )
 	{
 		shutdown();
@@ -98,7 +163,7 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 	localization::applyRmlText( *agriculture_, textCatalog_ );
 	for ( const char* id : { "workshop_close", "stockpile_close", "agriculture_close" } )
 		bindClick( id, [this]
-				   { controller_->close(); } );
+				   { controller_->close(); if ( closeHandler_ ) closeHandler_(); } );
 	for ( const char* id : { "workshop_locate", "stockpile_locate", "agriculture_locate" } )
 		bindClick( id, [this]
 				   { controller_->locate(); } );
@@ -114,22 +179,16 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 			   {workshopPage_=workshopPage_>=pageSize_?workshopPage_-pageSize_:0;rerender(); } );
 	bindClick( "workshop_page_next", [this, rerender]
 			   {workshopPage_+=pageSize_;rerender(); } );
-	bindClick( "stockpile_page_previous", [this, rerender]
-			   {stockpilePage_=stockpilePage_>=pageSize_?stockpilePage_-pageSize_:0;rerender(); } );
-	bindClick( "stockpile_page_next", [this, rerender]
-			   {stockpilePage_+=pageSize_;rerender(); } );
 	bindClick( "agriculture_page_previous", [this, rerender]
 			   {agriculturePage_=agriculturePage_>=pageSize_?agriculturePage_-pageSize_:0;rerender(); } );
 	bindClick( "agriculture_page_next", [this, rerender]
 			   {agriculturePage_+=pageSize_;rerender(); } );
-	for ( const char* id : { "workshop_search", "stockpile_search", "agriculture_search" } )
+	for ( const char* id : { "workshop_search", "agriculture_search" } )
 	{
 		auto search = [this, id]( Rml::Event& )
 		{
 			if ( std::string_view( id ) == "workshop_search" )
 				workshopPage_ = 0;
-			else if ( std::string_view( id ) == "stockpile_search" )
-				stockpilePage_ = 0;
 			else
 				agriculturePage_ = 0;
 			controller_->setSearch( formValue( id ) );
@@ -137,18 +196,154 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 		bind( id, "input", search );
 		bind( id, "change", search );
 	}
+	const auto stockpileSearch = [this]( const char* id )
+	{
+		bind( id, "input", [this, id]( Rml::Event& )
+			  { if ( std::string_view( id ) == "stockpile_filter_search" ) controller_->setStockpileFilterSearch( formValue( id ) ); else controller_->setStockpileContentSearch( formValue( id ) ); } );
+		bind( id, "change", [this, id]( Rml::Event& )
+			  { if ( std::string_view( id ) == "stockpile_filter_search" ) controller_->setStockpileFilterSearch( formValue( id ) ); else controller_->setStockpileContentSearch( formValue( id ) ); } );
+	};
+	stockpileSearch( "stockpile_filter_search" );
+	stockpileSearch( "stockpile_content_search" );
+	bindClick( "stockpile_content_sort_item", [this] { controller_->setStockpileContentSort( StockpileSortKey::Item ); } );
+	bindClick( "stockpile_content_sort_qty", [this] { controller_->setStockpileContentSort( StockpileSortKey::Quantity ); } );
+	const auto commitStockpileBasics = [this]
+	{
+		if ( normalizingPriority_ )
+			return;
+		const auto& s = controller_->state().stockpile.value;
+		const auto maximum = std::max( 1, s.maxPriority );
+		controller_->setStockpileBasics( formValue( "stockpile_name" ), normalizePriority( "stockpile_priority", s.priority + 1, maximum ) - 1, s.suspended, s.pullFromOthers, s.allowPullFromHere );
+	};
+	bind( "stockpile_name", "change", [commitStockpileBasics]( Rml::Event& ) { commitStockpileBasics(); } );
+	bind( "stockpile_priority", "change", [commitStockpileBasics]( Rml::Event& ) { commitStockpileBasics(); } );
+	const auto adjustStockpilePriority = [this]( int delta )
+	{
+		const auto& s = controller_->state().stockpile.value;
+		const auto maximum = std::max( 1, s.maxPriority );
+		const auto current = normalizePriority( "stockpile_priority", s.priority + 1, maximum );
+		const auto next = std::clamp( current + delta, 1, maximum );
+		controller_->setStockpileBasics( formValue( "stockpile_name" ), next - 1, s.suspended, s.pullFromOthers, s.allowPullFromHere );
+		if ( auto* input = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( "stockpile_priority" ) ) )
+			input->SetValue( std::to_string( next ) );
+	};
+	bindClick( "stockpile_priority_up", [adjustStockpilePriority] { adjustStockpilePriority( -1 ); } );
+	bindClick( "stockpile_priority_down", [adjustStockpilePriority] { adjustStockpilePriority( 1 ); } );
+	bind( "stockpile_name", "keydown", [this, commitStockpileBasics]( Rml::Event& e )
+		  { const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) ); if ( key == Rml::Input::KI_RETURN ) { commitStockpileBasics(); e.StopPropagation(); } else if ( key == Rml::Input::KI_ESCAPE ) { if ( auto* input = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( "stockpile_name" ) ) ) input->SetValue( controller_->state().stockpile.value.name ); e.StopPropagation(); } } );
+	bind( "stockpile_priority", "keydown", [this, commitStockpileBasics]( Rml::Event& e )
+		  { const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) ); if ( key == Rml::Input::KI_RETURN ) { commitStockpileBasics(); e.StopPropagation(); } else if ( key == Rml::Input::KI_ESCAPE ) { if ( auto* input = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( "stockpile_priority" ) ) ) input->SetValue( std::to_string( std::clamp( std::max( 0, controller_->state().stockpile.value.priority ) + 1, 1, std::max( 1, controller_->state().stockpile.value.maxPriority ) ) ) ); e.StopPropagation(); } } );
+	bind( "stockpile_manager_root", "keydown", [this]( Rml::Event& e )
+		  {
+			if ( e.GetTargetElement() != element( "stockpile_priority" ) )
+				return;
+			const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) );
+			const bool modifier = e.GetParameter<int>( "ctrl_key", 0 ) != 0 || e.GetParameter<int>( "meta_key", 0 ) != 0;
+			const bool clipboardEdit = modifier && !e.GetParameter<int>( "alt_key", 0 ) && ( key == Rml::Input::KI_A || key == Rml::Input::KI_C || key == Rml::Input::KI_V || key == Rml::Input::KI_X );
+			if ( !priorityDigit( key ) && !priorityEditingKey( key ) && !clipboardEdit )
+				e.StopPropagation();
+		}, true );
+	bind( "stockpile_manager_root", "textinput", [this]( Rml::Event& e )
+		  {
+			if ( e.GetTargetElement() != element( "stockpile_priority" ) )
+				return;
+			const auto value = e.GetParameter<Rml::String>( "text", "" );
+			if ( !priorityTextIsNumeric( value ) )
+				e.StopPropagation();
+		}, true );
+	bindClick( "stockpile_view_contents", [this] { controller_->setStockpilePane( StockpilePane::Contents ); } );
+	bindClick( "stockpile_view_allow", [this] { controller_->setStockpilePane( StockpilePane::AllowList ); } );
+	bindClick( "stockpile_restore_filter_search", [this] { controller_->restoreStockpileFilterSearch(); } );
+	bindClick( "stockpile_hauling_toggle", [this]
+			   { haulingOptionsExpanded_ = !haulingOptionsExpanded_; visible( "stockpile_hauling_options", haulingOptionsExpanded_ ); text( "stockpile_hauling_disclosure", haulingOptionsExpanded_ ? "v" : ">" ); if ( auto* e = element( "stockpile_hauling_toggle" ) ) e->SetAttribute( "aria-expanded", haulingOptionsExpanded_ ? "true" : "false" ); } );
 	bind( "workshop_products", "click", [this]( Rml::Event& e )
-		  {const auto key=attr(e.GetTargetElement(),"data-catalog");if(!key.empty())controller_->selectWorkshopProduct(CatalogId{key}); } );
+		  {auto*target=dataElement(e.GetTargetElement(),e.GetCurrentElement(),"data-catalog");const auto key=attr(target,"data-catalog");if(!key.empty())controller_->selectWorkshopProduct(CatalogId{key}); } );
 	bind( "workshop_queue", "click", [this]( Rml::Event& e )
-		  {const auto key=attr(e.GetTargetElement(),"data-job");if(!key.empty())controller_->selectWorkshopJob({static_cast<std::uint32_t>(std::stoul(key))}); } );
+		  {auto*target=dataElement(e.GetTargetElement(),e.GetCurrentElement(),"data-job");const auto key=attr(target,"data-job");if(!key.empty())controller_->selectWorkshopJob({static_cast<std::uint32_t>(std::stoul(key))}); } );
+	bind( "workshop_product_selection", "click", [this]( Rml::Event& e )
+		  {
+			  if ( auto* target = dataElement( e.GetTargetElement(), e.GetCurrentElement(), "data-order-mode" ) )
+			  {
+				  const auto value = attr( target, "data-order-mode" );
+				  controller_->setWorkshopOrderMode( value == "maintain" ? CraftRepeatMode::Maintain : value == "repeat" ? CraftRepeatMode::Repeat : CraftRepeatMode::Once );
+				  e.StopPropagation();
+				  return;
+			  }
+			  if ( auto* target = dataElement( e.GetTargetElement(), e.GetCurrentElement(), "data-material-index" ) )
+			  {
+				  controller_->cycleWorkshopOrderMaterial( static_cast<std::size_t>( std::stoul( attr( target, "data-material-index" ) ) ) );
+				  e.StopPropagation();
+			  }
+		  } );
+	bind( "workshop_job_selection", "click", [this]( Rml::Event& e )
+		  {
+			  auto* target = dataElement( e.GetTargetElement(), e.GetCurrentElement(), "data-job-action" );
+			  if ( !target ) return;
+			  const auto action = attr( target, "data-job-action" );
+			  const auto& state = controller_->state().workshop;
+			  if ( !state.selectedJob ) return;
+			  const auto row = std::find_if( state.value.queue.begin(), state.value.queue.end(), [&]( const auto& value ) { return value.id == *state.selectedJob; } );
+			  if ( row == state.value.queue.end() ) return;
+			  if ( action == "mode-once" )
+				  controller_->setSelectedJob( CraftRepeatMode::Once, row->count, row->suspended, row->moveBack );
+			  else if ( action == "mode-maintain" )
+				  controller_->setSelectedJob( CraftRepeatMode::Maintain, row->count, row->suspended, row->moveBack );
+			  else if ( action == "mode-repeat" )
+				  controller_->setSelectedJob( CraftRepeatMode::Repeat, row->count, row->suspended, row->moveBack );
+			  else if ( action == "apply-count" )
+				  controller_->setSelectedJob( row->mode, static_cast<std::uint32_t>( priority( "workshop_job_count", static_cast<std::int32_t>( row->count ), 999 ) ), row->suspended, row->moveBack );
+			  else if ( action == "toggle-suspended" )
+				  controller_->setSelectedJob( row->mode, row->count, !row->suspended, row->moveBack );
+			  else if ( action == "toggle-move-back" )
+				  controller_->setSelectedJob( row->mode, row->count, row->suspended, !row->moveBack );
+			  else if ( action == "front" ) controller_->moveSelectedJob( MoveDirection::Front );
+			  else if ( action == "up" ) controller_->moveSelectedJob( MoveDirection::Up );
+			  else if ( action == "down" ) controller_->moveSelectedJob( MoveDirection::Down );
+			  else if ( action == "back" ) controller_->moveSelectedJob( MoveDirection::Back );
+			  else if ( action == "cancel" ) controller_->cancelSelectedJob();
+			  e.StopPropagation();
+		  } );
 	bind( "workshop_trade_rows", "click", [this]( Rml::Event& e )
 		  {auto*target=e.GetTargetElement();const auto item=attr(target,"data-item"),material=attr(target,"data-material"),party=attr(target,"data-party"),quality=attr(target,"data-quality");if(!item.empty())controller_->selectTradeRow({party=="trader"?TradeParty::Trader:TradeParty::Player,CatalogId{item},CatalogId{material},static_cast<std::uint8_t>(std::stoul(quality))}); } );
 	bind( "stockpile_filters", "click", [this]( Rml::Event& e )
-			  {auto*t=e.GetTargetElement();const auto category=attr(t,"data-category");if(category.empty())return;controller_->selectStockpileFilter({controller_->state().stockpile.value.id,CatalogId{category},CatalogId{attr(t,"data-group")},CatalogId{attr(t,"data-item")},CatalogId{attr(t,"data-material")},static_cast<FilterDepth>(std::stoul(attr(t,"data-depth")))}); } );
+			  {
+				  auto* target = e.GetTargetElement();
+				  if ( auto* disclosure = dataElement( target, e.GetCurrentElement(), "data-disclosure" ) )
+				  {
+					  controller_->toggleStockpileFilterExpansion( { controller_->state().stockpile.value.id, CatalogId { attr( disclosure, "data-category" ) }, CatalogId { attr( disclosure, "data-group" ) }, CatalogId { attr( disclosure, "data-item" ) }, CatalogId { attr( disclosure, "data-material" ) }, static_cast<FilterDepth>( std::stoul( attr( disclosure, "data-depth" ) ) ) } );
+					  e.StopPropagation();
+				  }
+			  }, true );
+	bind( "stockpile_filters", "click", [this]( Rml::Event& e )
+			  {
+				  auto* target = e.GetTargetElement();
+				  if ( auto* disclosure = dataElement( target, e.GetCurrentElement(), "data-disclosure" ) )
+				  {
+					  controller_->toggleStockpileFilterExpansion( { controller_->state().stockpile.value.id, CatalogId { attr( disclosure, "data-category" ) }, CatalogId { attr( disclosure, "data-group" ) }, CatalogId { attr( disclosure, "data-item" ) }, CatalogId { attr( disclosure, "data-material" ) }, static_cast<FilterDepth>( std::stoul( attr( disclosure, "data-depth" ) ) ) } );
+					  e.StopPropagation();
+					  return;
+				  }
+				  auto* rule = dataElement( target, e.GetCurrentElement(), "data-rule" );
+				  auto* row = dataElement( target, e.GetCurrentElement(), "data-category" );
+				  if ( rule )
+				  {
+					  const auto category = attr( row, "data-category" );
+					  if ( !category.empty() )
+					  {
+						  controller_->selectStockpileFilter( { controller_->state().stockpile.value.id, CatalogId { category }, CatalogId { attr( row, "data-group" ) }, CatalogId { attr( row, "data-item" ) }, CatalogId { attr( row, "data-material" ) }, static_cast<FilterDepth>( std::stoul( attr( row, "data-depth" ) ) ) } );
+						  controller_->toggleSelectedStockpileFilter();
+					  }
+					  e.StopPropagation();
+					  return;
+				  }
+				  const auto category = attr( row, "data-category" );
+				  if ( category.empty() ) return;
+				  controller_->selectStockpileFilter( { controller_->state().stockpile.value.id, CatalogId { category }, CatalogId { attr( row, "data-group" ) }, CatalogId { attr( row, "data-item" ) }, CatalogId { attr( row, "data-material" ) }, static_cast<FilterDepth>( std::stoul( attr( row, "data-depth" ) ) ) } );
+			  } );
 	bind( "stockpile_filters", "keydown", [this]( Rml::Event& e )
 			  {
 				  const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) );
-				  const auto* target = e.GetTargetElement();
+				  const auto* target = dataElement( e.GetTargetElement(), e.GetCurrentElement(), "data-category" );
 				  const auto category = attr( target, "data-category" );
 				  if ( !target || category.empty() )
 					  return;
@@ -158,6 +353,12 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 				  {
 					  const auto delta = key == Rml::Input::KI_UP ? -1 : key == Rml::Input::KI_DOWN ? 1 : key == Rml::Input::KI_HOME ? -2147483647 : 2147483647;
 					  controller_->moveStockpileFilterSelection( delta );
+				  }
+				  else if ( key == Rml::Input::KI_RIGHT || key == Rml::Input::KI_LEFT )
+				  {
+					  const bool isOpen = attr( target, "aria-expanded" ) == "true";
+					  if ( ( key == Rml::Input::KI_RIGHT && !isOpen ) || ( key == Rml::Input::KI_LEFT && isOpen ) )
+						  controller_->toggleStockpileFilterExpansion( id );
 				  }
 				  else if ( key == Rml::Input::KI_RETURN || key == Rml::Input::KI_SPACE )
 					  controller_->toggleSelectedStockpileFilter();
@@ -169,7 +370,7 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 						  row->Focus();
 			  } );
 	bind( "stockpile_rows", "click", [this]( Rml::Event& e )
-		  {auto*t=e.GetTargetElement();const auto item=attr(t,"data-item");if(!item.empty())controller_->selectStockpileContent({CatalogId{item},CatalogId{attr(t,"data-material")}}); } );
+		  {auto*t=dataElement(e.GetTargetElement(),e.GetCurrentElement(),"data-item");const auto item=attr(t,"data-item");if(!item.empty()){controller_->selectStockpileContent({CatalogId{item},CatalogId{attr(t,"data-material")}});e.StopPropagation();} } );
 	bind( "agriculture_products", "click", [this]( Rml::Event& e )
 		  {const auto key=attr(e.GetTargetElement(),"data-catalog");if(!key.empty())controller_->selectAgricultureProduct(CatalogId{key}); } );
 	bind( "agriculture_animals", "click", [this]( Rml::Event& e )
@@ -188,7 +389,7 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 	bindClick( "workshop_next_product", [this]
 			   { controller_->nextWorkshopProduct(); } );
 	bindClick( "workshop_queue_once", [this]
-			   { controller_->queueSelectedCraftDefault(); } );
+			   {const auto&s=controller_->state().workshop;controller_->setWorkshopOrderCount(static_cast<std::uint32_t>(priority("workshop_order_count",static_cast<std::int32_t>(s.orderCount),999)));controller_->queueSelectedCraftOrder(); } );
 	bindClick( "workshop_next_job", [this]
 			   { controller_->nextWorkshopJob(); } );
 	bindClick( "workshop_toggle_job", [this]
@@ -230,6 +431,18 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 			   {const auto&s=controller_->state().stockpile.value;controller_->setStockpileBasics(s.name,s.priority,s.suspended,!s.pullFromOthers,s.allowPullFromHere); } );
 	bindClick( "stockpile_toggle_allow_pull", [this]
 			   {const auto&s=controller_->state().stockpile.value;controller_->setStockpileBasics(s.name,s.priority,s.suspended,s.pullFromOthers,!s.allowPullFromHere); } );
+	bindStockpileTooltip( "stockpile_toggle_suspended",
+							 [this] { return textCatalog_.format( LocalizationKey { controller_->state().stockpile.value.suspended ? "management.stockpile.stockpile_resume_tooltip" : "management.stockpile.stockpile_suspend_tooltip" } ); } );
+	bindStockpileTooltip( "stockpile_toggle_pull",
+							 [this] { return textCatalog_.format( LocalizationKey { "management.stockpile.stockpile_pull_from_others_tooltip" } ); } );
+	bindStockpileTooltip( "stockpile_toggle_allow_pull",
+							 [this] { return textCatalog_.format( LocalizationKey { "management.stockpile.stockpile_allow_pull_from_here_tooltip" } ); } );
+	bindStockpileTooltip( "stockpile_priority_up",
+							 [this] { return textCatalog_.format( LocalizationKey { "management.stockpile.stockpile_priority_up_tooltip" } ); } );
+	bindStockpileTooltip( "stockpile_priority_down",
+							 [this] { return textCatalog_.format( LocalizationKey { "management.stockpile.stockpile_priority_down_tooltip" } ); } );
+	bindClick( "stockpile_allow_bulk", [this] { controller_->setStockpileFilterMatches( true ); } );
+	bindClick( "stockpile_block_bulk", [this] { controller_->setStockpileFilterMatches( false ); } );
 	bindClick( "stockpile_next_filter", [this]
 			   { controller_->nextStockpileFilter(); } );
 	bindClick( "stockpile_toggle_filter", [this]
@@ -280,7 +493,7 @@ void Management6ARmlBinding::shutdown()
 {
 	for ( auto& l : listeners_ )
 		if ( l.target )
-			l.target->RemoveEventListener( l.event, l.callback.get() );
+			l.target->RemoveEventListener( l.event, l.callback.get(), l.capture );
 	listeners_.clear();
 	for ( auto** doc : { &agriculture_, &stockpile_, &workshop_ } )
 		if ( *doc )
@@ -298,13 +511,58 @@ Rml::Element* Management6ARmlBinding::element( const char* id ) const
 				return e;
 	return nullptr;
 }
-void Management6ARmlBinding::bind( const char* id, const char* event, std::function<void( Rml::Event& )> fn )
+void Management6ARmlBinding::bind( const char* id, const char* event, std::function<void( Rml::Event& )> fn, bool capture )
 {
 	if ( auto* e = element( id ) )
 	{
 		auto cb = std::make_unique<Callback>( std::move( fn ) );
-		e->AddEventListener( event, cb.get() );
-		listeners_.push_back( { e, event, std::move( cb ) } );
+		e->AddEventListener( event, cb.get(), capture );
+		listeners_.push_back( { e, event, std::move( cb ), capture } );
+	}
+}
+void Management6ARmlBinding::bindStockpileTooltip( const char* id, std::function<std::string()> textValue )
+{
+	if ( !stockpile_ ) return;
+	if ( auto* target = stockpile_->GetElementById( id ) )
+	{
+		auto show = std::make_unique<Callback>( [this, textValue]( Rml::Event& event ) { showStockpileTooltip( textValue(), event.GetCurrentElement() ); } );
+		target->AddEventListener( "mouseover", show.get() );
+		listeners_.push_back( { target, "mouseover", std::move( show ) } );
+		auto focus = std::make_unique<Callback>( [this, textValue]( Rml::Event& event ) { showStockpileTooltip( textValue(), event.GetCurrentElement() ); } );
+		target->AddEventListener( "focus", focus.get() );
+		listeners_.push_back( { target, "focus", std::move( focus ) } );
+		auto hide = std::make_unique<Callback>( [this]( Rml::Event& ) { hideStockpileTooltip(); } );
+		target->AddEventListener( "mouseout", hide.get() );
+		listeners_.push_back( { target, "mouseout", std::move( hide ) } );
+		auto blur = std::make_unique<Callback>( [this]( Rml::Event& ) { hideStockpileTooltip(); } );
+		target->AddEventListener( "blur", blur.get() );
+		listeners_.push_back( { target, "blur", std::move( blur ) } );
+	}
+}
+void Management6ARmlBinding::showStockpileTooltip( const std::string& textValue, Rml::Element* source )
+{
+	if ( !stockpile_ || !source ) return;
+	if ( auto* tooltip = stockpile_->GetElementById( "stockpile_tooltip" ) )
+	{
+		tooltip->SetInnerRML( safe( textValue ) );
+		const auto offset = source->GetAbsoluteOffset();
+		const auto size = source->GetBox().GetSize();
+		const auto dimensions = context_.GetDimensions();
+		const bool placeLeft = offset.x > dimensions.x * 0.5f;
+		tooltip->SetProperty( "transform", placeLeft ? "translate(-100%, -50%)" : "translateY(-50%)" );
+		tooltip->SetProperty( "left", std::to_string( placeLeft ? offset.x - 10.0f : offset.x + size.x + 10.0f ) + "px" );
+		tooltip->SetProperty( "top", std::to_string( offset.y + size.y * 0.5f ) + "px" );
+		tooltip->SetClass( "is-visible", true );
+		tooltip->SetAttribute( "aria-hidden", "false" );
+	}
+}
+void Management6ARmlBinding::hideStockpileTooltip()
+{
+	if ( !stockpile_ ) return;
+	if ( auto* tooltip = stockpile_->GetElementById( "stockpile_tooltip" ) )
+	{
+		tooltip->SetClass( "is-visible", false );
+		tooltip->SetAttribute( "aria-hidden", "true" );
 	}
 }
 void Management6ARmlBinding::text( const char* id, const std::string& value )
@@ -353,6 +611,21 @@ std::int32_t Management6ARmlBinding::priority( const char* id, std::int32_t fall
 	const auto result = std::from_chars( value.data(), value.data() + value.size(), out );
 	return result.ec == std::errc {} && result.ptr == value.data() + value.size() ? std::clamp( out, 1, std::max( 1, maximum ) ) : fallback;
 }
+std::int32_t Management6ARmlBinding::normalizePriority( const char* id, std::int32_t fallback, std::int32_t maximum )
+{
+	const auto value = priority( id, fallback, maximum );
+	const auto normalized = std::to_string( value );
+	if ( auto* input = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( id ) ) )
+	{
+		if ( input->GetValue() != normalized )
+		{
+			normalizingPriority_ = true;
+			input->SetValue( normalized );
+			normalizingPriority_ = false;
+		}
+	}
+	return value;
+}
 bool Management6ARmlBinding::activateElement( std::string_view id )
 {
 	if ( auto* e = element( std::string( id ).c_str() ) )
@@ -373,14 +646,11 @@ bool Management6ARmlBinding::setFormValueForProbe( std::string_view id, std::str
 }
 bool Management6ARmlBinding::setStockpileSearchForProbe( std::string_view value )
 {
-	if ( auto* e = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( "stockpile_search" ) ) )
+	if ( auto* e = rmlui_dynamic_cast<Rml::ElementFormControl*>( element( "stockpile_filter_search" ) ) )
 	{
 		e->SetValue( std::string( value ) );
 		if ( controller_ )
-		{
-			stockpilePage_ = 0;
-			controller_->setSearch( std::string( value ) );
-		}
+			controller_->setStockpileFilterSearch( std::string( value ) );
 		return true;
 	}
 	return false;
@@ -476,7 +746,37 @@ void Management6ARmlBinding::renderWorkshop( const WorkshopState& s )
 			if ( auto* row = element( rowId( "m6a_product_", s.selectedProduct->value ).c_str() ) )
 				row->Focus();
 	}
-	text( "workshop_product_selection", s.selectedProduct ? "Selected craft: " + s.selectedProduct->value + ( s.selectionFiltered ? " (hidden by filter)" : "" ) : "No craft selected" );
+	std::string productEditor = "<div class='c-workshop-editor__empty'>Select a craft to configure an order.</div>";
+	if ( s.selectedProduct )
+	{
+		const auto product = std::find_if( s.value.products.begin(), s.value.products.end(), [&]( const auto& row ) { return row.id == *s.selectedProduct; } );
+		if ( product != s.value.products.end() )
+		{
+			const auto modeButton = [&]( const char* value, CraftRepeatMode valueMode, const char* label )
+			{ return "<button class='c-button c-workshop-mode-button" + std::string( s.orderMode == valueMode ? " is-selected" : "" ) + "' data-order-mode='" + value + "'>" + label + "</button>"; };
+			productEditor = "<div class='c-workshop-editor__title'>New order: " + safe( product->id.value ) + ( s.selectionFiltered ? " (hidden by filter)" : "" ) + "</div>";
+			productEditor += "<div class='c-workshop-editor__label'>Order type</div><div class='c-workshop-mode-row'>" + modeButton( "once", CraftRepeatMode::Once, "Craft number" ) + modeButton( "maintain", CraftRepeatMode::Maintain, "Craft to" ) + modeButton( "repeat", CraftRepeatMode::Repeat, "Repeat" ) + "</div>";
+			productEditor += "<label class='c-workshop-count-row'><span>Quantity</span><input id='workshop_order_count' class='text' type='number' min='1' max='999' value='" + std::to_string( s.orderCount ) + "'/></label>";
+			if ( product->components.empty() )
+				productEditor += "<div class='c-workshop-requirements'>No material requirements.</div>";
+			else
+			{
+				productEditor += "<div class='c-workshop-editor__label'>Required materials</div><div class='c-workshop-requirements'>";
+				for ( std::size_t index = 0; index < product->components.size(); ++index )
+				{
+					const auto& component = product->components[index];
+					const auto material = index < s.orderMaterials.size() ? s.orderMaterials[index] : CatalogId { "any" };
+					const auto choice = std::find_if( component.materials.begin(), component.materials.end(), [&]( const auto& entry ) { return entry.first == material; } );
+					const auto available = choice == component.materials.end() ? 0u : choice->second;
+					const bool shortage = available < component.amount;
+					productEditor += "<button class='c-button c-workshop-material-button" + std::string( shortage ? " is-shortage" : "" ) + "' data-material-index='" + std::to_string( index ) + "'><span>" + safe( component.item.value ) + " x" + std::to_string( component.amount ) + "</span><strong>" + safe( material.value ) + " | in stock " + std::to_string( available ) + ( shortage ? " | ! needed" : "" ) + "</strong></button>";
+				}
+				productEditor += "</div><div class='c-workshop-editor__hint'>Click a material row to use the next valid material. Missing stock will leave the order pending.</div>";
+			}
+		}
+	}
+	if ( auto* e = element( "workshop_product_selection" ) )
+		e->SetInnerRML( productEditor );
 	std::string queue;
 	for ( std::size_t n = workshopPage_; n < std::min( workshopPage_ + pageSize_, s.visibleQueue.size() ); ++n )
 	{
@@ -494,7 +794,29 @@ void Management6ARmlBinding::renderWorkshop( const WorkshopState& s )
 			if ( auto* row = element( ( "m6a_job_" + std::to_string( s.selectedJob->value ) ).c_str() ) )
 				row->Focus();
 	}
-	text( "workshop_job_selection", s.selectedJob ? "Selected order ID " + std::to_string( s.selectedJob->value ) + ( s.selectionFiltered ? " (hidden by filter)" : "" ) : "No order selected" );
+	std::string jobEditor = "<div class='c-workshop-editor__empty'>Select an order to edit it.</div>";
+	if ( s.selectedJob )
+	{
+		const auto row = std::find_if( s.value.queue.begin(), s.value.queue.end(), [&]( const auto& value ) { return value.id == *s.selectedJob; } );
+		if ( row != s.value.queue.end() )
+		{
+			const auto modeButton = [&]( const char* action, CraftRepeatMode valueMode, const char* label )
+			{ return "<button class='c-button c-workshop-mode-button" + std::string( row->mode == valueMode ? " is-selected" : "" ) + "' data-job-action='" + action + "'>" + label + "</button>"; };
+			jobEditor = "<div class='c-workshop-editor__title'>Order #" + std::to_string( row->id.value ) + ": " + safe( row->craft.value ) + ( s.selectionFiltered ? " (hidden by filter)" : "" ) + "</div>";
+			jobEditor += "<div class='c-workshop-editor__label'>Order type</div><div class='c-workshop-mode-row'>" + modeButton( "mode-once", CraftRepeatMode::Once, "Craft number" ) + modeButton( "mode-maintain", CraftRepeatMode::Maintain, "Craft to" ) + modeButton( "mode-repeat", CraftRepeatMode::Repeat, "Repeat" ) + "</div>";
+			jobEditor += "<div class='c-workshop-count-row'><span>Quantity</span><input id='workshop_job_count' class='text' type='number' min='1' max='999' value='" + std::to_string( row->count ) + "'/><button class='c-button' data-job-action='apply-count'>Apply</button></div>";
+			jobEditor += "<div class='c-workshop-editor__summary'>Crafted " + std::to_string( row->alreadyCrafted ) + " | materials: ";
+			for ( std::size_t index = 0; index < row->materials.size(); ++index )
+				jobEditor += ( index ? ", " : "" ) + safe( row->materials[index].value );
+			jobEditor += "</div><div class='c-workshop-actions'>";
+			jobEditor += "<button class='c-button' data-job-action='toggle-suspended'>" + std::string( row->suspended ? "Resume" : "Suspend" ) + "</button>";
+			jobEditor += "<button class='c-button" + std::string( row->moveBack ? " is-selected" : "" ) + "' data-job-action='toggle-move-back'>Move back when done</button>";
+			jobEditor += "<button class='c-button' data-job-action='front'>Top</button><button class='c-button' data-job-action='up'>Up</button><button class='c-button' data-job-action='down'>Down</button><button class='c-button' data-job-action='back'>Bottom</button>";
+			jobEditor += "<button class='c-button c-button--danger' data-job-action='cancel'>Cancel order</button></div>";
+		}
+	}
+	if ( auto* e = element( "workshop_job_selection" ) )
+		e->SetInnerRML( jobEditor );
 	const bool butcher = s.value.subtype == "Butcher";
 	const bool fisher  = s.value.subtype == "Fisher" || s.value.catchFish || s.value.processFish;
 	const bool trade   = s.value.subtype == "TradingPost" || s.tradeLoaded;
@@ -543,31 +865,68 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	text( "stockpile_error", s.request.message );
 	text( "stockpile_title", s.value.name.empty() ? textCatalog_.format( LocalizationKey{"stockpile.title"} ) : s.value.name );
 	formValue( "stockpile_name", s.value.name );
-	const auto displayPriority = std::max( 0, s.value.priority ) + 1;
+	const auto maximumPriority = std::max( 1, s.value.maxPriority );
+	const auto displayPriority = std::clamp( std::max( 0, s.value.priority ) + 1, 1, maximumPriority );
 	formValue( "stockpile_priority", std::to_string( displayPriority ) );
-	text( "stockpile_summary", textCatalog_.format( LocalizationKey{"management.stockpile_summary"}, {{"items",std::to_string(s.value.itemCount)},{"capacity",std::to_string(s.value.capacity)},{"reserved",std::to_string(s.value.reserved)},{"priority",std::to_string(displayPriority)},{"maximum",std::to_string(s.value.maxPriority)}} ) );
-	text( "stockpile_toggle_suspended", toggleText( s.value.suspended ? "Resume" : "Suspend", s.value.suspended ) );
-	text( "stockpile_toggle_pull", toggleText( "Pull from others", s.value.pullFromOthers ) );
-	text( "stockpile_toggle_allow_pull", toggleText( "Allow pull from here", s.value.allowPullFromHere ) );
+	enabled( "stockpile_priority_up", displayPriority > 1 );
+	enabled( "stockpile_priority_down", displayPriority < maximumPriority );
+	text( "stockpile_summary", textCatalog_.format( LocalizationKey{"management.stockpile_summary"}, {{"items",std::to_string(s.value.itemCount)},{"reserved",std::to_string(s.value.reserved)},{"status",s.value.suspended ? "Suspended" : "Active"}} ) );
+	text( "stockpile_toggle_suspended", s.value.suspended ? "Resume stockpile" : "Suspend stockpile" );
+	text( "stockpile_toggle_pull", std::string( s.value.pullFromOthers ? "[x] " : "[ ] " ) + "Take from lower-priority stockpiles" );
+	text( "stockpile_toggle_allow_pull", std::string( s.value.allowPullFromHere ? "[x] " : "[ ] " ) + "Let higher-priority stockpiles take from here" );
 	checked( "stockpile_toggle_suspended", s.value.suspended );
 	checked( "stockpile_toggle_pull", s.value.pullFromOthers );
 	checked( "stockpile_toggle_allow_pull", s.value.allowPullFromHere );
-	text( "stockpile_sort", std::string( "Sort contents " ) + ( s.sort == SortDirection::Ascending ? "A-Z v" : "Z-A v" ) );
-	const auto stockpileRows = std::max( s.visibleFilters.size(), s.visibleContents.size() );
-	if ( stockpilePage_ >= stockpileRows )
-		stockpilePage_ = stockpileRows ? pageSize_ * ( ( stockpileRows - 1 ) / pageSize_ ) : 0;
-	enabled( "stockpile_page_previous", stockpilePage_ > 0 );
-	enabled( "stockpile_page_next", stockpilePage_ + pageSize_ < stockpileRows );
+	const auto pane = s.pane;
+	visible( "stockpile_contents_pane", pane == StockpilePane::Contents );
+	visible( "stockpile_allow_pane", pane == StockpilePane::AllowList );
+	for ( const auto& tab : { std::pair { "stockpile_view_contents", pane == StockpilePane::Contents }, std::pair { "stockpile_view_allow", pane == StockpilePane::AllowList } } )
+		if ( auto* e = element( tab.first ) )
+		{
+			e->SetClass( "is-selected", tab.second );
+			e->SetAttribute( "aria-selected", tab.second ? "true" : "false" );
+		}
+	text( "stockpile_content_sort_item", "Item" );
+	text( "stockpile_content_sort_qty", "Qty" );
+	if ( auto* e = element( "stockpile_content_sort_item" ) )
+		e->SetClass( "is-selected", s.contentSort == StockpileSortKey::Item );
+	if ( auto* e = element( "stockpile_content_sort_qty" ) )
+		e->SetClass( "is-selected", s.contentSort == StockpileSortKey::Quantity );
+	formValue( "stockpile_filter_search", s.filterSearch );
+	formValue( "stockpile_content_search", s.contentSearch );
+	const auto isExpanded = [&]( const StockpileFilterRowId& id )
+	{ return std::find( s.expandedFilters.begin(), s.expandedFilters.end(), id ) != s.expandedFilters.end(); };
+	std::size_t allowedRules = 0;
+	std::size_t totalRules = 0;
+	std::size_t matchingRules = 0;
+	for ( const auto& r : s.value.filters )
+		if ( r.id.depth == FilterDepth::Material )
+		{
+			++totalRules;
+			allowedRules += r.state == TriState::On ? 1 : 0;
+		}
+	for ( const auto& r : s.visibleFilters )
+		if ( r.id.depth == FilterDepth::Material )
+			++matchingRules;
+	text( "stockpile_filter_count", std::to_string( allowedRules ) + " / " + std::to_string( totalRules ) + " allowed" );
+	text( "stockpile_content_count", std::to_string( s.visibleContents.size() ) + " entries" );
+	text( "stockpile_bulk_caption", s.filterSearch.empty() ? "Entire allow list" : std::to_string( matchingRules ) + " matching rules" );
+	enabled( "stockpile_allow_bulk", matchingRules > 0 );
+	enabled( "stockpile_block_bulk", matchingRules > 0 );
+	visible( "stockpile_restore_filter_search", s.filterSearchRevealed );
+	visible( "stockpile_nothing_allowed", totalRules > 0 && allowedRules == 0 );
 	std::string filters;
-	for ( std::size_t index = stockpilePage_; index < std::min( stockpilePage_ + pageSize_, s.visibleFilters.size() ); ++index )
+	for ( const auto& r : s.visibleFilters )
 	{
-		const auto& r       = s.visibleFilters[index];
 		const bool selected = s.selectedFilter && *s.selectedFilter == r.id;
 		const auto checked = r.state == TriState::On ? "true" : r.state == TriState::Off ? "false" : "mixed";
-		filters += "<button id='" + stockpileFilterRowId( r.id ) + "' class='c-m6a-row-button c-check-row c-m6a-filter-depth-" + std::to_string( static_cast<int>( r.id.depth ) ) + std::string( selected ? " is-selected" : "" ) + "' data-category='" + safe( r.id.category.value ) + "' data-group='" + safe( r.id.group.value ) + "' data-item='" + safe( r.id.item.value ) + "' data-material='" + safe( r.id.material.value ) + "' data-depth='" + std::to_string( static_cast<int>( r.id.depth ) ) + "' aria-selected='" + ( selected ? "true" : "false" ) + "' aria-checked='" + checked + "' aria-expanded='" + ( r.id.depth == FilterDepth::Material || r.state == TriState::Mixed ? "true" : "false" ) + "'>" + disclosure( r ) + check( r.state ) + " " + safe( r.label ) + "</button>";
+		const auto rowAttrs = " data-category='" + safe( r.id.category.value ) + "' data-group='" + safe( r.id.group.value ) + "' data-item='" + safe( r.id.item.value ) + "' data-material='" + safe( r.id.material.value ) + "' data-depth='" + std::to_string( static_cast<int>( r.id.depth ) ) + "'";
+		const auto rowClass = std::string( "c-m6a-filter-row c-m6a-filter-depth-" ) + std::to_string( static_cast<int>( r.id.depth ) ) + ( r.state == TriState::Mixed ? " is-mixed" : r.state == TriState::Off ? " is-off" : " is-on" ) + ( selected ? " is-selected" : "" );
+		const auto disclosure = r.id.depth == FilterDepth::Material ? std::string {} : ( isExpanded( r.id ) ? "v" : ">" );
+		filters += "<div id='" + stockpileFilterRowId( r.id ) + "' class='" + rowClass + "' tabindex='0' data-rule='true'" + rowAttrs + " aria-selected='" + ( selected ? "true" : "false" ) + "' aria-checked='" + checked + "' aria-expanded='" + ( isExpanded( r.id ) ? "true" : "false" ) + "' aria-label='" + safe( r.label ) + ": " + filterStateLabel( r.state ) + "'><button type='button' class='c-m6a-rule-button' data-rule='true'" + rowAttrs + " aria-checked='" + checked + "'><span id='" + stockpileFilterRowId( r.id ) + "_disclosure' class='c-m6a-disclosure-button' data-disclosure='true'" + rowAttrs + " role='button' tabindex='-1' aria-label='" + ( isExpanded( r.id ) ? "Collapse " : "Expand " ) + safe( r.label ) + "'>" + disclosure + "</span><span class='c-m6a-rule-check'>" + check( r.state ) + "</span>" + filterIcon( r ) + "<span class='c-m6a-filter-label'>" + safe( r.label ) + "</span><span class='c-m6a-filter-state'>" + filterStateLabel( r.state ) + "</span></button></div>";
 	}
 	if ( filters.empty() )
-		filters = "<div class='c-m6a-row'>No allowed-content rules match the filter.</div>";
+		filters = "<div class='c-m6a-row'>" + std::string( s.filterSearch.empty() ? "No allow-list rules are available." : "No rules match this search." ) + "</div>";
 	if ( auto* e = element( "stockpile_filters" ) )
 	{
 		const bool restore = e->Contains( context_.GetFocusElement() );
@@ -581,7 +940,7 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	{
 		const auto selected = std::find_if( s.value.filters.begin(), s.value.filters.end(), [&]( const auto& row ) { return row.id == *s.selectedFilter; } );
 		if ( selected != s.value.filters.end() )
-			filterSelection = "Selected: " + selected->label + " | " + stateName( selected->state ) + " | depth " + std::to_string( static_cast<int>( selected->id.depth ) );
+			filterSelection = "Selected rule: " + selected->label + " — " + filterStateLabel( selected->state );
 		else
 			filterSelection = "Selected filter row is unavailable";
 		if ( s.selectionFiltered )
@@ -591,14 +950,14 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	auto contentRowId = []( const StockpileContentRowId& r )
 	{ return "m6a_content_" + hex( r.item.value ) + "_" + hex( r.material.value ); };
 	std::string rows;
-	for ( std::size_t index = stockpilePage_; index < std::min( stockpilePage_ + pageSize_, s.visibleContents.size() ); ++index )
+	for ( const auto& r : s.visibleContents )
 	{
-		const auto& r       = s.visibleContents[index];
 		const bool selected = s.selectedContent && *s.selectedContent == r.id;
-		rows += "<button id='" + contentRowId( r.id ) + "' class='c-m6a-row-button" + std::string( selected ? " is-selected" : "" ) + "' data-item='" + safe( r.id.item.value ) + "' data-material='" + safe( r.id.material.value ) + "'>" + safe( r.itemName ) + " | " + safe( r.materialName ) + " | " + std::to_string( r.count ) + "</button>";
+		const auto ruleClass = std::string( r.allowed ? "c-m6a-content-rule--allowed" : "c-m6a-content-rule--blocked" );
+		rows += "<button id='" + contentRowId( r.id ) + "' class='c-m6a-row-button c-m6a-content-row" + std::string( selected ? " is-selected" : "" ) + "' data-item='" + safe( r.id.item.value ) + "' data-material='" + safe( r.id.material.value ) + "' aria-label='" + safe( r.itemName ) + ": " + safe( r.materialName ) + ", " + std::to_string( r.count ) + " stored, " + ( r.allowed ? "Allowed" : "Blocked" ) + "'><span class='c-m6a-content-name'>" + safe( r.itemName ) + "</span><span class='c-m6a-content-material'>" + safe( r.materialName ) + "</span><span class='c-m6a-content-count'>" + std::to_string( r.count ) + "</span><span class='c-m6a-content-rule " + ruleClass + "'>" + ( r.allowed ? "Allowed" : "Blocked" ) + "</span></button>";
 	}
 	if ( rows.empty() )
-		rows = "<div class='c-m6a-row'>No contents match the filter.</div>";
+		rows = "<div class='c-m6a-row'>" + std::string( s.contentSearch.empty() ? "No items stored here yet." : "No stored items match this search." ) + "</div>";
 	if ( auto* e = element( "stockpile_rows" ) )
 	{
 		const bool restore = e->Contains( context_.GetFocusElement() );
@@ -607,7 +966,13 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 			if ( auto* row = element( contentRowId( *s.selectedContent ).c_str() ) )
 				row->Focus();
 	}
-	text( "stockpile_content_selection", s.selectedContent ? "Selected: " + s.selectedContent->item.value + " / " + s.selectedContent->material.value : "No content row selected" );
+	std::string contentSelection = "No content row selected";
+	if ( s.selectedContent )
+	{
+		const auto selected = std::find_if( s.value.contents.begin(), s.value.contents.end(), [&]( const auto& row ) { return row.id == *s.selectedContent; } );
+		contentSelection = selected == s.value.contents.end() ? "Selected content row is unavailable" : "Selected item: " + selected->itemName + " — " + selected->materialName + " — " + std::to_string( selected->count ) + " stored";
+	}
+	text( "stockpile_content_selection", contentSelection );
 	text( "stockpile_status", s.request.refreshInProgress ? textCatalog_.format( LocalizationKey{"status.refreshing"} ) : std::string {} );
 }
 void Management6ARmlBinding::renderAgriculture( const AgricultureState& s )
@@ -699,6 +1064,13 @@ void Management6ARmlBinding::stateChanged( const Management6AState& s )
 {
 	if ( !workshop_ || !stockpile_ || !agriculture_ )
 		return;
+	if ( !presentationEnabled_ )
+	{
+		workshop_->Hide();
+		stockpile_->Hide();
+		agriculture_->Hide();
+		return;
+	}
 	if ( s.view != activeView_ )
 	{
 		if ( activeView_ == ManagementView::Workshop )

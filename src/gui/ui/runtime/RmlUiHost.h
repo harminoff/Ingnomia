@@ -3,6 +3,7 @@
 #include "RmlUiQtInputAdapter.h"
 
 #include <QSize>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
 
@@ -25,6 +26,29 @@ namespace debug { class DebugRmlBinding; }
 class IngnomiaRmlUiRenderer;
 class QtRmlFileInterface;
 class QtRmlSystemInterface;
+class RmlUiHost;
+
+class RmlUiDetachedContext final
+{
+public:
+    ~RmlUiDetachedContext();
+    RmlUiDetachedContext( const RmlUiDetachedContext& ) = delete;
+    RmlUiDetachedContext& operator=( const RmlUiDetachedContext& ) = delete;
+
+    Rml::Context* context() const noexcept { return m_context; }
+    RmlUiQtInputAdapter& input() noexcept { return m_input; }
+    QWindow* window() const noexcept { return m_window.data(); }
+    const QString& name() const noexcept { return m_contextName; }
+
+private:
+    friend class RmlUiHost;
+    RmlUiDetachedContext( QWindow* window, QString contextName, Rml::Context* context );
+
+    QPointer<QWindow> m_window;
+    QString m_contextName;
+    Rml::Context* m_context = nullptr;
+    RmlUiQtInputAdapter m_input;
+};
 
 class RmlUiHost final
 {
@@ -57,6 +81,15 @@ public:
     bool render();
     double nextUpdateDelay() const;
 
+    std::unique_ptr<RmlUiDetachedContext> createDetachedContext( QWindow* window,
+        const QString& contextName, QSize physicalSize, float densityIndependentPixelRatio );
+    bool destroyDetachedContext( std::unique_ptr<RmlUiDetachedContext>& detached );
+    bool resizeDetached( RmlUiDetachedContext&, QSize physicalSize, float densityIndependentPixelRatio );
+    bool updateDetached( RmlUiDetachedContext& );
+    bool renderDetached( RmlUiDetachedContext& );
+    Rml::ElementDocument* loadDocument( RmlUiDetachedContext&, const QString& logicalPath, bool show = true );
+    void setSystemWindow( QWindow* window );
+
     Rml::ElementDocument* loadDocument( const QString& logicalPath, bool show = true );
     bool unloadDocument( Rml::ElementDocument* document );
     Rml::Context* context() const noexcept;
@@ -75,6 +108,7 @@ private:
     bool requireCurrentContext( const char* operation ) const;
 
     QString m_contextName;
+    QPointer<QWindow> m_ownerWindow;
     std::unique_ptr<QtRmlSystemInterface> m_system;
     std::unique_ptr<QtRmlFileInterface> m_files;
     std::unique_ptr<IngnomiaRmlUiRenderer> m_renderer;
@@ -84,6 +118,7 @@ private:
     std::unique_ptr<hud::HudRmlBinding> m_hudBinding;
     std::unique_ptr<inspector::InspectorRmlBinding> m_inspectorBinding;
     std::vector<std::unique_ptr<inspector::InspectorRmlBinding>> m_creatureInspectorBindings;
+    std::vector<RmlUiDetachedContext*> m_detachedContexts;
     std::unique_ptr<management6b::Management6BRmlBinding> m_management6bBinding;
 #if defined(INGNOMIA_DEVELOPER_UI)
     std::unique_ptr<debug::DebugRmlBinding> m_debugBinding;

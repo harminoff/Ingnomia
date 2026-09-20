@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Generate small RmlUi-compatible build thumbnails from the game DB.
+"""Generate small RmlUi-compatible thumbnails from the game DB.
 
 The checked-in PNG tilesheets remain the source of truth. RmlUi's pinned GL3
 backend loads uncompressed TGA, so each thumbnail is cropped once into a
 small TGA and can be rendered without background-position or CSS sprite
-support. The script is deterministic and safe to rerun.
+support. The regular ``build_`` crops retain their DB rectangles for build
+consumers. ``inventory_`` and ``filter_`` crops trim transparent padding and
+normalize the visible art for their respective list cells. The script is
+deterministic and safe to rerun.
 """
 
 from pathlib import Path
@@ -29,6 +32,10 @@ FALLBACK_BASE_IDS = {
     "Painting1", "PickaxeHead", "PumpBase", "SteamEngineBoilerFR", "SwordBlade",
     "GroundTorchBase", "Carrot", "Axle", "WallTorchBaseFR", "WarhammerHead"
 }
+FILTER_THUMBNAIL_SIZE = 24
+FILTER_THUMBNAIL_INSET = 1
+INVENTORY_THUMBNAIL_SIZE = 40
+INVENTORY_THUMBNAIL_INSET = 2
 
 
 def values(connection: sqlite3.Connection, table: str, column: str):
@@ -47,13 +54,48 @@ def resolve_base_ids(connection: sqlite3.Connection, sprite_id: str, base_ids: s
         return {sprite_id}
 
     resolved: set[str] = set()
-    for row in connection.execute('SELECT "Sprite" FROM "Sprites_ByMaterialTypes" WHERE "ID" = ?', (sprite_id,)):
+    for row in connection.execute('SELECT "BaseSprite", "Sprite" FROM "Sprites_ByMaterials" WHERE "ID" = ?', (sprite_id,)):
         resolved |= resolve_base_ids(connection, row[0], base_ids, seen)
+        resolved |= resolve_base_ids(connection, row[1], base_ids, seen)
+    for row in connection.execute('SELECT "BaseSprite", "Sprite" FROM "Sprites_ByMaterialTypes" WHERE "ID" = ?', (sprite_id,)):
+        resolved |= resolve_base_ids(connection, row[0], base_ids, seen)
+        resolved |= resolve_base_ids(connection, row[1], base_ids, seen)
     for row in connection.execute('SELECT "BaseSprite" FROM "Sprites_Rotations" WHERE "ID" = ?', (sprite_id,)):
         resolved |= resolve_base_ids(connection, row[0], base_ids, seen)
+    for row in connection.execute('SELECT "BaseSprite", "Sprite" FROM "Sprites_Combine" WHERE "ID" = ?', (sprite_id,)):
+        resolved |= resolve_base_ids(connection, row[0], base_ids, seen)
+        resolved |= resolve_base_ids(connection, row[1], base_ids, seen)
     for row in connection.execute('SELECT "BaseSprite" FROM "Sprites" WHERE "ID" = ?', (sprite_id,)):
         resolved |= resolve_base_ids(connection, row[0], base_ids, seen)
     return resolved
+
+
+def make_thumbnail(crop: Image.Image, size: int, inset: int):
+    """Return a centered, alpha-trimmed nearest-neighbor thumbnail."""
+    bbox = crop.getchannel("A").getbbox()
+    if bbox is None:
+        return None
+    visible = crop.crop(bbox)
+    usable = size - (inset * 2)
+    scale = min(usable / visible.width, usable / visible.height)
+    scaled_size = (
+        max(1, round(visible.width * scale)),
+        max(1, round(visible.height * scale)),
+    )
+    scaled = visible.resize(scaled_size, Image.Resampling.NEAREST)
+    thumbnail = Image.new(
+        "RGBA",
+        (size, size),
+        (0, 0, 0, 0),
+    )
+    thumbnail.alpha_composite(
+        scaled,
+        (
+            (size - scaled.width) // 2,
+            (size - scaled.height) // 2,
+        ),
+    )
+    return thumbnail
 
 
 def main() -> int:
@@ -82,6 +124,8 @@ def main() -> int:
     resolved |= FALLBACK_BASE_IDS
 
     generated = 0
+    generated_inventory = 0
+    generated_filter = 0
     skipped = 0
     for base_id in sorted(resolved):
         rect, sheet = base_rows[base_id]
@@ -99,7 +143,21 @@ def main() -> int:
             output = SHEET_DIR / f"build_{re.sub(r'[^A-Za-z0-9_-]', '_', base_id)}.tga"
             crop.save(output, format="TGA")
             generated += 1
-    print(f"generated={generated} skipped={skipped} resolved={len(resolved)}")
+            inventory_thumbnail = make_thumbnail(
+                crop, INVENTORY_THUMBNAIL_SIZE, INVENTORY_THUMBNAIL_INSET
+            )
+            if inventory_thumbnail is not None:
+                inventory_output = SHEET_DIR / f"inventory_{re.sub(r'[^A-Za-z0-9_-]', '_', base_id)}.tga"
+                inventory_thumbnail.save(inventory_output, format="TGA")
+                generated_inventory += 1
+            filter_thumbnail = make_thumbnail(
+                crop, FILTER_THUMBNAIL_SIZE, FILTER_THUMBNAIL_INSET
+            )
+            if filter_thumbnail is not None:
+                filter_output = SHEET_DIR / f"filter_{re.sub(r'[^A-Za-z0-9_-]', '_', base_id)}.tga"
+                filter_thumbnail.save(filter_output, format="TGA")
+                generated_filter += 1
+    print(f"generated={generated} generated_inventory={generated_inventory} generated_filter={generated_filter} skipped={skipped} resolved={len(resolved)}")
     return 0
 
 

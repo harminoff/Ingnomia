@@ -123,6 +123,22 @@ World* WorldGenerator::generateTopology()
 	emit signalStatus( "Set stone layers." );
 	setStoneLayers();
 
+	// Measure the undisturbed terrain before carving rivers. Ocean water must
+	// sit below the lowest dry walking surface, regardless of world depth or
+	// ground-height settings. A fixed world Z creates an elevated reservoir.
+	m_oceanLevel = m_dimZ - 2;
+	for ( int y = 1; y < m_dimY - 1; ++y )
+	{
+		for ( int x = 1; x < m_dimX - 1; ++x )
+		{
+			Position surface( x, y, m_dimZ - 1 );
+			w->getFloorLevelBelow( surface, false );
+			const bool wall = (bool)( w->getTile( surface ).wallType & WT_MOVEBLOCKING );
+			m_oceanLevel = qMin( m_oceanLevel, surface.z - ( wall ? 0 : 1 ) );
+		}
+	}
+	m_oceanLevel = qMax( 2, m_oceanLevel );
+
 	if ( ngs->rivers() > 0 )
 	{
 		createRivers();
@@ -1366,167 +1382,39 @@ QString WorldGenerator::getRandomEmbedded( int x, int y, int z, QMap<QString, Em
 ///        according to the ocean size setting. Also creates a sandy beach transition zone.
 void WorldGenerator::createOceanFront()
 {
-	srand( std::chrono::system_clock::now().time_since_epoch().count() );
-
+	// Use the world seed, not wall-clock time, so a seed reproduces its coast.
+	const int edge = qBound( 0, int( perlinRandWhiteNoise( 19, 73 ) * 4 ), 3 );
+	const int sandRowID = DBH::materialUID( "Sand" );
+	const int length = ( edge == 0 || edge == 2 ) ? m_dimY : m_dimX;
+	const int across = ( edge == 0 || edge == 2 ) ? m_dimX : m_dimY;
+	const int size = qBound( 1, ngs->oceanSize(), across - 3 );
 	auto& world = w->world();
 
-	int size = ngs->oceanSize();
-
-	int edge = rand() % 4;
-
-	int xStart = 1;
-	int yStart = 1;
-	int maxX   = m_dimX - 2;
-	int maxY   = m_dimY - 2;
-	int xAdd   = 1;
-	int yAdd   = 1;
-
-	int sandRowID = DBH::materialUID( "Sand" );
-
-	QVector<int> sizes;
-	for ( int i = 0; i < m_dimX; ++i )
+	for ( int along = 1; along < length - 1; ++along )
 	{
-		sizes.push_back( size + ( m_heightMap2[i + 20 * m_dimX] * size ) );
-	}
-
-	switch ( edge )
-	{
-		case 0:
+		const int width = qBound( 1, int( size + m_heightMap2[along + 20 * m_dimX] * size ), across - 3 );
+		for ( int distance = 0; distance < width; ++distance )
 		{
-			for ( int y = 1; y < m_dimY - 1; ++y )
+			const int x = edge == 0 ? 1 + distance : edge == 2 ? m_dimX - 2 - distance : along;
+			const int y = edge == 1 ? 1 + distance : edge == 3 ? m_dimY - 2 - distance : along;
+			Position surface( x, y, m_dimZ - 1 );
+			w->getFloorLevelBelow( surface, false );
+			const int existingBed = surface.z - ( ( w->getTile( surface ).wallType & WT_MOVEBLOCKING ) ? 0 : 1 );
+			const int depth = qMin( 8, width - distance );
+			// Taper to shallow water at the shore. Preserve a deeper river bed at
+			// intersections instead of raising it or leaving a perched water floor.
+			const int bed = qMax( 1, qMin( existingBed, m_oceanLevel - depth ) );
+			for ( int z = bed + 1; z < m_dimZ; ++z )
 			{
-				int ySize = sizes[y];
-				for ( int i = 0; i < ySize; ++i )
-				{
-					int x = xStart + i;
-					decreaseHeight( x, y, qMin( 10, ySize - i ) );
-					setSandFloor( x, y, sandRowID );
-				}
+				// Clear previous river water/markers and surface floors together.
+				// initWater() rebuilds sources and drains from the resulting tiles.
+				world[x + y * m_dimX + z * m_dimX * m_dimY] = Tile {};
 			}
-
-			int z = 99; //getLowestZonXLine( xStart + size );
-
-			for ( int y = 1; y < m_dimY - 1; ++y )
-			{
-				int ySize = sizes[y];
-				for ( int i = 0; i < ySize; ++i )
-				{
-					int x = xStart + i;
-					fillWater( x, y, z );
-				}
-			}
-			break;
-		}
-		case 1:
-		{
-			for ( int x = 1; x < m_dimX - 1; ++x )
-			{
-				size = sizes[x];
-				for ( int i = 0; i < size; ++i )
-				{
-					int y = yStart + i;
-					decreaseHeight( x, y, qMin( 10, size - i ) );
-					setSandFloor( x, y, sandRowID );
-				}
-			}
-			int z = 99; //getLowestZonYLine( yStart + size );
-
-			for ( int x = 1; x < m_dimX - 1; ++x )
-			{
-				size = sizes[x];
-				for ( int i = 0; i < size; ++i )
-				{
-					int y = yStart + i;
-					fillWater( x, y, z );
-				}
-			}
-			break;
-		}
-		case 2:
-		{
-			for ( int y = 1; y < m_dimY - 1; ++y )
-			{
-				size = sizes[y];
-				for ( int i = 0; i < size; ++i )
-				{
-					int x = maxX - i;
-					decreaseHeight( x, y, qMin( 10, size - i ) );
-					setSandFloor( x, y, sandRowID );
-				}
-			}
-			int z = 99; // getLowestZonXLine( maxX - size );
-
-			for ( int y = 1; y < m_dimY - 1; ++y )
-			{
-				size = sizes[y];
-				for ( int i = 0; i < size; ++i )
-				{
-					int x = maxX - i;
-					fillWater( x, y, z );
-				}
-			}
-			break;
-		}
-		case 3:
-		{
-
-			for ( int x = 1; x < m_dimX - 1; ++x )
-			{
-				size = sizes[x];
-				for ( int i = 0; i < size; ++i )
-				{
-					int y = maxY - i;
-					decreaseHeight( x, y, qMin( 10, size - i ) );
-					setSandFloor( x, y, sandRowID );
-				}
-			}
-			int z = 99; //getLowestZonYLine( maxY - size );
-
-			for ( int x = 1; x < m_dimX - 1; ++x )
-			{
-				size = sizes[x];
-				for ( int i = 0; i < size; ++i )
-				{
-					int y = maxY - i;
-					fillWater( x, y, z );
-				}
-			}
-			break;
+			setSandFloor( x, y, sandRowID );
+			fillWater( x, y, m_oceanLevel );
 		}
 	}
-}
-
-/// @brief Lowers the height-map value at (x, y) by @p diff, updating the tile column
-///        to remove walls above the new height and open the surface.
-/// @param x    X coordinate.
-/// @param y    Y coordinate.
-/// @param diff Amount by which to reduce the height.
-void WorldGenerator::decreaseHeight( int x, int y, int diff )
-{
-	Position pos( x, y, m_dimZ - 1 );
-	w->getFloorLevelBelow( pos, true );
-
-	auto& world = w->world();
-
-	for ( int i = 0; i < diff; ++i )
-	{
-		if ( pos.z - i > 92 )
-		{
-			Tile& tile = world[x + y * m_dimX + ( pos.z - i ) * m_dimX * m_dimY];
-
-			tile.wallType      = WT_NOWALL;
-			tile.wallMaterial  = 0;
-			tile.flags         = TileFlag::TF_NONE;
-			tile.wallSpriteUID = 0;
-
-			tile.floorType      = FT_NOFLOOR;
-			tile.floorMaterial  = 0;
-			tile.floorSpriteUID = 0;
-
-			tile.flags += TileFlag::TF_SUNLIGHT;
-			//w->addWater( Position( x, y, pos.z - i ), 8 );
-		}
-	}
+	qDebug() << "Ocean generated: edge" << edge << "surface" << m_oceanLevel << "width" << size;
 }
 
 /// @brief Replaces the surface floor sprite at (x, y) with a sand-floor sprite
@@ -1562,36 +1450,6 @@ void WorldGenerator::setSandFloor( int x, int y, int sandRowID )
 	// visual marker and its simulation mass on the same tile so a generated
 	// river cannot report 100% water while rendering an empty surface.
 	w->addWater( Position( x, y, pos.z + 1 ), 10 );
-}
-
-/// @brief Returns the minimum height-map value along the entire X column at @p x.
-/// @param x X coordinate.
-/// @return Lowest Z value in column x.
-int WorldGenerator::getLowestZonXLine( int x )
-{
-	short maxZ = m_dimZ - 1;
-	for ( int y = 1; y < m_dimY - 1; ++y )
-	{
-		Position pos( x, y, m_dimZ - 1 );
-		w->getFloorLevelBelow( pos, false );
-		maxZ = qMin( maxZ, pos.z );
-	}
-	return maxZ;
-}
-
-/// @brief Returns the minimum height-map value along the entire Y row at @p y.
-/// @param y Y coordinate.
-/// @return Lowest Z value in row y.
-int WorldGenerator::getLowestZonYLine( int y )
-{
-	short maxZ = m_dimZ - 1;
-	for ( int x = 1; x < m_dimX - 1; ++x )
-	{
-		Position pos( x, y, m_dimZ - 1 );
-		w->getFloorLevelBelow( pos, false );
-		maxZ = qMin( maxZ, pos.z );
-	}
-	return maxZ;
 }
 
 /// @brief Fills the tile at (x, y, z) with water (full fluid level) and marks it walkable
@@ -1655,25 +1513,30 @@ void WorldGenerator::createRivers()
 
 		worms.append( riverWorm( pos, dir, i, m_dimX * 3 ) );
 	}
-	QList<std::vector<Position>> worms2;
-	for ( auto worm : worms )
+	// Generated waterways are settled bodies, not columns of water held at
+	// each terrain sample's height. Give the connected river network a common
+	// surface below all of its banks (and the ocean when present), otherwise
+	// the high segments and their sources continuously flood the low ground.
+	int riverLevel = ngs->oceanSize() > 0 ? m_oceanLevel : m_dimZ - 2;
+	const int radius = ngs->riverSize() + 1;
+	for ( const auto& worm : worms )
+	for ( const auto& pos : worm )
 	{
-		int prevZ = m_dimZ - 1;
-
-		for ( int i = 0; i < worm.size(); ++i )
+		for ( int y = qMax( 1, pos.y - radius ); y <= qMin( m_dimY - 2, pos.y + radius ); ++y )
+		for ( int x = qMax( 1, pos.x - radius ); x <= qMin( m_dimX - 2, pos.x + radius ); ++x )
 		{
-			auto pos = worm[i];
-			w->getFloorLevelBelow( pos, false );
-
-			if ( pos.z > prevZ )
-			{
-				pos.z = prevZ;
-			}
-			prevZ   = pos.z;
-			worm[i] = pos;
+			Position bank( x, y, m_dimZ - 1 );
+			w->getFloorLevelBelow( bank, false );
+			const bool wall = (bool)( w->getTile( bank ).wallType & WT_MOVEBLOCKING );
+			riverLevel = qMin( riverLevel, bank.z - ( wall ? 0 : 1 ) );
 		}
-		worms2.append( worm );
 	}
+	riverLevel = qMax( 2, riverLevel );
+	QList<std::vector<Position>> worms2 = worms;
+	for ( auto& worm : worms2 )
+	for ( auto& pos : worm ) pos.z = riverLevel + 1;
+	qDebug() << "Rivers generated: surface" << riverLevel << "count" << worms.size();
+
 	for ( auto worm : worms2 )
 	{
 		for ( int i = 0; i < worm.size(); ++i )
@@ -1812,58 +1675,24 @@ std::vector<Position> WorldGenerator::riverWorm( Position pos, int dir, int num,
 /// @param pos   Centre position of the river cross-section.
 void WorldGenerator::carveRiver( std::vector<Tile>& world, Position& pos )
 {
-	int size = ngs->riverSize();
-	int sandRowID = DBH::materialUID( "Sand" );
-	for ( int x = pos.x - size; x < pos.x + size + 1; ++x )
+	const int size = ngs->riverSize();
+	const int sandRowID = DBH::materialUID( "Sand" );
+	for ( int x = qMax( 1, pos.x - size ); x <= qMin( m_dimX - 2, pos.x + size ); ++x )
 	{
-		for ( int y = pos.y - size; y < pos.y + size + 1; ++y )
+		for ( int y = qMax( 1, pos.y - size ); y <= qMin( m_dimY - 2, pos.y + size ); ++y )
 		{
-			if ( x > 0 && x < m_dimX - 1 && y > 0 && y < m_dimY - 1 )
+			Position surface( x, y, m_dimZ - 1 );
+			w->getFloorLevelBelow( surface, false );
+			const int existingBed = surface.z - ( ( w->getTile( surface ).wallType & WT_MOVEBLOCKING ) ? 0 : 1 );
+			const int bed = qMax( 1, qMin( existingBed, pos.z - 3 ) );
+			for ( int z = bed + 1; z < m_dimZ; ++z )
 			{
-				Tile& tile         = world[x + y * m_dimX + pos.z * m_dimX * m_dimY];
-				tile.wallSpriteUID = 0;
-				tile.flags         = TileFlag::TF_NONE;
-				tile.wallType      = WallType::WT_NOWALL;
-				tile.wallMaterial  = 0;
-
-				tile.floorType      = FT_NOFLOOR;
-				tile.floorMaterial  = 0;
-				tile.floorSpriteUID = 0;
-
-				Tile& tile2         = world[x + y * m_dimX + ( pos.z - 1 ) * m_dimX * m_dimY];
-				tile2.wallSpriteUID = 0;
-				tile2.flags         = TileFlag::TF_NONE;
-				tile2.wallType      = WallType::WT_NOWALL;
-				tile2.wallMaterial  = 0;
-
-				tile2.floorType      = FT_NOFLOOR;
-				tile2.floorMaterial  = 0;
-				tile2.floorSpriteUID = 0;
-
-				Tile& tile3         = world[x + y * m_dimX + ( pos.z - 2 ) * m_dimX * m_dimY];
-				tile3.wallSpriteUID = 0;
-				tile3.flags         = TileFlag::TF_NONE;
-				tile3.wallType      = WallType::WT_NOWALL;
-				tile3.wallMaterial  = 0;
-
-				w->addWater( Position( x, y, pos.z - 1 ), 10 );
-				w->addWater( Position( x, y, pos.z - 2 ), 10 );
-
-				for ( int z = pos.z; z < m_dimZ - 1; ++z )
-				{
-					Tile& tile         = world[x + y * m_dimX + z * m_dimX * m_dimY];
-					tile.wallSpriteUID = 0;
-					tile.flags         = TileFlag::TF_NONE;
-					tile.wallType      = WallType::WT_NOWALL;
-					tile.wallMaterial  = 0;
-
-					tile.floorType      = FT_NOFLOOR;
-					tile.floorMaterial  = 0;
-					tile.floorSpriteUID = 0;
-				}
-				setSandFloor( x, y, sandRowID );
-
+				world[x + y * m_dimX + z * m_dimX * m_dimY] = Tile {};
 			}
+			// Author one continuous column on its bed, rather than filling two
+			// arbitrary heights and then moving the floor up through that water.
+			setSandFloor( x, y, sandRowID );
+			fillWater( x, y, pos.z - 1 );
 		}
 	}
 }

@@ -29,7 +29,14 @@ public:
 	void setSelectionSize( std::string );
 	void setSelectionPointer( std::optional<PointerPosition> );
 	void openCreature( CreatureId );
+	void toggleCreatureStats();
+	void toggleCreatureSkills();
 	void toggleCreatureDetails();
+	void selectEquipmentSlot( UniformSlot );
+	void setEquipmentDraftType( CatalogId );
+	void setEquipmentDraftMaterial( CatalogId );
+	void applyEquipmentSlot();
+	void closeEquipmentEditor();
 	void executeContext( TileContextAction );
 	void toggleWorkshopSuspended();
 	void toggleStockpileSuspended();

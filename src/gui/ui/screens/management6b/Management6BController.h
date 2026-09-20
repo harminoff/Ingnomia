@@ -32,6 +32,8 @@ class Management6BController
 {
 public:
 	Management6BController( CommandPort&, ViewPort& );
+	void addViewPort( ViewPort& );
+	void removeViewPort( ViewPort& );
 	[[nodiscard]] const Management6BState& state() const noexcept
 	{
 		return state_;
@@ -51,6 +53,7 @@ public:
 	void closePopulation();
 	void closeInventory();
 	void refresh();
+	void inventoryChanged();
 	void setPopulationFilter( std::string );
 	void setInventoryFilter( std::string );
 	void setInventoryOwnedOnly( bool );
@@ -100,11 +103,13 @@ private:
 	bool accepts( WorldEpoch, Revision incoming, Revision current ) const;
 	void requestPopulationRefresh();
 	void requestInventoryRefresh();
+	void collapseInventorySections();
 	void reconcileSelection();
 	void notify();
 	CommandPort& commands_;
-	ViewPort& view_;
+	std::vector<ViewPort*> views_;
 	Management6BState state_;
+	bool inventoryExpansionInitialized_ {};
 	std::uint64_t nextRequest_ { 1 };
 };
 } // namespace ingnomia::ui::management6b

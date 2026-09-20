@@ -91,6 +91,7 @@ protected:
 	int m_sceneWidth = 0;
 	int m_sceneHeight = 0;
 	QHash<unsigned int, CreatureCameraTarget> m_creatureCameraTargets;    ///< Latest render-time target per creature.
+	std::array<qint64, cameraPreviewSlotCount> m_cameraPreviewLastPaintMs{}; ///< Last off-screen preview render per slot.
 	// Keep the off-screen camera square so the UI can present a true 4:4 view
 	// without stretching the isometric world texture.
 	static constexpr int m_cameraPreviewWidth = 256;
@@ -189,6 +190,7 @@ private:
 
 	QElapsedTimer m_creatureMotionClock;        ///< Render clock used to measure simulation intervals.
 	QElapsedTimer m_waterClock;                 ///< Real render-time clock for frame-rate-independent waves.
+	qint64 m_lastDaylightUpdateMs = -1;         ///< Last render timestamp used to settle the sun curve.
 	qint64 m_lastCreatureMotionStartMs = -1;    ///< Start time of the most recent moving-creature update.
 	qint64 m_creatureMotionIntervalMs = 50;     ///< Estimated simulation interval used for interpolation.
 	float m_creatureInterpolation = 1.0f;       ///< 0 at the last tick, 1 when it catches up.
@@ -214,6 +216,7 @@ public slots:
 	void cleanup();
 	void cleanupWorld();
 
+	void onSimulationTick( quint64 tick );
 	void onTileUpdates( const TileDataUpdateInfo& updates );
 	void onThoughtBubbles( const ThoughtBubbleInfo& bubbles );
 	void onAxelData( const AxleDataInfo& data );

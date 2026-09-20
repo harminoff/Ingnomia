@@ -34,3 +34,5 @@ else()
   target_compile_options(water_flow_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endif()
 add_test(NAME water_flow_tests COMMAND water_flow_tests)
+set_tests_properties(water_flow_tests PROPERTIES
+  ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")

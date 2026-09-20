@@ -179,13 +179,19 @@ Listen to `QWindow::screenChanged`, relevant `QScreen` DPI signals, resize event
 - A shared context avoids texture transfer and synchronization between world and UI.
 - UI-last compositing matches the official GL3 renderer's framebuffer-0 final pass.
 - Physical pixels align RmlUi geometry, scissor/stencil clipping, the GL viewport, and Qt's framebuffer.
-- The boundary can later support offscreen UI only by adding a deliberately separate renderer/context contract.
+- The primary game surface remains a single RmlUi context, while opt-in detached windows use a deliberately separate context contract.
+
+### Detached popup windows
+
+Detached windows are a narrowly-scoped escape hatch for UI that benefits from independent top-level window ownership, such as creature inspectors. They are native Qt top-level windows with their own `QOpenGLContext`, sharing the main context's resources but using a renderer instance created in that context. Each window has its own RmlUi context, renderer, input adapter, dimensions, DPI scale, render timer, and close/focus lifecycle, so it can be moved, focused, resized, or placed on another monitor without moving the game's HUD or world camera.
+
+The detached path must not create a second world renderer or duplicate game state. Commands continue through the existing UI command ports, and shared camera-preview textures remain owned by the main renderer. Management/workbench screens stay embedded until they have an explicit reason to become top-level windows. Every detached context must be destroyed before the primary RmlUi host shuts down.
 
 ### Rejected alternatives
 
 **RmlUi GLFW/SDL backend embedded in Qt.** Rejected: those backends own a different windowing/event abstraction and are sample backends intended to be adapted, not stacked under a Qt `QWindow`.
 
-**A second shared OpenGL context for UI.** Rejected for the primary UI because it adds synchronization and ownership complexity, and the final composition still needs the Qt window context. It remains an option only for future background/offscreen generation after measurement.
+**A second shared OpenGL context for the primary UI.** Rejected because it adds synchronization and ownership complexity, and the final composition still needs the Qt window context. The same mechanism is permitted for opt-in native detached windows where independent top-level ownership is the feature being delivered; those windows must use the lifecycle and resource-sharing contract above.
 
 **A from-scratch OpenGL renderer.** Rejected because the official GL3 renderer is the only built-in renderer that implements all advanced 6.x effects and has RmlUi's visual-test coverage. The adapter should stay thin.
 

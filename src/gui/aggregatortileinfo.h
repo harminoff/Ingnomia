@@ -50,6 +50,7 @@ struct GuiItemInfo
 	unsigned int count = 0;    ///< Stack count on this tile.
 	bool inStockpile = false;  ///< True if the item is held by a stockpile.
 	bool inContainer = false;  ///< True if the item is inside a container.
+	bool available = false;    ///< True when the active job can currently satisfy this requirement.
 };
 
 /// @brief Full Tile Info payload.

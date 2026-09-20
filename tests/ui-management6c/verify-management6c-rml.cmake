@@ -18,6 +18,29 @@ file(READ "${STYLE}" style)
 file(READ "${BINDING}" binding)
 file(READ "${TEXT}" text_catalog)
 
+foreach(tab IN ITEMS "military_tab_squads" "military_tab_roles" "military_tab_priorities"
+    "military_tab_neighbors" "military_tab_missions" "diplomacy_tab_squads"
+    "diplomacy_tab_roles" "diplomacy_tab_priorities" "diplomacy_tab_neighbors" "diplomacy_tab_missions")
+  if((tab MATCHES "^military_" AND NOT military MATCHES "id=\"${tab}\"")
+      OR (tab MATCHES "^diplomacy_" AND NOT diplomacy MATCHES "id=\"${tab}\""))
+    message(FATAL_ERROR "Shared Military and Diplomacy navigation is missing ${tab}")
+  endif()
+endforeach()
+
+foreach(document IN ITEMS military diplomacy)
+  foreach(needle IN ITEMS "role=\"tablist\"" "role=\"tab\"" "aria-selected=\"false\"" "c-tabs__tab")
+    string(FIND "${${document}}" "${needle}" tab_contract)
+    if(tab_contract LESS 0)
+      message(FATAL_ERROR "${document} property-sheet tab contract missing ${needle}")
+    endif()
+  endforeach()
+endforeach()
+foreach(needle IN ITEMS "gap: 0" "margin: 0 -1dp -2dp 0" "border-bottom-color: #e5e9e5")
+  string(FIND "${style}" "${needle}" tab_style)
+  if(tab_style LESS 0)
+    message(FATAL_ERROR "Management 6C property-sheet tab style missing ${needle}")
+  endif()
+endforeach()
 if(NOT military MATCHES "<body id=\"military_root\" class=\"[^\"]*is-hidden")
   message(FATAL_ERROR "military_root must initialize hidden")
 endif()
@@ -57,16 +80,22 @@ endif()
 
 foreach(required IN ITEMS
     "military_squad_rows" "military_role_rows" "military_member_rows" "military_priority_rows"
-    "military_uniform_rows" "military_search" "military_confirm_layer"
+    "military_uniform_rows" "military_search" "military_confirm_layer" "member_assign_squad"
     "diplomacy_neighbor_rows" "diplomacy_mission_rows" "diplomacy_gnome_rows" "diplomacy_search")
   if(NOT military MATCHES "id=\"${required}\"" AND NOT diplomacy MATCHES "id=\"${required}\"")
     message(FATAL_ERROR "Missing required keyboard/delegation surface: ${required}")
   endif()
 endforeach()
 
-foreach(surface IN ITEMS Squads Roles Members Unassigned Priorities UniformSlots UniformTypes UniformMaterials Neighbors Missions Gnomes)
+foreach(surface IN ITEMS Squads Roles Members Unassigned Priorities UniformSlots Neighbors Missions Gnomes)
   if(NOT binding MATCHES "RowSurface::${surface}" OR NOT binding MATCHES "appendWindowControls[^\n]*RowSurface::${surface}")
     message(FATAL_ERROR "Generated list ${surface} is not explicitly DOM-window bounded")
+  endif()
+endforeach()
+foreach(surface IN ITEMS UniformTypes UniformMaterials MemberRoles)
+  if(NOT binding MATCHES "choices\\( RowSurface::${surface}" OR NOT binding MATCHES "windowFor\\( surface"
+      OR NOT binding MATCHES "appendWindowControls\\( result, surface")
+    message(FATAL_ERROR "Choice ${surface} must preserve bounded options and accessible paging")
   endif()
 endforeach()
 if(NOT binding MATCHES "handleWindowPage" OR NOT binding MATCHES "data-window-start")

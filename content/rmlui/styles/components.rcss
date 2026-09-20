@@ -64,6 +64,7 @@
 }
 
 .c-window {
+    position: relative;
     width: 100%;
     overflow: hidden;
     background-color: #252d31;
@@ -99,6 +100,20 @@
 }
 
 .c-window__body { padding: 16dp; }
+
+.c-window__resize-grip {
+    position: absolute;
+    right: 2dp;
+    bottom: 2dp;
+    width: 16dp;
+    height: 16dp;
+    pointer-events: none;
+    color: #536b78;
+    font-size: 14dp;
+    line-height: 14dp;
+    text-align: right;
+    decorator: text("◢" #536b78);
+}
 
 .c-toolbar {
     display: flex;
@@ -187,23 +202,41 @@
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    min-height: 44dp;
+    gap: 0;
+    min-height: 34dp;
+    padding: 4dp 4dp 0;
+    background-color: #aebdc4;
     border-bottom-width: 2dp;
-    border-bottom-color: #30373a;
+    border-bottom-color: #718591;
 }
 
 .c-tabs__tab {
     min-width: 96dp;
-    min-height: 42dp;
-    margin-bottom: -2dp;
-    background-color: transparent;
-    border-width: 0 0 3dp 0;
-    border-color: transparent;
+    min-height: 29dp;
+    margin: 0 -1dp -2dp 0;
+    padding: 4dp 10dp;
+    color: #1b344b;
+    background-color: #cbd5d9;
+    border-width: 2dp;
+    border-top-color: #f7faf8;
+    border-left-color: #f7faf8;
+    border-right-color: #718591;
+    border-bottom-color: #718591;
     border-radius: 0;
 }
 
-.c-tabs__tab:hover { background-color: #344046; }
-.c-tabs__tab.is-selected { color: #f1eee6; background-color: #252d31; border-color: #d19a55; }
+.c-tabs__tab:hover { color: #142333; background-color: #d6e0e4; }
+.c-tabs__tab.is-selected {
+    min-height: 32dp;
+    padding-top: 5dp;
+    color: #142333;
+    background-color: #e5e9e5;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #718591;
+    border-bottom-color: #e5e9e5;
+}
+.c-tabs__tab:active { background-color: #e5e9e5; }
 
 .c-list {
     overflow: hidden;
@@ -678,8 +711,7 @@ input.range.c-slider:focus-visible sliderbar { border-color: #ffd27a; }
 .c-list__row.is-selected,
 .c-table tr.is-selected td { color: #142333; background-color: #f1ca4f; border-left-color: #245d87; }
 .c-segmented__item.is-selected,
-.c-segmented__item:checked,
-.c-tabs__tab.is-selected {
+.c-segmented__item:checked {
     color: #142333;
     background-color: #8fc3e1;
     border-color: #245d87;

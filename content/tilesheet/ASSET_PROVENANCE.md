@@ -52,9 +52,11 @@ intentionally not fabricated or substituted:
 `scripts/generate_build_icons.py` from the DB `BaseSprites.SourceRectangle`
 values and the PNG sheets above. They are runtime copies, not new artwork:
 the pinned RmlUi GL3 backend accepts TGA textures, while the source tilesheets
-remain PNGs. Regenerate with `python scripts/generate_build_icons.py` after a
-DB or sheet change; the generated files are staged by the existing `*.tga`
-content glob.
+remain PNGs. The companion `filter_*.tga` files are alpha-trimmed, nearest-
+neighbor thumbnails normalized into a 24x24 frame so compact stockpile filter
+rows do not render padded equipment sprites as tiny marks. Regenerate both
+sets with `python scripts/generate_build_icons.py` after a DB or sheet change;
+the generated files are staged by the existing `*.tga` content glob.
 
 `plants.tga` is the uncompressed RGBA companion for `plants.png` (1024x1152,
 4,718,636 bytes, SHA-256

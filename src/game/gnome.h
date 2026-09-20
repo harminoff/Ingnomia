@@ -80,7 +80,7 @@ public:
 
 	void setJobAborted( QString caller );
 
-	QStringList skillPrios()
+	QStringList skillPrios() const
 	{
 		return m_skillPriorities;
 	}

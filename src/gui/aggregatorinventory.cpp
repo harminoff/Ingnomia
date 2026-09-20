@@ -114,6 +114,17 @@ QVariantMap findBaseSprite( const QString& spriteID )
 			if ( !rotated.isEmpty() ) return rotated.front();
 		}
 	}
+	for ( const auto& row : DB::selectRows( "Sprites_Combine", "ID", spriteID ) )
+	{
+		const auto base = DB::selectRows( "BaseSprites", row.value( "BaseSprite" ).toString() );
+		if ( !base.isEmpty() ) return base.front();
+		const auto nested = row.value( "Sprite" ).toString();
+		if ( !nested.isEmpty() )
+		{
+			const auto resolved = findBaseSprite( nested );
+			if ( !resolved.isEmpty() ) return resolved;
+		}
+	}
 	const auto fallback = inventoryThumbnailFallbacks.value( spriteID );
 	if ( !fallback.isEmpty() )
 	{
@@ -123,6 +134,28 @@ QVariantMap findBaseSprite( const QString& spriteID )
 	return {};
 }
 
+QVariantMap findMaterialBaseSprite( const QString& spriteID, const QString& materialID )
+{
+	if ( spriteID.isEmpty() || materialID.isEmpty() ) return findBaseSprite( spriteID );
+	for ( const auto& row : DB::selectRows( "Sprites_ByMaterials", "ID", spriteID ) )
+	{
+		if ( row.value( "MaterialID" ).toString() != materialID ) continue;
+		const auto base = DB::selectRows( "BaseSprites", row.value( "BaseSprite" ).toString() );
+		if ( !base.isEmpty() ) return base.front();
+		const auto nested = row.value( "Sprite" ).toString();
+		if ( !nested.isEmpty() ) return findBaseSprite( nested );
+	}
+	const auto materialType = DB::select( "Type", "Materials", materialID ).toString();
+	for ( const auto& row : DB::selectRows( "Sprites_ByMaterialTypes", "ID", spriteID ) )
+	{
+		if ( row.value( "MaterialType" ).toString() != materialType ) continue;
+		const auto base = DB::selectRows( "BaseSprites", row.value( "BaseSprite" ).toString() );
+		if ( !base.isEmpty() ) return base.front();
+		const auto nested = row.value( "Sprite" ).toString();
+		if ( !nested.isEmpty() ) return findBaseSprite( nested );
+	}
+	return findBaseSprite( spriteID );
+}
 QPair<int, int> sheetDimensions( const QString& sheet )
 {
 	const auto name = sheet.toLower();
@@ -143,6 +176,31 @@ QPair<int, int> sheetDimensions( const QString& sheet )
 	if ( name == "traps_mechanism.png" ) return { 576, 432 };
 	if ( name == "gnomes.png" ) return { 768, 540 };
 	return {};
+}
+bool assignInventorySprite( QString& spriteSheet, int& spriteX, int& spriteY, int& spriteWidth, int& spriteHeight, int& spriteSheetWidth, int& spriteSheetHeight, const QVariantMap& base )
+{
+	if ( base.isEmpty() ) return false;
+	const auto sheet = base.value( "Tilesheet" ).toString().toLower();
+	const auto rect = base.value( "SourceRectangle" ).toString().split( " ", Qt::SkipEmptyParts );
+	if ( rect.size() != 4 ) return false;
+	bool ok = false;
+	const int x = rect[0].toInt( &ok ); if ( !ok || x < 0 ) return false;
+	const int y = rect[1].toInt( &ok ); if ( !ok || y < 0 ) return false;
+	const int width = rect[2].toInt( &ok ); if ( !ok || width <= 0 ) return false;
+	const int height = rect[3].toInt( &ok ); if ( !ok || height <= 0 ) return false;
+	const auto dimensions = sheetDimensions( sheet );
+	if ( dimensions.first <= 0 || dimensions.second <= 0 || x + width > dimensions.first || y + height > dimensions.second ) return false;
+	const bool hasCroppedTga = sheet == "default.png" || sheet == "furniture.png" || sheet == "workshops.png" || sheet == "terrain.png" || sheet == "plants.png" || sheet == "food_drink_ingredients.png" || sheet == "weapons_armour.png" || sheet == "windmill.png" || sheet == "traps_mechanism.png" || sheet == "automatons.png" || sheet == "gnomes.png" || sheet == "animals.png" || sheet == "mushroom_biome_grass.png" || sheet == "goblin.png" || sheet == "mushrooms.png" || sheet == "multitrees.png" || sheet == "seasonalgrass.png";
+	if ( !hasCroppedTga ) return false;
+	constexpr int inventoryThumbnailSize = 40;
+	spriteSheet = "inventory_" + base.value( "ID" ).toString() + ".tga";
+	spriteX = 0;
+	spriteY = 0;
+	spriteWidth = inventoryThumbnailSize;
+	spriteHeight = inventoryThumbnailSize;
+	spriteSheetWidth = inventoryThumbnailSize;
+	spriteSheetHeight = inventoryThumbnailSize;
+	return true;
 }
 }
 
@@ -280,13 +338,17 @@ void AggregatorInventory::onRequestCategories()
 						gim.countConstructed = result.constructed;
 						gim.countLoose = result.loose;
 						gim.totalValue = result.totalValue;
-						gim.spriteSheet = gii.spriteSheet;
-						gim.spriteX = gii.spriteX;
-						gim.spriteY = gii.spriteY;
-						gim.spriteWidth = gii.spriteWidth;
-						gim.spriteHeight = gii.spriteHeight;
-						gim.spriteSheetWidth = gii.spriteSheetWidth;
-						gim.spriteSheetHeight = gii.spriteSheetHeight;
+						setInventoryMaterialSprite( gim, item );
+						if ( gim.spriteSheet.isEmpty() )
+						{
+							gim.spriteSheet = gii.spriteSheet;
+							gim.spriteX = gii.spriteX;
+							gim.spriteY = gii.spriteY;
+							gim.spriteWidth = gii.spriteWidth;
+							gim.spriteHeight = gii.spriteHeight;
+							gim.spriteSheetWidth = gii.spriteSheetWidth;
+							gim.spriteSheetHeight = gii.spriteSheetHeight;
+						}
 
 						gii.countTotal += result.total;
 						gii.countInStockpiles += result.inStockpile;
@@ -335,39 +397,13 @@ void AggregatorInventory::onRequestHistory( QString itemSID, QString materialSID
 
 void AggregatorInventory::setInventoryItemSprite( GuiInventoryItem& item )
 {
-	const auto base = findBaseSprite( DBH::spriteID( item.id ) );
-	if ( base.isEmpty() ) return;
-	const auto sheet = base.value( "Tilesheet" ).toString().toLower();
-	const auto rect = base.value( "SourceRectangle" ).toString().split( " ", Qt::SkipEmptyParts );
-	if ( rect.size() != 4 ) return;
-	bool ok = false;
-	const int x = rect[0].toInt( &ok ); if ( !ok || x < 0 ) return;
-	const int y = rect[1].toInt( &ok ); if ( !ok || y < 0 ) return;
-	const int width = rect[2].toInt( &ok ); if ( !ok || width <= 0 ) return;
-	const int height = rect[3].toInt( &ok ); if ( !ok || height <= 0 ) return;
-	const auto dimensions = sheetDimensions( sheet );
-	if ( dimensions.first <= 0 || dimensions.second <= 0 || x + width > dimensions.first || y + height > dimensions.second ) return;
-	// Inventory thumbnails are generated from every DB-backed BaseSprite by
-	// scripts/generate_build_icons.py.  Use the cropped TGA for plant/food
-	// entries as well; rendering the complete plants sheet and relying on CSS
-	// clipping is not reliable across RmlUi layout paths and can leak a sprite
-	// strip into the neighbouring statistic columns.
-	const bool hasCroppedTga = sheet == "default.png" || sheet == "furniture.png" || sheet == "workshops.png" || sheet == "terrain.png" || sheet == "plants.png" || sheet == "food_drink_ingredients.png" || sheet == "weapons_armour.png" || sheet == "windmill.png" || sheet == "traps_mechanism.png" || sheet == "automatons.png" || sheet == "gnomes.png" || sheet == "animals.png" || sheet == "mushroom_biome_grass.png" || sheet == "goblin.png" || sheet == "mushrooms.png" || sheet == "multitrees.png" || sheet == "seasonalgrass.png";
-	if ( hasCroppedTga )
-	{
-		// These legacy build icons are already cropped to the DB rectangle.
-		item.spriteSheet = "build_" + base.value( "ID" ).toString() + ".tga";
-		item.spriteX = 0;
-		item.spriteY = 0;
-		item.spriteSheetWidth = width;
-		item.spriteSheetHeight = height;
-	}
-	else
-		return;
-	item.spriteWidth = width;
-	item.spriteHeight = height;
+	assignInventorySprite( item.spriteSheet, item.spriteX, item.spriteY, item.spriteWidth, item.spriteHeight, item.spriteSheetWidth, item.spriteSheetHeight, findBaseSprite( DBH::spriteID( item.id ) ) );
 }
 
+void AggregatorInventory::setInventoryMaterialSprite( GuiInventoryMaterial& material, const QString& itemID )
+{
+	assignInventorySprite( material.spriteSheet, material.spriteX, material.spriteY, material.spriteWidth, material.spriteHeight, material.spriteSheetWidth, material.spriteSheetHeight, findMaterialBaseSprite( DBH::spriteID( itemID ), material.id ) );
+}
 /// @brief Collects the buildable entries for the given BuildSelection / category combination
 ///        (Constructions / Workshops / Containers / Items DB rows), produces preview icons
 ///        and required-item lists, and emits signalBuildItems.
@@ -376,7 +412,6 @@ void AggregatorInventory::setInventoryItemSprite( GuiInventoryItem& item )
 void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QString category )
 {
 	if( !g ) return;
-	Q_UNUSED( category );
 	m_buildItems.clear();
 	if ( m_buildSelection2String.contains( buildSelection ) )
 	{
@@ -422,6 +457,12 @@ void AggregatorInventory::onRequestBuildItems( BuildSelection buildSelection, QS
 			GuiBuildItem gbi;
 			gbi.id   = row.value( "ID" ).toString();
 			gbi.name = S::s( prefix + row.value( "ID" ).toString() );
+			if ( buildSelection == BuildSelection::Workshop ) gbi.type = row.value( "Tab" ).toString();
+			else if ( buildSelection == BuildSelection::Furniture || buildSelection == BuildSelection::Utility ) gbi.type = row.value( "ItemGroup" ).toString();
+			else if ( buildSelection == BuildSelection::Containers ) gbi.type = QStringLiteral( "Containers" );
+			else gbi.type = row.value( "Category" ).toString();
+			if ( gbi.type.isEmpty() ) gbi.type = QStringLiteral( "Other" );
+			if ( !category.isEmpty() && gbi.type.compare( category, Qt::CaseInsensitive ) != 0 ) continue;
 			gbi.biType = m_buildSelection2buildItem.value( buildSelection );
 
 			setBuildItemSprite( gbi, buildSelection );
@@ -680,6 +721,7 @@ void AggregatorInventory::onAddItem( QString itemSID, QString materialSID )
 	{
 		updateWatchedItem( cat, group, itemSID, materialSID );
 	}
+	emit signalInventoryChanged();
 }
 
 /// @brief Live-update hook invoked when an item is removed from the world. Refreshes any
@@ -707,6 +749,7 @@ void AggregatorInventory::onRemoveItem( QString itemSID, QString materialSID )
 	{
 		updateWatchedItem( cat, group, itemSID, materialSID );
 	}
+	emit signalInventoryChanged();
 }
 
 /// @brief Recomputes the count for a category-level watch entry and emits signalWatchList.

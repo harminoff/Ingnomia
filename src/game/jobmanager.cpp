@@ -990,7 +990,8 @@ void JobManager::setJobSprites( unsigned int jobID, bool busy, bool remove )
 					Sprite* sprite  = g->sf()->createSprite( cm["SpriteID"].toString(), { mat } );
 					sprite->opacity = 0.5;
 
-					bool isFloor = false;
+					bool isFloor = type == "BuildItem"
+						&& DB::select( "Location", "Items_Tiles", job->item() ).toString() == "Floor";
 					if ( cm.contains( "Type" ) )
 					{
 						if ( cm["Type"].toString() == "Floor" || cm["Type"].toString() == "StairsTop" )

@@ -437,6 +437,28 @@ void SpriteFactory::createStandardSprites()
 	m_thoughtBubbleIDs.insert( "Hungry", createSprite( "ThoughtBubbleHungry", { "None" } )->uID );
 	m_thoughtBubbleIDs.insert( "Combat", createSprite( "ThoughtBubbleCombat", { "None" } )->uID );
 
+	// Resource-starved workshop blueprints use the screen-facing thought-bubble
+	// channel so the warning remains readable at every camera rotation.
+	QPixmap pendingResourcesPixmap( 32, 64 );
+	pendingResourcesPixmap.fill( Qt::transparent );
+	QPainter pendingResourcesPainter( &pendingResourcesPixmap );
+	pendingResourcesPainter.setRenderHint( QPainter::Antialiasing, true );
+	pendingResourcesPainter.setPen( QPen( QColor( 55, 43, 16, 255 ), 2 ) );
+	pendingResourcesPainter.setBrush( QColor( 255, 196, 36, 245 ) );
+	pendingResourcesPainter.drawEllipse( QRectF( 5, 17, 22, 22 ) );
+	QFont warningFont = pendingResourcesPainter.font();
+	warningFont.setBold( true );
+	warningFont.setPixelSize( 18 );
+	pendingResourcesPainter.setFont( warningFont );
+	pendingResourcesPainter.setPen( QColor( 38, 31, 17, 255 ) );
+	pendingResourcesPainter.drawText( QRect( 5, 16, 22, 24 ), Qt::AlignCenter, "!" );
+	pendingResourcesPainter.end();
+	auto* pendingResourcesSprite = new SpritePixmap( pendingResourcesPixmap );
+	pendingResourcesSprite->uID = m_sprites.size();
+	m_sprites.append( pendingResourcesSprite );
+	addPixmapToPixelData( pendingResourcesSprite );
+	m_thoughtBubbleIDs.insert( "NeedsResources", pendingResourcesSprite->uID );
+
 	createSprite( "SolidSelectionWall", { "Purple" } );
 
 	Sprite* sprite         = createSprite( "WaterFloor", { "Water" } );

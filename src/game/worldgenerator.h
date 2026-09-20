@@ -92,10 +92,7 @@ private:
 	void createRamp( int z );
 
 	void createOceanFront();
-	void decreaseHeight( int x, int y, int diff );
 	void setSandFloor( int x, int y, int sandRowID );
-	int getLowestZonXLine( int x );
-	int getLowestZonYLine( int y );
 	void fillWater( int x, int y, int z );
 
 	void createRivers();
@@ -129,6 +126,7 @@ private:
 	int m_dimZ;
 
 	int m_groundLevel;
+	int m_oceanLevel = 0;
 
 	int m_mushroomLevel = 0;
 

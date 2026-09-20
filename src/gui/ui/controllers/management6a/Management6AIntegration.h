@@ -6,6 +6,7 @@
 
 #include <QObject>
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -22,12 +23,14 @@ namespace ingnomia::ui::management6a
 class Management6AIntegration final : public QObject
 {
 public:
+	using ViewHandler = std::function<void( ManagementView )>;
 	Management6AIntegration( EventConnector*, Rml::Context&, QObject* parent = nullptr );
 	~Management6AIntegration() override;
 	bool initialize();
 	void shutdown();
 	void beginWorld( WorldEpoch );
 	void endWorld();
+	void setViewHandler( ViewHandler handler ) { viewHandler_ = std::move( handler ); }
 	void setSelectedPosition( std::optional<WorldPosition> position )
 	{
 		selectedPosition_ = position;
@@ -43,6 +46,7 @@ public:
 	{
 		return controller_.get();
 	}
+	[[nodiscard]] Management6ARmlBinding* binding() const noexcept { return binding_.get(); }
 
 private:
 	void connectSignals();
@@ -55,5 +59,6 @@ private:
 	std::vector<AgricultureCatalogRow> plants_, animals_, trees_;
 	Revision workshopRevision_, stockpileRevision_, agricultureRevision_;
 	bool connected_ {};
+	ViewHandler viewHandler_;
 };
 } // namespace ingnomia::ui::management6a

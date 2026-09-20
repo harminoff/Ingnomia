@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cctype>
 #include <initializer_list>
 #include <sstream>
 #include <utility>
@@ -87,6 +88,47 @@ const char* uniformSlotId( UniformSlot value )
 		case UniformSlot::Back: return "Back";
 	}
 	return "ChestArmor";
+}
+
+std::optional<std::uint32_t> unsignedValue( const std::string& value )
+{
+    std::uint32_t parsed{};
+    const auto result = std::from_chars( value.data(), value.data() + value.size(), parsed );
+    if( result.ec != std::errc{} || result.ptr != value.data() + value.size() || parsed == 0 ) return std::nullopt;
+    return parsed;
+}
+
+std::string catalogName( const std::string& value )
+{
+    std::string result;
+    for( const unsigned char c : value )
+    {
+        if( c == '_' ) result += ' ';
+        else
+        {
+            if( !result.empty() && std::isupper( c ) && std::islower( static_cast<unsigned char>( result.back() ) ) ) result += ' ';
+            result += static_cast<char>( c );
+        }
+    }
+    if( !result.empty() ) result.front() = static_cast<char>( std::toupper( static_cast<unsigned char>( result.front() ) ) );
+    return result;
+}
+
+const SquadMemberRow* memberById( const Management6CState& state, CreatureId id )
+{
+    for( const auto& squad : state.roster.squads )
+        for( const auto& member : squad.members ) if( member.id == id ) return &member;
+    for( const auto& member : state.roster.unassigned ) if( member.id == id ) return &member;
+    return nullptr;
+}
+
+std::string destinationName( const Management6CState& state, const MissionRow& mission )
+{
+    if( mission.type == MissionType::Explore ) return "Surrounding lands";
+    const auto neighbor = std::ranges::find_if( state.neighbors,
+        [&]( const NeighborRow& row ){ return row.id == mission.target; } );
+    if( neighbor == state.neighbors.end() ) return "Unknown destination";
+    return neighbor->discovered && neighbor->name ? *neighbor->name : "Undiscovered neighbor";
 }
 
 const char* attitudeName( MilitaryAttitude value )
@@ -178,6 +220,7 @@ const char* Management6CRmlBinding::rowSurfaceName( RowSurface value )
 		case RowSurface::Neighbors: return "neighbors";
 		case RowSurface::Missions: return "missions";
 		case RowSurface::Gnomes: return "gnomes";
+		case RowSurface::MemberRoles: return "member-roles";
 		case RowSurface::Count: break;
 	}
 	return "invalid";
@@ -222,6 +265,36 @@ bool Management6CRmlBinding::handleWindowPage( Rml::Event& event )
 	return true;
 }
 
+std::string Management6CRmlBinding::tr( const char* key ) const
+{
+    return textCatalog_.format( LocalizationKey{ key } );
+}
+
+void Management6CRmlBinding::showDetails( bool show )
+{
+    detailOpen_ = show;
+    if( !controller_ ) return;
+    stateChanged( controller_->state() );
+    if( !show ) focusCurrentRow();
+}
+
+std::string Management6CRmlBinding::choices( RowSurface surface,
+    const std::vector<std::pair<std::string, std::string>>& values, const std::string& current, const char* id )
+{
+    const auto found = std::ranges::find_if( values, [&]( const auto& value ){ return value.first == current; } );
+    const auto selected = found == values.end() ? std::nullopt
+        : std::optional{ static_cast<std::size_t>( std::distance( values.begin(), found ) ) };
+    const auto window = windowFor( surface, values.size(), selected, current );
+    std::string result = "<div class='m6c-choice-control'><select id='" + std::string{ id } + "'" + ( values.empty() ? " disabled" : "" ) + ">";
+    if( !selected || *selected < window.begin || *selected >= window.end )
+        result += "<option value='' selected>" + esc( found != values.end() ? found->second : current.empty() ? tr( "management.flow.none" ) : catalogName( current ) ) + "</option>";
+    for( std::size_t i = window.begin; i < window.end; ++i )
+        result += "<option value='" + esc( values[i].first ) + "'" + ( values[i].first == current ? " selected" : "" ) + ">" + esc( values[i].second ) + "</option>";
+    result += "</select><span class='m6c-select-caret'>v</span></div>";
+    appendWindowControls( result, surface, window, values.size() );
+    return result;
+}
+
 void Management6CRmlBinding::appendWindowControls( std::string& output, RowSurface surface,
 	const DomWindow& window, std::size_t count )
 {
@@ -243,21 +316,25 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 {
 	shutdown();
 	controller_ = &controller;
-	military_ = context_.LoadDocument( "windows/military_manager.rml" );
-	diplomacy_ = context_.LoadDocument( "windows/diplomacy_missions.rml" );
+	const auto load = [this]( const char* path )
+		{ return documentLoader_ ? documentLoader_( path ) : context_.LoadDocument( path ); };
+	military_ = load( "windows/military_manager.rml" );
+	diplomacy_ = load( "windows/diplomacy_missions.rml" );
 	if( !military_ || !diplomacy_ ) { shutdown(); return false; }
 	localization::applyRmlText( *military_, textCatalog_ );
 	localization::applyRmlText( *diplomacy_, textCatalog_ );
 	military_->Hide();
 	diplomacy_->Hide();
 
-	bind( military_, "military_close", [this]{ closeMilitary(); } );
+	bind( military_, "military_close", [this]{ closeRoute(); } );
 	bind( military_, "military_tab_squads", [this]{ controller_->open( View::Squads ); } );
 	bind( military_, "military_tab_roles", [this]{ controller_->open( View::Roles ); } );
 	bind( military_, "military_tab_priorities", [this]{ controller_->open( View::Priorities ); } );
+	bind( military_, "military_tab_neighbors", [this]{ controller_->open( View::Neighbors ); } );
+	bind( military_, "military_tab_missions", [this]{ controller_->open( View::Missions ); } );
 	bind( military_, "military_refresh", [this]{ controller_->refresh(); } );
 	bind( military_, "military_error_retry", [this]{ controller_->refresh(); } );
-	bind( military_, "military_sort_source", [this]{ controller_->setMilitarySort( Sort::SourceOrder ); } );
+	bind( military_, "military_sort_source", [this]{ controller_->setMilitarySort( controller_->state().militarySort == Sort::SourceOrder ? Sort::Name : Sort::SourceOrder ); } );
 	bind( military_, "military_sort_name", [this]{ controller_->setMilitarySort( Sort::Name ); } );
 	bind( military_, "military_previous", [this]{ controller_->selectPrevious(); focusCurrentRow(); } );
 	bind( military_, "military_next", [this]{ controller_->selectNext(); focusCurrentRow(); } );
@@ -267,14 +344,14 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 	} );
 	bindEvent( military_, "military_squad_rows", "click", [this]( Rml::Event& event ) {
 		if( const auto id = unsignedAttribute( attributeTarget( event, "data-squad" ), "data-squad" ) )
-			controller_->selectSquad( SquadId{ *id } );
+			{ showDetails( true ); controller_->selectSquad( SquadId{ *id } ); }
 	} );
 	bindEvent( military_, "military_squad_rows", "keydown", [this]( Rml::Event& event ) {
 		if( moveKey( event, [this]( std::int32_t value ){ value < 0 ? controller_->selectPrevious() : controller_->selectNext(); } ) ) focusCurrentRow();
 	} );
 	bindEvent( military_, "military_role_rows", "click", [this]( Rml::Event& event ) {
 		if( const auto id = unsignedAttribute( attributeTarget( event, "data-role" ), "data-role" ) )
-			controller_->selectRole( MilitaryRoleId{ *id } );
+			{ showDetails( true ); controller_->selectRole( MilitaryRoleId{ *id } ); }
 	} );
 	bindEvent( military_, "military_role_rows", "keydown", [this]( Rml::Event& event ) {
 		if( moveKey( event, [this]( std::int32_t value ){ value < 0 ? controller_->selectPrevious() : controller_->selectNext(); } ) ) focusCurrentRow();
@@ -327,6 +404,30 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 			CatalogId{ element->GetAttribute<Rml::String>( "data-uniform-material", "" ) } );
 	} );
 
+	bind( military_, "military_list_tools", [this]{ filtersOpen_ = !filtersOpen_; stateChanged( controller_->state() ); } );
+    bind( diplomacy_, "diplomacy_list_tools", [this]{ filtersOpen_ = !filtersOpen_; stateChanged( controller_->state() ); } );
+    bind( military_, "military_back", [this]{ showDetails( false ); } );
+    bind( diplomacy_, "diplomacy_back", [this]{ showDetails( false ); } );
+    bind( diplomacy_, "diplomacy_empty_neighbors", [this]{ controller_->open( View::Neighbors ); } );
+    bind( diplomacy_, "diplomacy_new_mission", [this]{ controller_->open( View::Neighbors ); } );
+    bind( diplomacy_, "diplomacy_view_missions", [this]{ controller_->open( View::Missions ); } );
+    bindEvent( military_, "military_member_role_choices", "change", [this]( Rml::Event& event ) {
+        const auto role = unsignedValue( event.GetParameter<Rml::String>( "value", "" ) );
+        if( role && controller_->state().selectedMember )
+            controller_->assignMemberRole( *controller_->state().selectedMember, MilitaryRoleId{ *role } );
+    } );
+    bindEvent( military_, "military_uniform_type_rows", "change", [this]( Rml::Event& event ) {
+        const auto type = event.GetParameter<Rml::String>( "value", "" );
+        if( !type.empty() ) controller_->setSelectedUniform( CatalogId{ type }, CatalogId{ "any" } );
+    } );
+    bindEvent( military_, "military_uniform_material_rows", "change", [this]( Rml::Event& event ) {
+        const auto material = event.GetParameter<Rml::String>( "value", "" );
+        const auto& state = controller_->state();
+        const auto role = std::ranges::find_if( state.roles, [&]( const auto& row ){ return state.selectedRole == row.id; } );
+        if( material.empty() || role == state.roles.end() ) return;
+        const auto slot = std::ranges::find_if( role->uniform, [&]( const auto& row ){ return state.selectedUniformSlot == row.slot; } );
+        if( slot != role->uniform.end() ) controller_->setSelectedUniform( slot->type, CatalogId{ material } );
+    } );
 	bind( military_, "squad_add", [this]{ controller_->addSquad(); } );
 	bind( military_, "squad_move_up", [this]{ controller_->moveSelectedSquad( MoveDirection::Up ); } );
 	bind( military_, "squad_move_down", [this]{ controller_->moveSelectedSquad( MoveDirection::Down ); } );
@@ -336,6 +437,7 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 	bind( military_, "member_move_up", [this]{ controller_->moveSelectedMember( MoveDirection::Up ); } );
 	bind( military_, "member_move_down", [this]{ controller_->moveSelectedMember( MoveDirection::Down ); } );
 	bind( military_, "member_remove", [this]{ controller_->removeSelectedMember(); } );
+	bind( military_, "member_assign_squad", [this]{ controller_->assignSelectedMemberToSelectedSquad(); } );
 	bind( military_, "role_add", [this]{ controller_->addRole(); } );
 	bind( military_, "role_assign_member", [this]{ controller_->assignSelectedMemberToRole(); } );
 	bind( military_, "role_remove", [this]{ controller_->requestRemoveSelectedRole(); } );
@@ -369,12 +471,15 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 		event.StopPropagation();
 	} );
 
-	bind( diplomacy_, "diplomacy_close", [this]{ closeDiplomacy(); } );
+	bind( diplomacy_, "diplomacy_close", [this]{ closeRoute(); } );
+	bind( diplomacy_, "diplomacy_tab_squads", [this]{ controller_->open( View::Squads ); } );
+	bind( diplomacy_, "diplomacy_tab_roles", [this]{ controller_->open( View::Roles ); } );
+	bind( diplomacy_, "diplomacy_tab_priorities", [this]{ controller_->open( View::Priorities ); } );
 	bind( diplomacy_, "diplomacy_tab_neighbors", [this]{ controller_->open( View::Neighbors ); } );
 	bind( diplomacy_, "diplomacy_tab_missions", [this]{ controller_->open( View::Missions ); } );
 	bind( diplomacy_, "diplomacy_refresh", [this]{ controller_->refresh(); } );
 	bind( diplomacy_, "diplomacy_error_retry", [this]{ controller_->refresh(); } );
-	bind( diplomacy_, "diplomacy_sort_source", [this]{ controller_->setDiplomacySort( Sort::SourceOrder ); } );
+	bind( diplomacy_, "diplomacy_sort_source", [this]{ controller_->setDiplomacySort( controller_->state().diplomacySort == Sort::SourceOrder ? Sort::Name : Sort::SourceOrder ); } );
 	bind( diplomacy_, "diplomacy_sort_name", [this]{ controller_->setDiplomacySort( Sort::Name ); } );
 	bind( diplomacy_, "diplomacy_previous", [this]{ controller_->selectPrevious(); focusCurrentRow(); } );
 	bind( diplomacy_, "diplomacy_next", [this]{ controller_->selectNext(); focusCurrentRow(); } );
@@ -384,14 +489,14 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 	} );
 	bindEvent( diplomacy_, "diplomacy_neighbor_rows", "click", [this]( Rml::Event& event ) {
 		if( const auto id = unsignedAttribute( attributeTarget( event, "data-neighbor" ), "data-neighbor" ) )
-			controller_->selectNeighbor( NeighborId{ *id } );
+			{ showDetails( true ); controller_->selectNeighbor( NeighborId{ *id } ); }
 	} );
 	bindEvent( diplomacy_, "diplomacy_neighbor_rows", "keydown", [this]( Rml::Event& event ) {
 		if( moveKey( event, [this]( std::int32_t value ){ value < 0 ? controller_->selectPrevious() : controller_->selectNext(); } ) ) focusCurrentRow();
 	} );
 	bindEvent( diplomacy_, "diplomacy_mission_rows", "click", [this]( Rml::Event& event ) {
 		if( const auto id = unsignedAttribute( attributeTarget( event, "data-mission" ), "data-mission" ) )
-			controller_->selectMission( MissionId{ *id } );
+			{ showDetails( true ); controller_->selectMission( MissionId{ *id } ); }
 	} );
 	bindEvent( diplomacy_, "diplomacy_mission_rows", "keydown", [this]( Rml::Event& event ) {
 		if( moveKey( event, [this]( std::int32_t value ){ value < 0 ? controller_->selectPrevious() : controller_->selectNext(); } ) ) focusCurrentRow();
@@ -418,6 +523,7 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 		{ military_, "military_member_rows" }, { military_, "military_unassigned_rows" },
 		{ military_, "military_priority_rows" }, { military_, "military_uniform_rows" },
 		{ military_, "military_uniform_type_rows" }, { military_, "military_uniform_material_rows" },
+		{ military_, "military_member_role_choices" },
 		{ diplomacy_, "diplomacy_neighbor_rows" }, { diplomacy_, "diplomacy_mission_rows" },
 		{ diplomacy_, "diplomacy_gnome_rows" } } )
 		bindEvent( target.first, target.second, "click", [this]( Rml::Event& event ){ (void)handleWindowPage( event ); } );
@@ -435,6 +541,10 @@ void Management6CRmlBinding::shutdown()
 	activeRoute_.reset();
 	returnFocus_ = {};
 	confirmationVisible_ = false;
+	rendering_ = false;
+	detailOpen_ = false;
+	renderedView_.reset();
+	renderedWorld_ = {};
 	windows_ = {};
 	renderedRml_.clear();
 	dynamicRenderCount_ = 0;
@@ -504,7 +614,9 @@ void Management6CRmlBinding::bindEvent( Rml::ElementDocument* document, const ch
 	if( !document ) return;
 	if( auto* element = document->GetElementById( id ) )
 	{
-		auto callback = std::make_unique<Callback>( std::move( function ) );
+		auto callback = std::make_unique<Callback>( [this, function = std::move( function )]( Rml::Event& value ) {
+			if( !rendering_ ) function( value );
+		} );
 		element->AddEventListener( event, callback.get() );
 		listeners_.push_back( { element, event, std::move( callback ) } );
 	}
@@ -512,6 +624,12 @@ void Management6CRmlBinding::bindEvent( Rml::ElementDocument* document, const ch
 
 void Management6CRmlBinding::syncDocuments( const Management6CState& state )
 {
+	if ( !presentationEnabled_ )
+	{
+		military_->Hide();
+		diplomacy_->Hide();
+		return;
+	}
 	if( state.militaryOpen ) military_->Show( Rml::ModalFlag::None, Rml::FocusFlag::Auto );
 	else military_->Hide();
 	if( state.diplomacyOpen ) diplomacy_->Show( Rml::ModalFlag::None, Rml::FocusFlag::Auto );
@@ -542,17 +660,19 @@ void Management6CRmlBinding::visible( Rml::ElementDocument* document, const char
 	if( document ) if( auto* element = document->GetElementById( id ) )
 	{
 		element->SetClass( "is-hidden", !value );
-		// Set the computed display explicitly as well. Dynamic SetInnerRML on a
-		// sibling can invalidate the class-only style pass in older RmlUi builds;
-		// explicit display keeps mutually-exclusive detail panes from leaking
-		// their contents into the active route.
-		element->SetProperty( "display", value ? "block" : "none" );
+        // Hide explicitly, but let RCSS restore flex/block and responsive display.
+        if( value ) element->RemoveProperty( "display" );
+        else element->SetProperty( "display", "none" );
 	}
 }
 
 void Management6CRmlBinding::selected( Rml::ElementDocument* document, const char* id, bool value )
 {
-	if( document ) if( auto* element = document->GetElementById( id ) ) element->SetClass( "is-selected", value );
+	if( document ) if( auto* element = document->GetElementById( id ) )
+	{
+		element->SetClass( "is-selected", value );
+		element->SetAttribute( "aria-selected", value ? "true" : "false" );
+	}
 }
 
 void Management6CRmlBinding::enabled( Rml::ElementDocument* document, const char* id, bool value )
@@ -567,7 +687,8 @@ void Management6CRmlBinding::enabled( Rml::ElementDocument* document, const char
 
 void Management6CRmlBinding::inputValue( Rml::ElementDocument* document, const char* id, const std::string& value )
 {
-	if( document ) if( auto* element = document->GetElementById( id ) ) element->SetAttribute( "value", value );
+	if( document ) if( auto* element = document->GetElementById( id ) )
+		if( ( context_.GetFocusElement() != element || std::string_view{ id }.ends_with( "_search" ) ) && element->GetAttribute<Rml::String>( "value", "" ) != value ) element->SetAttribute( "value", value );
 }
 
 void Management6CRmlBinding::focusCurrentRow()
@@ -662,11 +783,22 @@ bool Management6CRmlBinding::activateFirstDataElement( std::string_view kind )
 void Management6CRmlBinding::stateChanged( const Management6CState& state )
 {
 	if( !military_ || !diplomacy_ || !controller_ ) return;
+    rendering_ = true;
+    if( renderedWorld_ != state.world || renderedView_ != state.view || !state.open ) { detailOpen_ = false; filtersOpen_ = false; }
+    renderedWorld_ = state.world;
+    renderedView_ = state.view;
+    for( auto* document : { military_, diplomacy_ } )
+    {
+        const bool military = document == military_;
+        if( auto* body = document->GetElementById( military ? "military_body" : "diplomacy_body" ) ) { body->SetClass( "m6c-detail-open", detailOpen_ ); body->SetClass( "m6c-filters-open", filtersOpen_ ); }
+        if( auto* main = document->GetElementById( military ? "military_main" : "diplomacy_main" ) ) main->SetClass( "m6c-show-detail", detailOpen_ );
+    }
 	visible( military_, "military_root", state.open && isMilitaryView( state.view ) );
 	visible( diplomacy_, "diplomacy_root", state.open && isDiplomacyView( state.view ) );
 	renderMilitary( state );
 	renderDiplomacy( state );
 	syncDocuments( state );
+	rendering_ = false;
 }
 
 void Management6CRmlBinding::renderMilitary( const Management6CState& state )
@@ -674,11 +806,18 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 	selected( military_, "military_tab_squads", state.view == View::Squads );
 	selected( military_, "military_tab_roles", state.view == View::Roles );
 	selected( military_, "military_tab_priorities", state.view == View::Priorities );
+	selected( military_, "military_tab_neighbors", state.view == View::Neighbors );
+	selected( military_, "military_tab_missions", state.view == View::Missions );
 	const bool hasRows = !state.roster.squads.empty() || !state.roster.unassigned.empty() || !state.roles.empty();
 	visible( military_, "military_loading", ( state.militaryLoad == LoadState::Loading || state.militaryLoad == LoadState::Stale ) && !hasRows );
-	visible( military_, "military_empty", state.militaryLoad == LoadState::Empty );
+	visible( military_, "military_empty", false );
 	visible( military_, "military_error", state.militaryLoad == LoadState::Error );
-	visible( military_, "military_main", hasRows && state.militaryLoad != LoadState::Error );
+	visible( military_, "military_main", ( hasRows || state.militaryLoad == LoadState::Empty ) && state.militaryLoad != LoadState::Error );
+	visible( military_, "squad_add", state.view != View::Roles );
+	visible( military_, "role_add", state.view == View::Roles );
+	inputValue( military_, "military_search", state.militaryFilter );
+	text( military_, "military_sort_source", tr( state.militarySort == Sort::Name ? "management.flow.sort_name" : "management.flow.sort_original" ) );
+	if( auto* search = military_->GetElementById( "military_search" ) ) search->SetAttribute( "placeholder", tr( state.view == View::Roles ? "management.flow.filter_roles" : "management.flow.filter_squads" ) );
 	visible( military_, "military_squad_rows", state.view != View::Roles );
 	visible( military_, "military_role_rows", state.view == View::Roles );
 	visible( military_, "military_squad_detail", state.view == View::Squads );
@@ -696,7 +835,8 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		squadRows += "<button id='military_squad_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedSquad == row.id ) squadRows += " is-selected";
 		squadRows += "' data-squad='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + esc( row.name )
-			+ "</span><span class='c-list__meta'>" + std::to_string( row.members.size() ) + " members</span></button>";
+			+ "</span><span class='c-list__meta'>" + std::to_string( row.members.size() )
+            + ( row.members.size() == 1 ? " member" : " members" ) + "</span></button>";
 	}
 	appendWindowControls( squadRows, RowSurface::Squads, squadWindow, visibleSquadRows.size() );
 	rml( military_, "military_squad_rows", squadRows.empty() ? "<div class='c-state-panel'>No squads match the filter.</div>" : squadRows );
@@ -717,12 +857,13 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 	appendWindowControls( roleRows, RowSurface::Roles, roleWindow, visibleRoleRows.size() );
 	rml( military_, "military_role_rows", roleRows.empty() ? "<div class='c-state-panel'>No roles match the filter.</div>" : roleRows );
 
-	std::string selection = "Selection: ";
-	if( state.view == View::Roles ) selection += state.selectedRole ? "role " + std::to_string( state.selectedRole->value ) : "none";
-	else selection += state.selectedSquad ? "squad " + std::to_string( state.selectedSquad->value ) : "none";
-	if( state.militarySelectionHidden ) selection += " (preserved, hidden by filter)";
-	text( military_, "military_selection_status", selection );
-	if( auto* element = military_->GetElementById( "military_selection_status" ) ) element->SetClass( "m6c-hidden-selection", state.militarySelectionHidden );
+    visible( military_, "military_selection_status", state.militarySelectionHidden );
+    text( military_, "military_selection_status", tr( "management.flow.selected_hidden" ) );
+    const auto roleName = [&]( const std::optional<MilitaryRoleId>& id ) {
+        if( !id ) return tr( "management.flow.no_role" );
+        const auto found = std::ranges::find_if( state.roles, [&]( const MilitaryRoleRow& row ){ return row.id == *id; } );
+        return found == state.roles.end() ? tr( "management.flow.unknown_role" ) : found->name;
+    };
 
 	const auto squad = state.selectedSquad ? std::ranges::find_if( state.roster.squads,
 		[&]( const SquadRow& row ){ return row.id == *state.selectedSquad; } ) : state.roster.squads.end();
@@ -732,7 +873,9 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 	enabled( military_, "squad_rename", hasSquad );
 	enabled( military_, "squad_remove", hasSquad );
 	enabled( military_, "squad_move_up", hasSquad && squad->canMoveUp );
+	visible( military_, "squad_move_up", hasSquad && squad->canMoveUp );
 	enabled( military_, "squad_move_down", hasSquad && squad->canMoveDown );
+	visible( military_, "squad_move_down", hasSquad && squad->canMoveDown );
 	std::string members;
 	const std::vector<SquadMemberRow> noMembers;
 	const auto& memberRows = hasSquad ? squad->members : noMembers;
@@ -745,7 +888,7 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		members += "<button id='military_member_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedMember == row.id ) members += " is-selected";
 		members += "' data-creature='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + esc( row.name )
-			+ "</span><span class='c-list__meta'>Role " + ( row.role ? std::to_string( row.role->value ) : "unassigned" ) + "</span></button>";
+			+ "</span><span class='c-list__meta'>" + esc( roleName( row.role ) ) + "</span></button>";
 	}
 	appendWindowControls( members, RowSurface::Members, memberWindow, memberRows.size() );
 	rml( military_, "military_member_rows", members.empty() ? "<div class='c-state-panel'>No squad members.</div>" : members );
@@ -759,16 +902,32 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		unassigned += "<button id='military_unassigned_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedMember == row.id ) unassigned += " is-selected";
 		unassigned += "' data-creature='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + esc( row.name )
-			+ "</span><span class='c-list__meta'>No squad</span></button>";
+			+ "</span><span class='c-list__meta'>" + esc( roleName( row.role ) ) + "</span></button>";
 	}
 	appendWindowControls( unassigned, RowSurface::Unassigned, unassignedWindow, state.roster.unassigned.size() );
 	rml( military_, "military_unassigned_rows", unassigned.empty() ? "<div class='c-state-panel'>No unassigned citizens.</div>" : unassigned );
 	const bool selectedMemberAssigned = state.selectedMember && std::ranges::any_of( state.roster.squads,
 		[&]( const SquadRow& value ){ return std::ranges::any_of( value.members,
 			[&]( const SquadMemberRow& member ){ return member.id == *state.selectedMember; } ); } );
-	enabled( military_, "member_move_up", selectedMemberAssigned );
-	enabled( military_, "member_move_down", selectedMemberAssigned );
+	const auto sourceSquad = std::ranges::find_if( state.roster.squads, [&]( const SquadRow& row ) {
+        return state.selectedMember && std::ranges::any_of( row.members, [&]( const auto& member ){ return member.id == *state.selectedMember; } );
+    } );
+    const auto sourceIndex = static_cast<std::size_t>( std::distance( state.roster.squads.begin(), sourceSquad ) );
+    const bool previousSquad = sourceSquad != state.roster.squads.end() && sourceIndex > 0;
+    const bool nextSquad = sourceSquad != state.roster.squads.end() && sourceIndex + 1 < state.roster.squads.size();
+    visible( military_, "member_move_up", previousSquad );
+    visible( military_, "member_move_down", nextSquad );
+    enabled( military_, "member_move_up", previousSquad );
+    enabled( military_, "member_move_down", nextSquad );
+    if( previousSquad ) text( military_, "member_move_up", "Move to " + state.roster.squads[sourceIndex - 1].name );
+    if( nextSquad ) text( military_, "member_move_down", "Move to " + state.roster.squads[sourceIndex + 1].name );
+    text( military_, "member_assign_squad", hasSquad ? "Assign to " + squad->name : "Assign to squad" );
 	enabled( military_, "member_remove", selectedMemberAssigned );
+    visible( military_, "member_remove", selectedMemberAssigned );
+	const bool selectedMemberInDestination = hasSquad && state.selectedMember && std::ranges::any_of( squad->members,
+		[&]( const SquadMemberRow& member ){ return member.id == *state.selectedMember; } );
+	enabled( military_, "member_assign_squad", hasSquad && state.selectedMember && !selectedMemberInDestination );
+    visible( military_, "member_assign_squad", hasSquad && state.selectedMember && !selectedMemberInDestination );
 
 	std::string priorities;
 	const std::vector<TargetPriorityRow> noPriorities;
@@ -781,14 +940,16 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		const auto& row = priorityRows[index];
 		priorities += "<button id='military_priority_" + esc( row.targetType.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedPriority == row.targetType ) priorities += " is-selected";
-		priorities += "' data-priority='" + esc( row.targetType.value ) + "'><span class='c-list__primary'>" + esc( row.name )
+		priorities += "' data-priority='" + esc( row.targetType.value ) + "'><span class='c-list__primary'>" + std::to_string( index + 1 ) + ". " + esc( row.name )
 			+ "</span><span class='c-list__meta'>" + attitudeName( row.attitude ) + "</span></button>";
 	}
 	appendWindowControls( priorities, RowSurface::Priorities, priorityWindow, priorityRows.size() );
 	rml( military_, "military_priority_rows", priorities.empty() ? "<div class='c-state-panel'>No target priorities.</div>" : priorities );
 	text( military_, "military_priority_title", hasSquad ? squad->name + " target priorities" : "No squad selected" );
-	enabled( military_, "priority_move_up", state.selectedPriority.has_value() );
-	enabled( military_, "priority_move_down", state.selectedPriority.has_value() );
+	const auto currentPriorityIndex = selectedIndex( priorityRows, state.selectedPriority, []( const TargetPriorityRow& row ){ return row.targetType; } );
+    enabled( military_, "priority_move_up", currentPriorityIndex && *currentPriorityIndex > 0 );
+    enabled( military_, "priority_move_down", currentPriorityIndex && *currentPriorityIndex + 1 < priorityRows.size() );
+    text( military_, "military_priority_selection", currentPriorityIndex ? priorityRows[*currentPriorityIndex].name : "Select a target" );
 	MilitaryAttitude currentAttitude = MilitaryAttitude::Flee;
 	bool hasPriority = false;
 	if( hasSquad && state.selectedPriority )
@@ -796,6 +957,10 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		const auto row = std::ranges::find_if( squad->priorities, [&]( const TargetPriorityRow& value ){ return value.targetType == *state.selectedPriority; } );
 		if( row != squad->priorities.end() ) { currentAttitude = row->attitude; hasPriority = true; }
 	}
+	const char* helpKey = currentAttitude == MilitaryAttitude::Flee ? "management.flow.flee_help"
+        : currentAttitude == MilitaryAttitude::Defend ? "management.flow.defend_help"
+        : currentAttitude == MilitaryAttitude::Attack ? "management.flow.attack_help" : "management.flow.hunt_help";
+    text( military_, "military_attitude_help", hasPriority ? tr( helpKey ) : "" );
 	selected( military_, "attitude_flee", hasPriority && currentAttitude == MilitaryAttitude::Flee );
 	selected( military_, "attitude_defend", hasPriority && currentAttitude == MilitaryAttitude::Defend );
 	selected( military_, "attitude_attack", hasPriority && currentAttitude == MilitaryAttitude::Attack );
@@ -810,26 +975,15 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 	enabled( military_, "role_rename", hasRole );
 	enabled( military_, "role_remove", hasRole );
 	enabled( military_, "role_toggle_civilian", hasRole );
-	std::string selectedMemberName;
-	if( state.selectedMember )
-	{
-		for( const auto& value : state.roster.squads )
-		{
-			const auto found = std::ranges::find_if( value.members,
-				[&]( const SquadMemberRow& member ){ return member.id == *state.selectedMember; } );
-			if( found != value.members.end() ) { selectedMemberName = found->name; break; }
-		}
-		if( selectedMemberName.empty() )
-		{
-			const auto found = std::ranges::find_if( state.roster.unassigned,
-				[&]( const SquadMemberRow& member ){ return member.id == *state.selectedMember; } );
-			if( found != state.roster.unassigned.end() ) selectedMemberName = found->name;
-		}
-	}
-	text( military_, "role_member_assignment_status", selectedMemberName.empty()
-		? "No citizen selected. Choose one from the Squads tab first."
-		: "Selected: " + selectedMemberName );
-	enabled( military_, "role_assign_member", hasRole && !selectedMemberName.empty() );
+    text( military_, "role_toggle_civilian", tr( hasRole && role->civilian ? "management.flow.civilian_on" : "management.flow.civilian_off" ) );
+    selected( military_, "role_toggle_civilian", hasRole && role->civilian );
+    const auto* selectedMember = state.selectedMember ? memberById( state, *state.selectedMember ) : nullptr;
+    text( military_, "role_member_assignment_status", selectedMember ? selectedMember->name : tr( "management.flow.choose_citizen" ) );
+    std::vector<std::pair<std::string, std::string>> memberRoles;
+    if( selectedMember ) for( const auto& row : state.roles ) memberRoles.emplace_back( std::to_string( row.id.value ), row.name );
+    rml( military_, "military_member_role_choices", choices( RowSurface::MemberRoles, memberRoles,
+        selectedMember && selectedMember->role ? std::to_string( selectedMember->role->value ) : "", "military_member_role_choice" ) );
+
 	std::string uniforms;
 	const std::vector<UniformSlotRow> noUniforms;
 	const auto& uniformRows = hasRole ? role->uniform : noUniforms;
@@ -845,10 +999,10 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 	for( std::size_t index = uniformWindow.begin; index < uniformWindow.end; ++index )
 	{
 		const auto& row = uniformRows[index];
-		uniforms += "<button id='military_uniform_" + std::string{ uniformSlotId( row.slot ) } + "' class='m6c-row c-list__row";
+		uniforms += "<button id='military_uniform_" + std::string{ uniformSlotId( row.slot ) } + "' class='m6c-row m6c-uniform-row c-list__row";
 		if( state.selectedUniformSlot == row.slot ) uniforms += " is-selected";
-		uniforms += "' data-uniform-slot='" + std::string{ uniformSlotId( row.slot ) } + "'><span class='c-list__primary'>" + esc( row.name )
-			+ "</span><span class='c-list__meta'>" + esc( row.type.value ) + " / " + esc( row.material ? row.material->value : "any" ) + "</span></button>";
+		uniforms += "' data-uniform-slot='" + std::string{ uniformSlotId( row.slot ) } + "'><span class='c-list__primary'>" + esc( tr( ( "management.uniform." + std::string{ uniformSlotId( row.slot ) } ).c_str() ) )
+			+ "</span><span class='c-list__meta'>" + esc( catalogName( row.type.value ) ) + "</span><span class='c-list__meta'>" + esc( catalogName( row.material ? row.material->value : "any" ) ) + "</span></button>";
 	}
 	appendWindowControls( uniforms, RowSurface::UniformSlots, uniformWindow, uniformRows.size() );
 	rml( military_, "military_uniform_rows", uniforms.empty() ? "<div class='c-state-panel'>No uniform slots reported.</div>" : uniforms );
@@ -858,33 +1012,18 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		const auto found = std::ranges::find_if( role->uniform, [&]( const UniformSlotRow& row ){ return row.slot == *state.selectedUniformSlot; } );
 		if( found != role->uniform.end() ) selectedSlot = &*found;
 	}
-	std::string types;
-	std::string materials;
-	if( selectedSlot )
-	{
-		const auto typeWindow = windowFor( RowSurface::UniformTypes, selectedSlot->possibleTypes.size(),
-			selectedIndex( selectedSlot->possibleTypes, std::optional{ selectedSlot->type }, []( const CatalogId& value ){ return value; } ),
-			selectedSlot->type.value );
-		for( std::size_t index = typeWindow.begin; index < typeWindow.end; ++index )
-		{
-			const auto& type = selectedSlot->possibleTypes[index];
-			types += "<button class='m6c-row c-list__row" + std::string{ type == selectedSlot->type ? " is-selected" : "" }
-				+ "' data-uniform-type='" + esc( type.value ) + "'>" + esc( type.value ) + "</button>";
-		}
-		appendWindowControls( types, RowSurface::UniformTypes, typeWindow, selectedSlot->possibleTypes.size() );
-		const auto materialWindow = windowFor( RowSurface::UniformMaterials, selectedSlot->possibleMaterials.size(),
-			selectedIndex( selectedSlot->possibleMaterials, selectedSlot->material, []( const CatalogId& value ){ return value; } ),
-			selectedSlot->material ? selectedSlot->material->value : std::string{} );
-		for( std::size_t index = materialWindow.begin; index < materialWindow.end; ++index )
-		{
-			const auto& material = selectedSlot->possibleMaterials[index];
-			materials += "<button class='m6c-row c-list__row" + std::string{ selectedSlot->material == material ? " is-selected" : "" }
-				+ "' data-uniform-material='" + esc( material.value ) + "'>" + esc( material.value ) + "</button>";
-		}
-		appendWindowControls( materials, RowSurface::UniformMaterials, materialWindow, selectedSlot->possibleMaterials.size() );
-	}
-	rml( military_, "military_uniform_type_rows", types.empty() ? "<div class='c-state-panel'>No legal types reported.</div>" : types );
-	rml( military_, "military_uniform_material_rows", materials.empty() ? "<div class='c-state-panel'>Choose a type to request materials.</div>" : materials );
+    text( military_, "military_uniform_title", selectedSlot
+        ? tr( ( "management.uniform." + std::string{ uniformSlotId( selectedSlot->slot ) } ).c_str() ) : "Select a uniform slot" );
+    std::vector<std::pair<std::string, std::string>> types, materials;
+    if( selectedSlot )
+    {
+        for( const auto& type : selectedSlot->possibleTypes ) types.emplace_back( type.value, catalogName( type.value ) );
+        for( const auto& material : selectedSlot->possibleMaterials ) materials.emplace_back( material.value, catalogName( material.value ) );
+    }
+    rml( military_, "military_uniform_type_rows", choices( RowSurface::UniformTypes, types,
+        selectedSlot ? selectedSlot->type.value : "", "military_uniform_type_choice" ) );
+    rml( military_, "military_uniform_material_rows", choices( RowSurface::UniformMaterials, materials,
+        selectedSlot && selectedSlot->material ? selectedSlot->material->value : "any", "military_uniform_material_choice" ) );
 
 	const bool confirm = state.destructive.has_value();
 	visible( military_, "military_confirm_layer", confirm );
@@ -900,22 +1039,32 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 		if( auto* element = military_->GetElementById( id ) ) element->Focus();
 	}
 	confirmationVisible_ = confirm;
-	text( military_, "military_revision", "Squads r" + std::to_string( state.squadRevision.value ) + " / Roles r" + std::to_string( state.roleRevision.value ) );
+	visible( military_, "military_footer", state.pendingAction || !state.status.empty() || state.militaryLoad == LoadState::Stale );
 	text( military_, "military_status", state.pendingAction
-		? "Applying request " + std::to_string( state.pendingAction->value )
-		: state.status.empty() && state.militaryLoad == LoadState::Stale ? "Refreshing stale military data" : state.status );
+		? "Applying change"
+		: state.status.empty() && state.militaryLoad == LoadState::Stale ? "Refreshing military data" : state.status );
 }
 
 void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 {
 	selected( diplomacy_, "diplomacy_tab_neighbors", state.view == View::Neighbors );
 	selected( diplomacy_, "diplomacy_tab_missions", state.view == View::Missions );
+	selected( diplomacy_, "diplomacy_tab_squads", state.view == View::Squads );
+	selected( diplomacy_, "diplomacy_tab_roles", state.view == View::Roles );
+	selected( diplomacy_, "diplomacy_tab_priorities", state.view == View::Priorities );
 	const bool hasNeighbors = !state.neighbors.empty();
 	const bool hasMissions = !state.missions.empty();
 	const auto load = state.view == View::Neighbors ? state.diplomacyLoad : state.missionLoad;
 	const bool hasRows = state.view == View::Neighbors ? hasNeighbors : hasMissions;
 	visible( diplomacy_, "diplomacy_loading", ( load == LoadState::Loading || load == LoadState::Stale ) && !hasRows );
 	visible( diplomacy_, "diplomacy_empty", load == LoadState::Empty );
+    text( diplomacy_, "diplomacy_empty_title", tr( state.view == View::Missions ? "management.flow.no_missions" : "management.flow.no_neighbors" ) );
+    text( diplomacy_, "diplomacy_empty_detail", tr( state.view == View::Missions ? "management.flow.no_missions_help" : "management.flow.no_neighbors_help" ) );
+    visible( diplomacy_, "diplomacy_empty_neighbors", state.view == View::Missions );
+    inputValue( diplomacy_, "diplomacy_search", state.diplomacyFilter );
+    text( diplomacy_, "diplomacy_sort_source", tr( state.diplomacySort == Sort::SourceOrder ? "management.flow.sort_original"
+        : state.view == View::Missions ? "management.flow.sort_type" : "management.flow.sort_name" ) );
+    if( auto* search = diplomacy_->GetElementById( "diplomacy_search" ) ) search->SetAttribute( "placeholder", tr( state.view == View::Missions ? "management.flow.filter_missions" : "management.flow.filter_neighbors" ) );
 	visible( diplomacy_, "diplomacy_error", load == LoadState::Error );
 	visible( diplomacy_, "diplomacy_main", hasRows && load != LoadState::Error );
 	visible( diplomacy_, "diplomacy_neighbor_rows", state.view == View::Neighbors );
@@ -934,8 +1083,8 @@ void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 		neighbors += "<button id='diplomacy_neighbor_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedNeighbor == row.id ) neighbors += " is-selected";
 		neighbors += "' data-neighbor='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>"
-			+ esc( row.discovered && row.name ? *row.name : "Undiscovered neighbor" ) + "</span><span class='c-list__meta'>ID "
-			+ std::to_string( row.id.value ) + "</span></button>";
+			+ esc( row.discovered && row.name ? *row.name : "Undiscovered neighbor" ) + "</span><span class='c-list__meta'>"
+			+ ( row.discovered ? "Discovered" : "Details unavailable" ) + "</span></button>";
 	}
 	appendWindowControls( neighbors, RowSurface::Neighbors, neighborWindow, visibleNeighborRows.size() );
 	rml( diplomacy_, "diplomacy_neighbor_rows", neighbors.empty() ? "<div class='c-state-panel'>No neighbors match the filter.</div>" : neighbors );
@@ -949,17 +1098,13 @@ void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 		const auto& row = visibleMissionRows[index];
 		missions += "<button id='diplomacy_mission_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.selectedMission == row.id ) missions += " is-selected";
-		missions += "' data-mission='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + std::string{ missionTypeName( row.type ) }
-			+ "</span><span class='c-list__meta'>" + missionStepName( row.step ) + "</span></button>";
+		missions += "' data-mission='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + std::string{ missionTypeName( row.type ) } + " - " + missionStepName( row.step )
+			+ "</span><span class='c-list__meta'>" + esc( destinationName( state, row ) ) + "</span></button>";
 	}
 	appendWindowControls( missions, RowSurface::Missions, missionWindow, visibleMissionRows.size() );
 	rml( diplomacy_, "diplomacy_mission_rows", missions.empty() ? "<div class='c-state-panel'>No missions match the filter.</div>" : missions );
-	std::string selection = "Selection: ";
-	if( state.view == View::Neighbors ) selection += state.selectedNeighbor ? "neighbor " + std::to_string( state.selectedNeighbor->value ) : "none";
-	else selection += state.selectedMission ? "mission " + std::to_string( state.selectedMission->value ) : "none";
-	if( state.diplomacySelectionHidden ) selection += " (preserved, hidden by filter)";
-	text( diplomacy_, "diplomacy_selection_status", selection );
-	if( auto* element = diplomacy_->GetElementById( "diplomacy_selection_status" ) ) element->SetClass( "m6c-hidden-selection", state.diplomacySelectionHidden );
+    visible( diplomacy_, "diplomacy_selection_status", state.diplomacySelectionHidden );
+    text( diplomacy_, "diplomacy_selection_status", tr( "management.flow.selected_hidden" ) );
 
 	const auto neighbor = state.selectedNeighbor ? std::ranges::find_if( state.neighbors,
 		[&]( const NeighborRow& row ){ return row.id == *state.selectedNeighbor; } ) : state.neighbors.end();
@@ -979,10 +1124,10 @@ void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 	}
 	const bool anyMission = discovered && ( neighbor->canSpy || neighbor->canSendEmissary || neighbor->canRaid || neighbor->canSabotage );
 	visible( diplomacy_, "mission_builder", anyMission );
-	enabled( diplomacy_, "mission_type_spy", discovered && neighbor->canSpy );
-	enabled( diplomacy_, "mission_type_emissary", discovered && neighbor->canSendEmissary );
-	enabled( diplomacy_, "mission_type_raid", discovered && neighbor->canRaid );
-	enabled( diplomacy_, "mission_type_sabotage", discovered && neighbor->canSabotage );
+	visible( diplomacy_, "mission_type_spy", discovered && neighbor->canSpy );
+	visible( diplomacy_, "mission_type_emissary", discovered && neighbor->canSendEmissary );
+	visible( diplomacy_, "mission_type_raid", discovered && neighbor->canRaid );
+	visible( diplomacy_, "mission_type_sabotage", discovered && neighbor->canSabotage );
 	selected( diplomacy_, "mission_type_spy", state.missionDraft.type == MissionType::Spy );
 	selected( diplomacy_, "mission_type_emissary", state.missionDraft.type == MissionType::Emissary );
 	selected( diplomacy_, "mission_type_raid", state.missionDraft.type == MissionType::Raid );
@@ -1002,10 +1147,12 @@ void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 		const auto& row = state.availableGnomes[index];
 		gnomes += "<button id='diplomacy_gnome_" + std::to_string( row.id.value ) + "' class='m6c-row c-list__row";
 		if( state.missionDraft.creature == row.id ) gnomes += " is-selected";
-		gnomes += "' data-gnome='" + std::to_string( row.id.value ) + "'>" + esc( row.name ) + "</button>";
+		gnomes += "' data-gnome='" + std::to_string( row.id.value ) + "'><span class='c-list__primary'>" + esc( row.name ) + "</span></button>";
 	}
 	appendWindowControls( gnomes, RowSurface::Gnomes, gnomeWindow, state.availableGnomes.size() );
-	rml( diplomacy_, "diplomacy_gnome_rows", gnomes.empty() ? "<div class='c-state-panel'>No eligible gnomes are available.</div>" : gnomes );
+	const bool eligibilityLoading = state.availableGnomeLoad == LoadState::Loading || state.availableGnomeLoad == LoadState::Idle;
+    rml( diplomacy_, "diplomacy_gnome_rows", gnomes.empty()
+        ? "<div class='c-state-panel'>" + esc( tr( eligibilityLoading ? "management.flow.eligible_loading" : state.availableGnomeLoad == LoadState::Error ? "management.flow.eligible_error" : "management.flow.eligible_empty" ) ) + "</div>" : gnomes );
 	enabled( diplomacy_, "mission_start", controller_->canStartDraftMission() );
 
 	const auto mission = state.selectedMission ? std::ranges::find_if( state.missions,
@@ -1013,23 +1160,32 @@ void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 	if( mission != state.missions.end() )
 	{
 		text( diplomacy_, "mission_title", missionTypeName( mission->type ) );
-		text( diplomacy_, "mission_id", std::to_string( mission->id.value ) );
+		text( diplomacy_, "mission_id", "Available" );
 		text( diplomacy_, "mission_action", missionActionName( mission->action ) );
 		text( diplomacy_, "mission_step", missionStepName( mission->step ) );
-		text( diplomacy_, "mission_target", mission->target ? std::to_string( mission->target.value ) : "Not reported" );
+		text( diplomacy_, "mission_target", destinationName( state, *mission ) );
 		std::string participants;
-		for( const auto& creature : mission->participants ) { if( !participants.empty() ) participants += ", "; participants += std::to_string( creature.value ); }
+		for( const auto& creature : mission->participants )
+        {
+            if( !participants.empty() ) participants += ", ";
+            const auto* member = memberById( state, creature );
+            participants += member ? member->name : "Unknown citizen (" + std::to_string( creature.value ) + ")";
+        }
 		text( diplomacy_, "mission_participants", participants.empty() ? "None reported" : participants );
-		text( diplomacy_, "mission_timing", "Elapsed " + std::to_string( mission->elapsedHours ) + " hours; next check tick " + std::to_string( mission->nextCheckTick ) );
+		text( diplomacy_, "mission_timing", mission->step == MissionStep::Returned
+            ? ( mission->result.totalHours ? std::to_string( *mission->result.totalHours ) + " hours total" : "Duration not reported" )
+            : "Elapsed " + std::to_string( mission->elapsedHours ) + " hours" );
+        visible( diplomacy_, "mission_action_field", mission->action != MissionAction::None );
+        visible( diplomacy_, "mission_result_field", mission->result.success.has_value() );
 		std::string result = "Not reported";
 		if( mission->result.success ) result = *mission->result.success ? "Success" : "Failure";
-		if( mission->result.totalHours ) result += "; total " + std::to_string( *mission->result.totalHours ) + " hours";
+
 		text( diplomacy_, "mission_result", result );
 	}
-	text( diplomacy_, "diplomacy_revision", "Neighbors r" + std::to_string( state.neighborRevision.value ) + " / Missions r" + std::to_string( state.missionRevision.value ) );
+	visible( diplomacy_, "diplomacy_footer", state.pendingAction || !state.status.empty() || load == LoadState::Stale );
 	text( diplomacy_, "diplomacy_status", state.pendingAction
-		? "Applying request " + std::to_string( state.pendingAction->value )
-		: state.status.empty() && load == LoadState::Stale ? "Refreshing stale diplomacy data" : state.status );
+		? "Applying change"
+		: state.status.empty() && load == LoadState::Stale ? "Refreshing diplomacy data" : state.status );
 }
 
 } // namespace ingnomia::ui::management6c

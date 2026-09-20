@@ -191,6 +191,7 @@ signals:
 	void signalEvent( unsigned int id, QString title, QString msg, bool pause, bool yesno );
 	void signalStartAutoSave();
 	void signalEndAutoSave();
+	void signalSimulationTick( quint64 tick );
 	void signalUpdateTileInfo( QSet<unsigned int> changeSet );
 	void signalUpdateStockpile();
 	void signalTutorialSnapshot( TutorialSnapshot snapshot );

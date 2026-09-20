@@ -103,7 +103,7 @@
 .l-shell-root,
 .l-shell-screen { background-color: #6b9fc4; }
 .l-shell-screen { padding: 12dp; }
-.l-shell-screen--centered { justify-content: center; }
+.l-shell-screen--centered { justify-content: flex-start; }
 .c-shell-chamber {
     padding: 12dp;
     background-color: #cbd5d9;
@@ -162,13 +162,7 @@
 /* New-game setup is a guided workbench rather than a single scrolling form.
    The left rail gives each group a stable home; the content pane keeps one
    decision in focus at a time while preserving the existing draft bindings. */
-.l-new-game-screen { padding: 16dp; overflow-x: hidden; overflow-y: hidden; }
-.l-new-game-screen scrollbarvertical,
-.l-new-game-screen scrollbarhorizontal,
-body.l-new-game-screen scrollbarvertical,
-body.l-new-game-screen scrollbarhorizontal { display: none; }
-body.l-new-game-screen scrollbarvertical { width: 0dp; min-width: 0dp; }
-body.l-new-game-screen scrollbarhorizontal { height: 0dp; min-height: 0dp; }
+.l-new-game-screen { padding: 16dp; overflow-x: hidden; overflow-y: auto; }
 .l-new-game-chamber { width: 100%; max-width: 1120dp; margin: 0 auto; background-color: transparent; border: 0; box-shadow: none; }
 .l-new-game-titlebar { align-items: flex-start; margin-bottom: 10dp; padding-bottom: 8dp; }
 .l-new-game-heading { flex: 1; min-width: 0; }
@@ -176,24 +170,24 @@ body.l-new-game-screen scrollbarhorizontal { height: 0dp; min-height: 0dp; }
 .l-new-game-titlebar h1 { margin-bottom: 2dp; }
 .l-new-game-titlebar p { max-width: 680dp; margin: 0; color: #506875; font-size: 12dp; line-height: 16dp; }
 
-.l-new-game-layout { display: flex; flex-direction: row; align-items: stretch; gap: 10dp; min-height: 430dp; }
-.l-new-game-nav { flex: 0 0 208dp; width: 208dp; padding: 8dp; background-color: #aebdc4; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
+.l-new-game-layout { display: flex; flex-direction: row; align-items: stretch; gap: 0; min-height: 430dp; }
+.l-new-game-nav { position: relative; z-index: 2; flex: 0 0 208dp; width: 208dp; padding: 8dp 0 8dp 8dp; background-color: #aebdc4; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
 .l-new-game-nav-title { margin-bottom: 7dp; color: #29465c; font-size: 12dp; font-weight: bold; text-transform: uppercase; }
-.l-new-game-tabs { display: flex; flex-direction: column; gap: 4dp; min-height: 0; border: 0; }
-.l-new-game-tab { display: flex; flex-direction: row; align-items: center; gap: 8dp; width: 100%; min-width: 0; min-height: 58dp; padding: 7dp 8dp; text-align: left; background-color: #d5dde0; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
-.l-new-game-tab:hover { background-color: #e9d36e; border-top-color: #fffbe3; border-left-color: #fffbe3; border-right-color: #855d19; border-bottom-color: #855d19; }
-.l-new-game-tab.is-selected { color: #142333; background-color: #8fc3e1; border-top-color: #d9f0fb; border-left-color: #d9f0fb; border-right-color: #245d87; border-bottom-color: #245d87; }
+.l-new-game-tabs { display: flex; flex-direction: column; gap: 0; min-height: 0; margin-right: -2dp; border: 0; }
+.l-new-game-tab { position: relative; display: flex; flex-direction: row; align-items: center; gap: 8dp; width: 100%; min-width: 0; min-height: 58dp; margin: 0 0 -1dp 0; padding: 7dp 8dp; text-align: left; background-color: #cbd5d9; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; border-radius: 0; }
+.l-new-game-tab:hover { background-color: #d6e0e4; }
+.l-new-game-tab.is-selected { z-index: 3; margin-right: -2dp; padding-left: 10dp; color: #142333; background-color: #dce4e6; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #dce4e6; border-bottom-color: #718591; }
 .l-new-game-tab__number { flex: 0 0 25dp; width: 25dp; height: 25dp; padding-top: 3dp; color: #245d87; background-color: #cbd5d9; border: 1dp #718591; text-align: center; font-size: 11dp; font-weight: bold; }
 .l-new-game-tab.is-selected .l-new-game-tab__number { color: #ffffff; background-color: #356c9d; border-color: #214665; }
 .l-new-game-tab__copy { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .l-new-game-tab__label { display: block; color: #142333; font-size: 13dp; font-weight: bold; line-height: 17dp; }
 .l-new-game-tab__hint { display: block; color: #506875; font-size: 10dp; line-height: 13dp; }
-.l-new-game-nav-note { display: flex; flex-direction: row; gap: 6dp; margin-top: 12dp; padding: 7dp; color: #506875; background-color: #cbd5d9; border: 1dp #8b9da6; }
+.l-new-game-nav-note { display: flex; flex-direction: row; gap: 6dp; margin: 12dp 8dp 0 0; padding: 7dp; color: #506875; background-color: #cbd5d9; border: 1dp #8b9da6; }
 .l-new-game-nav-note__mark { flex: 0 0 18dp; width: 18dp; height: 18dp; color: #ffffff; background-color: #356c9d; text-align: center; font-weight: bold; }
 .l-new-game-nav-note strong { display: block; color: #29465c; font-size: 11dp; }
 .l-new-game-nav-note p { margin: 2dp 0 0; color: #506875; font-size: 10dp; line-height: 13dp; }
 
-.l-new-game-content { flex: 1; min-width: 0; }
+.l-new-game-content { position: relative; z-index: 1; flex: 1 1 auto; min-width: 0; }
 .l-new-game-panels { width: 100%; }
 .l-new-game-panel { background-color: #dce4e6; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
 .l-new-game-panel__header { display: flex; flex-direction: row; align-items: flex-start; gap: 8dp; min-height: 68dp; padding: 9dp 10dp 8dp; background-color: #356c9d; border-bottom-width: 2dp; border-bottom-color: #214665; }
@@ -241,3 +235,16 @@ body.l-new-game-screen scrollbarhorizontal { height: 0dp; min-height: 0dp; }
 .l-new-game-footer__hint { display: block; color: #506875; font-size: 10dp; line-height: 14dp; }
 .l-new-game-footer #new-validation { margin-top: 6dp; }
 .l-new-game-start { flex: 0 0 auto; min-width: 150dp; min-height: 36dp; }
+
+/* Preserve the shell's header and actions while letting tall setup panels
+   scroll at larger UI scales. */
+.l-shell-screen--centered > .c-shell-chamber { flex: 0 0 auto; margin-top: auto; margin-bottom: auto; }
+.l-shell-screen--centered > .c-shell-chamber.c-shell-chamber--wide { margin-top: 0; margin-bottom: 0; }
+.c-shell-chamber { box-sizing: border-box; }
+.c-shell-actions--row { flex-wrap: wrap; }
+.c-shell-setting-label-text { flex: 1 1 auto; min-width: 0; }
+.l-new-game-chamber { display: flex; flex-direction: column; min-height: 0; }
+.l-new-game-nav { min-width: 0; }
+.l-new-game-content, .l-new-game-panel { min-height: 0; min-width: 0; }
+.l-new-game-footer { flex-wrap: wrap; }
+.l-new-game-footer__status { min-width: 220dp; }

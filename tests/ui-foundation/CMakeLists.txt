@@ -47,6 +47,10 @@ add_ui_foundation_test(ui_foundation_tutorial_types
     tutorial_types_tests.cpp
 )
 
+add_ui_foundation_test(ui_foundation_placement_math
+    placement_math_tests.cpp
+)
+
 # These three targets exercise both public and development-only lookup paths.
 # The production application defines this macro only for Debug configuration;
 # release builds compile the development registrations out entirely.

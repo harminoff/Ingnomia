@@ -5,8 +5,22 @@
 
 namespace ingnomia::ui::hud
 {
-HudController::HudController( HudCommandPort& commands, HudViewPort& view ) : commands_( commands ), view_( view ) { notify(); }
-void HudController::notify() { view_.stateChanged( state_ ); }
+HudController::HudController( HudCommandPort& commands, HudViewPort& view ) : commands_( commands ), views_{ &view } { notify(); }
+void HudController::addViewPort( HudViewPort& view )
+{
+	if ( std::ranges::find( views_, &view ) != views_.end() ) return;
+	views_.push_back( &view );
+	view.stateChanged( state_ );
+}
+void HudController::removeViewPort( HudViewPort& view )
+{
+	std::erase( views_, &view );
+}
+void HudController::notify()
+{
+	for ( auto* view : views_ )
+		if ( view ) view->stateChanged( state_ );
+}
 void HudController::beginWorld( WorldEpoch world )
 {
 	// Tutorial snapshots can be queued just before the world-transition signal.
@@ -114,7 +128,10 @@ void HudController::chooseBuildAction( CatalogId item, BuildAction action )
 {
 	const auto found = std::ranges::find_if( state_.buildCatalog, [&]( const BuildCatalogRow& row ) { return row.id == item; } );
 	if ( found == state_.buildCatalog.end() ) return;
-	if ( !found->available )
+	// Workshops can be placed as blueprints before their components exist. The
+	// authoritative construction job remains pending until inventory can satisfy
+	// it; other build kinds retain the strict availability guard.
+	if ( !found->available && found->kind != BuildKind::Workshop )
 	{
 		state_.status = found->unavailableReason.empty() ? "hud.build.unavailable" : found->unavailableReason;
 		notify();

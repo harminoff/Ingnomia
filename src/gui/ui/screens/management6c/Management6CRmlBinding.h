@@ -29,12 +29,15 @@ namespace ingnomia::ui::management6c
 class Management6CRmlBinding final : public ViewPort
 {
 public:
+	using DocumentLoader = std::function<Rml::ElementDocument*( const char* )>;
 	using RouteCloseHandler = std::function<void( RouteId, FocusToken )>;
 
 	explicit Management6CRmlBinding( Rml::Context& );
 	~Management6CRmlBinding() override;
 	bool initialize( Management6CController& );
 	void shutdown();
+	void setDocumentLoader( DocumentLoader loader ) { documentLoader_ = std::move( loader ); }
+	void setPresentationEnabled( bool enabled ) { presentationEnabled_ = enabled; }
 	bool openMilitary( View, FocusToken );
 	bool openDiplomacy( View, FocusToken );
 	void closeMilitary();
@@ -53,7 +56,7 @@ private:
 	enum class RowSurface : std::uint8_t
 	{
 		Squads, Roles, Members, Unassigned, Priorities, UniformSlots, UniformTypes, UniformMaterials,
-		Neighbors, Missions, Gnomes, Count
+		Neighbors, Missions, Gnomes, MemberRoles, Count
 	};
 	struct WindowState
 	{
@@ -83,6 +86,9 @@ private:
 	void enabled( Rml::ElementDocument*, const char*, bool );
 	void inputValue( Rml::ElementDocument*, const char*, const std::string& );
 	void focusCurrentRow();
+	void showDetails( bool );
+	std::string tr( const char* ) const;
+	std::string choices( RowSurface, const std::vector<std::pair<std::string, std::string>>&, const std::string&, const char* );
 	void focusSelectedMember();
 	void focusSelectedPriority();
 	void focusSelectedUniform();
@@ -104,6 +110,11 @@ private:
 	FocusToken diplomacyFocus_;
 	RouteCloseHandler routeCloseHandler_;
 	bool confirmationVisible_{};
+	bool rendering_{};
+	bool detailOpen_{};
+	bool filtersOpen_{};
+	std::optional<View> renderedView_;
+	WorldEpoch renderedWorld_;
 	DestructiveKind lastDestructiveKind_{ DestructiveKind::Squad };
 	std::array<WindowState, static_cast<std::size_t>( RowSurface::Count )> windows_{};
 	std::unordered_map<std::string, std::string> renderedRml_;
@@ -116,6 +127,8 @@ private:
 		std::unique_ptr<Callback> callback;
 	};
 	std::vector<Listener> listeners_;
+	DocumentLoader documentLoader_;
+	bool presentationEnabled_{ true };
 };
 
 } // namespace ingnomia::ui::management6c

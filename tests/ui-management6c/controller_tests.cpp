@@ -204,6 +204,12 @@ int main()
 	controller.assignSelectedMemberToRole();
 	check( std::get<AssignRolePayload>( port.commands.back().action.payload ).creature == CreatureId{ 501 },
 		"role assignment uses stable creature identity" );
+	controller.selectSquad( SquadId{ 20 } );
+	controller.selectMember( CreatureId{ 501 } );
+	controller.assignSelectedMemberToSelectedSquad();
+	check( port.commands.back().action.id.value == "military.assign_squad"
+		&& std::get<AssignSquadPayload>( port.commands.back().action.payload ).squad == SquadId{ 20 },
+		"direct squad assignment uses the selected citizen and destination squad" );
 
 	controller.open( View::Neighbors );
 	check( port.commands.back().action.id.value == "diplomacy.refresh", "diplomacy route requests authoritative rows" );
@@ -233,15 +239,19 @@ int main()
 	controller.setMissionAction( MissionAction::Insult );
 	check( controller.state().missionDraft.action == MissionAction::None, "non-emissary action combination rejected" );
 	controller.startMission();
-	const auto& spy = std::get<StartMissionPayload>( port.commands.back().action.payload );
+	check( port.commands.back().action.id.value == "diplomacy.refresh_available_gnomes", "starting a mission refreshes eligibility" );
+    const auto& spy = std::get<StartMissionPayload>( port.commands[port.commands.size() - 2].action.payload );
 	check( spy.type == MissionType::Spy && spy.action == MissionAction::None && spy.neighbor == NeighborId{ 22 }
 		&& spy.creature == CreatureId{ 501 }, "mission dispatch preserves exhaustive typed combination and stable IDs" );
-	controller.setMissionType( MissionType::Emissary );
+	check( !controller.canStartDraftMission(), "eligibility refresh blocks a second start with stale availability" );
+    check( controller.applyAvailableGnomes( { WorldEpoch{ 44 }, Revision{ 2 },
+        { AvailableGnomeRow{ CreatureId{ 502 }, "Nia" } } } ), "eligibility updates after the first mission" );
+    controller.setMissionType( MissionType::Emissary );
 	controller.setMissionAction( MissionAction::InviteTrader );
 	controller.selectMissionGnome( CreatureId{ 502 } );
 	check( controller.canStartDraftMission(), "valid emissary draft reports startable" );
 	controller.startMission();
-	const auto& emissary = std::get<StartMissionPayload>( port.commands.back().action.payload );
+	const auto& emissary = std::get<StartMissionPayload>( port.commands[port.commands.size() - 2].action.payload );
 	check( emissary.type == MissionType::Emissary && emissary.action == MissionAction::InviteTrader,
 		"emissary action combination remains exhaustive and named" );
 
@@ -281,6 +291,49 @@ int main()
 	check( controller.state().roster.squads.empty() && controller.state().neighbors.empty()
 		&& !controller.state().selectedSquad && !controller.state().selectedNeighbor,
 		"world unload clears rows, selection, drafts, and pending state" );
+
+    // An initially selected discovered kingdom must load eligibility without a second click.
+    Port automaticPort;
+    Screen automaticScreen;
+    Management6CController automatic( automaticPort, automaticScreen );
+    automatic.beginWorld( WorldEpoch{ 50 } );
+    automatic.open( View::Neighbors );
+    automatic.applyNeighbors( { WorldEpoch{ 50 }, Revision{ 1 }, { known } } );
+    check( automatic.state().selectedNeighbor == known.id
+        && automatic.state().availableGnomeLoad == LoadState::Loading
+        && automaticPort.commands.back().action.id.value == "diplomacy.refresh_available_gnomes",
+        "automatic discovery selection requests eligibility and distinguishes loading from empty" );
+    const auto loadingCount = automaticPort.commands.size();
+    automatic.applyNeighbors( { WorldEpoch{ 50 }, Revision{ 2 }, { known } } );
+    check( automaticPort.commands.size() == loadingCount, "repeated neighbor snapshots do not duplicate an in-flight eligibility request" );
+    automatic.applyAvailableGnomes( { WorldEpoch{ 50 }, Revision{ 1 }, {} } );
+    check( automatic.state().availableGnomeLoad == LoadState::Empty && !automatic.canStartDraftMission(),
+        "a returned empty eligibility list blocks mission start" );
+    automatic.refresh();
+    automatic.applyNeighbors( { WorldEpoch{ 50 }, Revision{ 3 }, { known } } );
+    check( automatic.state().availableGnomeLoad == LoadState::Loading, "refresh retries empty eligibility" );
+    automatic.applyAvailableGnomes( { WorldEpoch{ 50 }, Revision{ 2 }, { { CreatureId{ 501 }, "Mira" } } } );
+    check( automatic.canStartDraftMission(), "automatically loaded citizen makes the supported draft startable" );
+    automatic.setDiplomacyFilter( "kingdom" );
+    automatic.setDiplomacySort( Sort::Name );
+    automatic.open( View::Missions );
+    check( automatic.state().diplomacyFilter.empty() && automatic.state().diplomacySort == Sort::SourceOrder,
+        "Missions does not inherit a Neighbors search or sort" );
+    automatic.open( View::Neighbors );
+    check( automatic.state().diplomacyFilter == "kingdom" && automatic.state().diplomacySort == Sort::Name,
+        "returning to Neighbors restores its own search and sort" );
+    automatic.applyMilitary( { WorldEpoch{ 50 }, Revision{ 1 }, roster } );
+    automatic.applyRoles( { WorldEpoch{ 50 }, Revision{ 1 }, { role( 71, "Guard" ), role( 72, "Scout" ) } } );
+    automatic.selectRole( MilitaryRoleId{ 71 } );
+    automatic.assignMemberRole( CreatureId{ 501 }, MilitaryRoleId{ 72 } );
+    const auto assignment = std::get<AssignRolePayload>( automaticPort.commands.back().action.payload );
+    check( assignment.creature == CreatureId{ 501 } && assignment.role == MilitaryRoleId{ 72 }
+        && automatic.state().selectedRole == MilitaryRoleId{ 71 },
+        "roster role assignment preserves the independent role editor selection" );
+    const auto validAssignmentCount = automaticPort.commands.size();
+    automatic.assignMemberRole( CreatureId{ 9999 }, MilitaryRoleId{ 72 } );
+    automatic.assignMemberRole( CreatureId{ 501 }, MilitaryRoleId{ 9999 } );
+    check( automaticPort.commands.size() == validAssignmentCount, "stale citizen or role identities cannot dispatch assignment" );
 
 	std::cout << "Management 6C epoch/revision/selection/military/diplomacy tests passed\n";
 }

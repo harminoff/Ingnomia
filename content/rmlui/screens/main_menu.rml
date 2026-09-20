@@ -18,11 +18,11 @@
         <nav id="shell-main-actions" class="c-shell-actions">
             <button id="shell-continue" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-continue">Continue</button>
             <span id="shell-continue-reason" class="c-field__help" data-l10n="shell.main_menu.shell-continue-reason">Newest compatible save</span>
-            <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">New game</button>
-            <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start immediately with the accepted default setup.</span>
+            <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">Quick start</button>
+            <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start with the recommended settlement defaults.</span>
             <button id="shell-tutorial" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-tutorial">Interactive tutorial</button>
             <span class="c-field__help" data-l10n="shell.main_menu.shell-tutorial-help">Learn the settlement from five gnomes to a working civilization.</span>
-            <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Set up game</button>
+            <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Custom game</button>
             <span class="c-field__help" data-l10n="shell.main_menu.choose_world_and_settlement_details_before_start">Choose world and settlement details before starting.</span>
             <button id="shell-load" class="c-button" data-l10n="shell.main_menu.shell-load">Load game</button>
             <button id="shell-settings" class="c-button" data-l10n="shell.main_menu.shell-settings">Settings</button>

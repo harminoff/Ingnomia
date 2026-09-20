@@ -29,7 +29,17 @@ int main()
 	forge.unavailableReason = "iron x2";
 	hud.setBuildCatalog( { forge } );
 	hud.chooseBuild( CatalogId{ "forge" } );
-	check( port.dispatches == 0, "unavailable build dispatched" );
-	check( hud.state().status == "iron x2", "unavailable material reason missing" );
-	std::cout << "HUD unavailable-build feedback passed\n";
+	check( port.dispatches == 1, "unavailable workshop blueprint was blocked" );
+	check( hud.state().tool.active == ToolId{ "build" }, "workshop blueprint did not activate placement" );
+	BuildCatalogRow wall;
+	wall.id = CatalogId{ "wall" };
+	wall.name = "Wall";
+	wall.kind = BuildKind::Terrain;
+	wall.available = false;
+	wall.unavailableReason = "block x1";
+	hud.setBuildCatalog( { wall } );
+	hud.chooseBuild( CatalogId{ "wall" } );
+	check( port.dispatches == 1, "unavailable non-workshop build dispatched" );
+	check( hud.state().status == "block x1", "unavailable material reason missing" );
+	std::cout << "HUD workshop-blueprint availability passed\n";
 }

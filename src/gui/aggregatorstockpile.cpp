@@ -103,25 +103,33 @@ bool AggregatorStockpile::aggregate( unsigned int stockpileID )
 		m_info.pullFromOthers    = sp->pullsOthers();
 
 		m_info.filter = sp->filter();
-
+		m_info.capacity = 0;
+		m_info.itemCount = 0;
+		m_info.reserved = 0;
 		m_info.summary.clear();
-
-		auto active = m_info.filter.getActive();
-		for ( auto entry : active )
+		QMap<QPair<QString, QString>, int> counts;
+		for ( const auto& field : sp->getFields() )
 		{
-			int count = sp->count( entry.first, entry.second );
-			//if( count > 0 )
+			if ( !field )
+				continue;
+			m_info.capacity += field->capacity;
+			m_info.itemCount += field->items.size();
+			m_info.reserved += field->reservedItems.size();
+			for ( const auto itemID : field->items )
 			{
-				//QIcon icon( Global::util->smallPixmap( Global::sf().createSprite( entry.first, { entry.second } ), season, 0 ) );
-				ItemsSummary is;
-				is.itemSID      = entry.first;
-				is.materialSID  = entry.second;
-				is.itemName     = S::s( "$ItemName_" + entry.first );
-				is.materialName = S::s( "$MaterialName_" + entry.second );
-				is.count        = count;
-
-				m_info.summary.append( is );
+				if ( g->inv()->itemExists( itemID ) )
+					++counts[{ g->inv()->itemSID( itemID ), g->inv()->materialSID( itemID ) }];
 			}
+		}
+		for ( auto it = counts.cbegin(); it != counts.cend(); ++it )
+		{
+			ItemsSummary is;
+			is.itemSID      = it.key().first;
+			is.materialSID  = it.key().second;
+			is.itemName     = S::s( "$ItemName_" + is.itemSID );
+			is.materialName = S::s( "$MaterialName_" + is.materialSID );
+			is.count        = it.value();
+			m_info.summary.append( is );
 		}
 
 		return true;
@@ -148,28 +156,13 @@ void AggregatorStockpile::onUpdateAfterTick()
 	if( !g ) return;
 	if ( m_info.stockpileID && m_contentDirty )
 	{
-		auto sp       = g->spm()->getStockpile( m_info.stockpileID );
-		m_info.filter = sp->filter();
-		m_info.summary.clear();
-		auto active = m_info.filter.getActive();
-		for ( auto entry : active )
+		if ( aggregate( m_info.stockpileID ) )
 		{
-			int count = sp->count( entry.first, entry.second );
-			//if( count > 0 )
-			{
-				//QIcon icon( Global::util->smallPixmap( Global::sf().createSprite( entry.first, { entry.second } ), season, 0 ) );
-				ItemsSummary is;
-				is.itemSID      = entry.first;
-				is.materialSID  = entry.second;
-				is.itemName     = S::s( "$ItemName_" + entry.first );
-				is.materialName = S::s( "$MaterialName_" + entry.second );
-				is.count        = count;
-
-				m_info.summary.append( is );
-			}
+			emit signalUpdateContent( m_info );
+			m_contentDirty = false;
 		}
-		emit signalUpdateContent( m_info );
-		m_contentDirty = false;
+		else
+			m_info.stockpileID = 0;
 	}
 }
 

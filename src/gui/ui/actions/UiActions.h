@@ -174,6 +174,7 @@ struct RenameSquadPayload { SquadId squad; std::string name; UI_PAYLOAD_EQUALITY
 struct MoveSquadPayload { SquadId squad; MoveDirection direction{ MoveDirection::Up }; UI_PAYLOAD_EQUALITY( MoveSquadPayload ); };
 struct GnomeTargetPayload { CreatureId creature; UI_PAYLOAD_EQUALITY( GnomeTargetPayload ); };
 struct MoveGnomePayload { CreatureId creature; MoveDirection direction{ MoveDirection::Up }; UI_PAYLOAD_EQUALITY( MoveGnomePayload ); };
+struct AssignSquadPayload { CreatureId creature; SquadId squad; UI_PAYLOAD_EQUALITY( AssignSquadPayload ); };
 struct SetAttitudePayload { SquadId squad; CatalogId targetType; MilitaryAttitude attitude{ MilitaryAttitude::Flee }; UI_PAYLOAD_EQUALITY( SetAttitudePayload ); };
 struct MovePriorityPayload { SquadId squad; CatalogId targetType; MoveDirection direction{ MoveDirection::Up }; UI_PAYLOAD_EQUALITY( MovePriorityPayload ); };
 struct RoleTargetPayload { MilitaryRoleId role; UI_PAYLOAD_EQUALITY( RoleTargetPayload ); };
@@ -204,6 +205,7 @@ using UiActionPayload = std::variant<NoPayload, StartNewGamePayload, LoadGamePay
 	SetScheduleCellPayload, SetScheduleRowPayload, SetScheduleColumnPayload, CreateProfessionPayload,
 	ProfessionTargetPayload, UpdateProfessionPayload, InventoryHistoryPayload, SquadTargetPayload,
 	RenameSquadPayload, MoveSquadPayload, GnomeTargetPayload, MoveGnomePayload, SetAttitudePayload,
+	AssignSquadPayload,
 	MovePriorityPayload, RoleTargetPayload, RenameRolePayload, AssignRolePayload, SetRoleCivilianPayload,
 	SetUniformSlotPayload, StartMissionPayload, SetRoomTenantPayload, SetRoomAlarmPayload,
 	SetMechanismStatePayload, SetAutomatonRefuelPayload, SetAutomatonCorePayload>;

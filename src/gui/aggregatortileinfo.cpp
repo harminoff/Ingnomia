@@ -330,6 +330,7 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 				git.text     = rim.itemSID;
 				git.count    = rim.count;
 				git.material = rim.materialSID;
+				git.available = rim.available;
 
 				m_tileInfo.requiredItems.append( git );
 			}

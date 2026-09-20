@@ -21,7 +21,7 @@ file(READ "${ACTIONS}" actions)
 
 foreach(action IN ITEMS
     "military.refresh" "military.add_squad" "military.remove_squad" "military.rename_squad"
-    "military.move_squad" "military.remove_gnome" "military.move_gnome" "military.set_attitude"
+    "military.move_squad" "military.remove_gnome" "military.move_gnome" "military.assign_squad" "military.set_attitude"
     "military.move_priority" "military.add_role" "military.remove_role" "military.rename_role"
     "military.assign_role" "military.set_role_civilian" "military.set_uniform_slot"
     "diplomacy.refresh" "diplomacy.refresh_available_gnomes" "diplomacy.start_mission")
@@ -44,6 +44,7 @@ endif()
 
 foreach(required IN ITEMS
     "QMetaObject::invokeMethod" "Qt::QueuedConnection" "aggregatorMilitary" "aggregatorNeighbors"
+    "onAssignGnomeToSquad"
     "validMissionCombination" "MissionType::Spy" "MissionType::Emissary" "MissionType::Raid"
     "MissionType::Sabotage" "MissionAction::None" "DispatchOriginKind::DestructiveConfirmation")
   if(NOT port MATCHES "${required}")

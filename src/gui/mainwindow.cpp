@@ -28,6 +28,7 @@ This file is part of Ingnomia https://github.com/rschurade/Ingnomia    Copyright
 #include "ui/controllers/shell/ShellQtCommandPort.h"
 #include "ui/navigation/WorkbenchCoordinator.h"
 #include "ui/runtime/RmlUiHost.h"
+#include "ui/runtime/RmlUiDetachedWindow.h"
 #include "ui/screens/hud/HudRmlBinding.h"
 #include "ui/screens/inspector/InspectorRmlBinding.h"
 #include "ui/screens/management6b/Management6BRmlBinding.h"
@@ -45,9 +46,11 @@ This file is part of Ingnomia https://github.com/rschurade/Ingnomia    Copyright
 
 #include <QCoreApplication>
 #include <QCloseEvent>
+#include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QExposeEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QInputMethodEvent>
 #include <QImage>
@@ -57,17 +60,127 @@ This file is part of Ingnomia https://github.com/rschurade/Ingnomia    Copyright
 #include <QScreen>
 #include <QSurfaceFormat>
 #include <QTimer>
+#include <QTextStream>
 #include <QPointer>
 #include <QPointer>
 #include <QGlobal.h>
-
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/ElementDocument.h>
+#include <array>
+#include <utility>
 #include <string> /** @file mainwindow.cpp *  @brief MainWindow implementation: GL context bring-up, RmlUi host init, Qt event loop *         routing (keyboard/mouse/wheel/focus/resize/expose/update), fullscreen toggling, *         and the frame-timer used during menus. Also owns the global MainWindow singleton. */
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 #include <glad/gl.h>
 
 static MainWindow* instance;
+
+namespace
+{
+void traceInspectorSkills( const QString& message )
+{
+	if ( !qEnvironmentVariableIsSet( "INGNOMIA_TRACE_INSPECTOR_SKILLS" ) ) return;
+	qInfo().noquote() << message;
+	const auto path = qEnvironmentVariable( "INGNOMIA_TRACE_INSPECTOR_SKILLS_PATH" );
+	if ( path.isEmpty() ) return;
+	QFile trace( path );
+	if ( !trace.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) ) return;
+	QTextStream stream( &trace );
+	stream << QDateTime::currentDateTime().toString( Qt::ISODateWithMs ) << ' ' << message << '\n';
+}
+
+bool isDetachedOrdersToolsElement( std::string_view id )
+{
+	return id == "hud_tool_build" || id.starts_with( "hud_build_" );
+}
+
+using HudToolPanel = ingnomia::ui::hud::HudRmlBinding::ToolPanel;
+
+std::string_view ordersToolsPanelKeyForElement( std::string_view id )
+{
+	if ( id == "hud_tool_build" || id.starts_with( "hud_build_" ) ) return "build";
+	if ( id == "hud_tool_agriculture" || id.starts_with( "hud_agriculture_" ) || id == "hud_tool_fell_tree" || id == "hud_tool_plant_tree"
+		|| id == "hud_tool_harvest_tree" || id == "hud_tool_forage" || id == "hud_tool_remove_plant" ) return "agriculture";
+	if ( id == "hud_tool_designations" || id.starts_with( "hud_designations_" ) || id == "hud_tool_stockpile" || id == "hud_tool_farm"
+		|| id == "hud_tool_grove" || id == "hud_tool_pasture" || id == "hud_tool_personal_room"
+		|| id == "hud_tool_dormitory" || id == "hud_tool_dining_hall" || id == "hud_tool_hospital"
+		|| id == "hud_tool_forbidden" || id == "hud_tool_remove_designation" ) return "designations";
+	if ( id == "hud_tool_jobs" || id.starts_with( "hud_jobs_" ) || id == "hud_tool_suspend_job" || id == "hud_tool_resume_job"
+		|| id == "hud_tool_cancel_job" || id == "hud_tool_lower_priority" || id == "hud_tool_raise_priority" ) return "jobs";
+	if ( id == "hud_tool_mine" || id.starts_with( "hud_mine_" ) ) return "mine";
+	return {};
+}
+
+HudToolPanel ordersToolsPanelForElement( std::string_view id )
+{
+	if ( id == "hud_tool_build" || id.starts_with( "hud_build_" ) ) return HudToolPanel::Build;
+	if ( id == "hud_tool_agriculture" || id.starts_with( "hud_agriculture_" ) || id == "hud_tool_fell_tree" || id == "hud_tool_plant_tree"
+		|| id == "hud_tool_harvest_tree" || id == "hud_tool_forage" || id == "hud_tool_remove_plant" ) return HudToolPanel::Agriculture;
+	if ( id == "hud_tool_designations" || id.starts_with( "hud_designations_" ) || id == "hud_tool_stockpile" || id == "hud_tool_farm"
+		|| id == "hud_tool_grove" || id == "hud_tool_pasture" || id == "hud_tool_personal_room"
+		|| id == "hud_tool_dormitory" || id == "hud_tool_dining_hall" || id == "hud_tool_hospital"
+		|| id == "hud_tool_forbidden" || id == "hud_tool_remove_designation" ) return HudToolPanel::Designations;
+	if ( id == "hud_tool_jobs" || id.starts_with( "hud_jobs_" ) || id == "hud_tool_suspend_job" || id == "hud_tool_resume_job"
+		|| id == "hud_tool_cancel_job" || id == "hud_tool_lower_priority" || id == "hud_tool_raise_priority" ) return HudToolPanel::Jobs;
+	return HudToolPanel::Mine;
+}
+
+QString ordersToolsWindowTitle( HudToolPanel panel )
+{
+	switch ( panel )
+	{
+	case HudToolPanel::Build: return QStringLiteral( "Build" );
+	case HudToolPanel::Agriculture: return QStringLiteral( "Agriculture" );
+	case HudToolPanel::Designations: return QStringLiteral( "Designations" );
+	case HudToolPanel::Jobs: return QStringLiteral( "Job commands" );
+	case HudToolPanel::Mine: return QStringLiteral( "Mining orders" );
+	}
+	return QStringLiteral( "Orders & tools" );
+}
+
+QSize ordersToolsWindowSize( HudToolPanel panel )
+{
+	switch ( panel )
+	{
+	case HudToolPanel::Build: return QSize( 400, 720 );
+	case HudToolPanel::Agriculture: return QSize( 270, 240 );
+	case HudToolPanel::Designations: return QSize( 300, 430 );
+	case HudToolPanel::Jobs: return QSize( 320, 290 );
+	case HudToolPanel::Mine: return QSize( 260, 300 );
+	}
+	return QSize( 260, 300 );
+}
+
+QSize detachedWindowSize( const QString& key, QSize baseSize, float userScale, const QWindow* owner )
+{
+	QSize desired = baseSize;
+	const int savedWidth = Global::cfg->get( key + QStringLiteral( ".width" ) ).toInt();
+	const int savedHeight = Global::cfg->get( key + QStringLiteral( ".height" ) ).toInt();
+	if ( savedWidth > 0 && savedHeight > 0 ) desired = QSize( savedWidth, savedHeight );
+	else desired = QSize( qRound( baseSize.width() * userScale ), qRound( baseSize.height() * userScale ) );
+
+	QRect available;
+	if ( owner && owner->screen() ) available = owner->screen()->availableGeometry();
+	if ( available.isValid() )
+	{
+		const QSize maximum( qMax( 240, available.width() - 16 ), qMax( 240, available.height() - 16 ) );
+		desired.setWidth( qBound( 240, desired.width(), maximum.width() ) );
+		desired.setHeight( qBound( 240, desired.height(), maximum.height() ) );
+	}
+	return desired.expandedTo( QSize( 240, 240 ) );
+}
+
+void persistDetachedWindowSize( const QString& key, QSize size )
+{
+	if ( !Global::cfg || !size.isValid() ) return;
+	Global::cfg->set( key + QStringLiteral( ".width" ), size.width() );
+	Global::cfg->set( key + QStringLiteral( ".height" ), size.height() );
+}
+} // namespace
+
 /// @brief Constructs the MainWindow: sets up a OpenGL 4.3 Core surface format, double
 ///        buffer, vsync off, and wires all signals into EventConnector and the selection
 ///        aggregator. The GL context is created lazily on the first exposeEvent.
@@ -88,6 +201,9 @@ MainWindow::MainWindow( QWidget* parent ) :
 	format.setProfile( QSurfaceFormat::CoreProfile );
 	format.setVersion( 4, 3 );
 	format.setSwapBehavior( QSurfaceFormat::DoubleBuffer );
+	// Detached RmlUi windows reuse this context and need an alpha channel so
+	// their transparent host area can be composited outside the game window.
+	format.setAlphaBufferSize( 8 );
 	format.setDepthBufferSize( 24 );
 	format.setStencilBufferSize( 8 );
 	format.setSwapInterval( 0 ); // Disable vsync for max performance
@@ -203,6 +319,8 @@ MainWindow::getInstance()
 
 bool MainWindow::activateHudElement( std::string_view id )
 {
+	if ( isDetachedOrdersToolsElement( id ) )
+		return openDetachedOrdersTools( id );
 	return m_hudBinding && m_hudBinding->activateElement( id );
 }
 
@@ -220,17 +338,24 @@ bool MainWindow::activateInspectorElement( std::string_view id )
 	return false;
 }
 
+int MainWindow::activateInspectorElementInAllWindows( std::string_view id )
+{
+	int activated = 0;
+	if ( m_inspectorBinding && m_inspectorBinding->activateElement( id ) ) ++activated;
+	for ( auto& window : m_creatureInspectorWindows )
+		if ( window.binding && window.binding->activateElement( id ) ) ++activated;
+	return activated;
+}
+
 bool MainWindow::showInspectorCreatureFixture()
 {
-	if ( !m_inspectorController ) return false;
-	const ingnomia::ui::WorldEpoch epoch { m_uiWorldEpoch ? m_uiWorldEpoch : 1 };
-	if ( m_inspectorCommands ) m_inspectorCommands->setWorld( epoch, true );
-	m_inspectorController->beginWorld( epoch );
-
 	ingnomia::ui::inspector::CreatureInspectorState fixture;
 	fixture.id = ingnomia::ui::CreatureId { 0xC0DEu };
 	fixture.name = "UI Test Gnome";
 	fixture.profession = "Gnomad";
+	fixture.professionReported = true;
+	fixture.skillsReported = true;
+	fixture.equipmentReported = true;
 	fixture.activity = "Walking to the stockpile";
 	fixture.strength = 8;
 	fixture.dexterity = 6;
@@ -238,29 +363,136 @@ bool MainWindow::showInspectorCreatureFixture()
 	fixture.intelligence = 5;
 	fixture.wisdom = 9;
 	fixture.charisma = 4;
+	fixture.attributesReported = { true, true, true, true, true, true };
 	fixture.hunger = 86;
 	fixture.thirst = 72;
 	fixture.sleep = 54;
 	fixture.happiness = 91;
 	fixture.needsReported = { true, true, true, true };
 	fixture.skills = {
+		{ "Animal Husbandry", "level 4 | active", 0 },
 		{ "Woodcutting", "level 5 | active", 0 },
 		{ "Mining", "level 3 | active", 0 },
 		{ "Crafting", "level 2 | inactive", 0 },
 		{ "Hauling", "level 4 | active", 0 },
+		{ "Masonry", "level 3 | active", 0 },
 	};
 	fixture.equipment = {
-		{ "Head", "Wool cap", 0 },
-		{ "Chest", "Cloth shirt", 0 },
-		{ "Hands", "Work gloves", 0 },
+		{ "Head", "Iron chain armor", 0 },
+		{ "Chest", "Iron chain armor", 0 },
+		{ "Right hand", "Iron sword", 0 },
+		{ "Back", "Leather backpack", 0 },
+	};
+	fixture.equipmentRole = ingnomia::ui::MilitaryRoleId { 71 };
+	fixture.equipmentRoleName = "Guard";
+	const std::vector<ingnomia::ui::inspector::EquipmentTypeChoice> armorChoices {
+		{ ingnomia::ui::CatalogId { "none" }, { ingnomia::ui::CatalogId { "any" } } },
+		{ ingnomia::ui::CatalogId { "ChainArmor" }, { ingnomia::ui::CatalogId { "any" }, ingnomia::ui::CatalogId { "Iron" }, ingnomia::ui::CatalogId { "Copper" } } },
+		{ ingnomia::ui::CatalogId { "PlateArmor" }, { ingnomia::ui::CatalogId { "any" }, ingnomia::ui::CatalogId { "Iron" }, ingnomia::ui::CatalogId { "Steel" } } },
+	};
+	const std::vector<ingnomia::ui::inspector::EquipmentTypeChoice> heldChoices {
+		{ ingnomia::ui::CatalogId { "none" }, { ingnomia::ui::CatalogId { "any" } } },
+		{ ingnomia::ui::CatalogId { "Sword" }, { ingnomia::ui::CatalogId { "any" }, ingnomia::ui::CatalogId { "Iron" }, ingnomia::ui::CatalogId { "Steel" } } },
+		{ ingnomia::ui::CatalogId { "Shield" }, { ingnomia::ui::CatalogId { "any" }, ingnomia::ui::CatalogId { "Wood" }, ingnomia::ui::CatalogId { "Iron" } } },
+	};
+	fixture.equipmentSlots = {
+		{ ingnomia::ui::UniformSlot::HeadArmor, "Head", "ChainArmorHead", "Iron", "../tilesheet/inventory_ChainArmorHead.tga", ingnomia::ui::CatalogId { "ChainArmor" }, ingnomia::ui::CatalogId { "Iron" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::ChestArmor, "Chest", "ChainArmorChest", "Iron", "../tilesheet/inventory_ChainArmorChest.tga", ingnomia::ui::CatalogId { "ChainArmor" }, ingnomia::ui::CatalogId { "Iron" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::ArmArmor, "Arms", {}, {}, {}, ingnomia::ui::CatalogId { "none" }, ingnomia::ui::CatalogId { "any" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::HandArmor, "Hands", {}, {}, {}, ingnomia::ui::CatalogId { "none" }, ingnomia::ui::CatalogId { "any" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::LegArmor, "Legs", {}, {}, {}, ingnomia::ui::CatalogId { "none" }, ingnomia::ui::CatalogId { "any" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::FootArmor, "Feet", {}, {}, {}, ingnomia::ui::CatalogId { "none" }, ingnomia::ui::CatalogId { "any" }, armorChoices },
+		{ ingnomia::ui::UniformSlot::LeftHandHeld, "Left hand", {}, {}, {}, ingnomia::ui::CatalogId { "none" }, ingnomia::ui::CatalogId { "any" }, heldChoices },
+		{ ingnomia::ui::UniformSlot::RightHandHeld, "Right hand", "SwordBlade", "Iron", "../tilesheet/inventory_SwordBlade.tga", ingnomia::ui::CatalogId { "Sword" }, ingnomia::ui::CatalogId { "Iron" }, heldChoices },
+		{ ingnomia::ui::UniformSlot::Back, "Back", "Backpack", "Leather", "../tilesheet/inventory_Backpack.tga", ingnomia::ui::CatalogId { "Backpack" }, ingnomia::ui::CatalogId { "Leather" }, heldChoices },
 	};
 	fixture.inventory = { { "Copper pickaxe", {}, 0 }, { "Apple", {}, 0 } };
 	fixture.inventoryReported = true;
-	m_inspectorController->showCreature( std::move( fixture ), ingnomia::ui::WorldPosition { 50, 50, 92 } );
-	m_inspectorController->setProfessionChoices( { "Farmer", "Gnomad", "Mason", "Miner", "Woodcutter" } );
-	return true;
+	const auto id = fixture.id;
+	const bool shown = openDetachedCreatureInspector( fixture, ingnomia::ui::WorldPosition { 50, 50, 92 } );
+	if ( shown )
+		for ( auto& window : m_creatureInspectorWindows )
+			if ( window.controller && window.controller->state().creature && window.controller->state().creature->id == id )
+				window.controller->setProfessionChoices( { "Farmer", "Gnomad", "Mason", "Miner", "Woodcutter" } );
+	return shown;
 }
 
+bool MainWindow::showInventoryFixture()
+{
+	using namespace ingnomia::ui;
+	using namespace ingnomia::ui::management6b;
+	if ( !m_management6bController ) return false;
+	const WorldEpoch world { 0xC0DEu };
+	m_management6bController->beginWorld( world );
+	if ( !ensureDetachedManagement6B() || !m_management6bWindow || !m_management6bWindow->binding ) return false;
+	if ( !m_management6bWindow->binding->openInventory( FocusToken { 2 } ) ) return false;
+	std::vector<InventoryRow> rows;
+	const auto addCategory = [&]( std::string id, std::string name ) {
+		InventoryRow category;
+		category.id = { CatalogId { std::move( id ) }, {}, {}, {}, InventoryDepth::Category };
+		category.name = std::move( name );
+		rows.push_back( std::move( category ) );
+	};
+	addCategory( "materials", "Materials" );
+	addCategory( "grown", "Grown" );
+	addCategory( "workshop", "Workshop" );
+	addCategory( "food", "Food" );
+	addCategory( "drinks", "Drinks" );
+	addCategory( "containers", "Containers" );
+	addCategory( "furniture", "Furniture" );
+	addCategory( "cloth", "Cloth" );
+	addCategory( "armor", "Armor" );
+	const auto addGroup = [&]( std::string id, std::string name, std::uint32_t total ) {
+		InventoryRow group;
+		group.id = { CatalogId { "materials" }, CatalogId { std::move( id ) }, {}, {}, InventoryDepth::Group };
+		group.name = std::move( name );
+		group.total = total;
+		rows.push_back( std::move( group ) );
+	};
+	addGroup( "drinks", "Drinks", 200 );
+	addGroup( "food", "Food", 100 );
+	addGroup( "grown", "Grown", 90 );
+	addGroup( "workshop", "Workshop", 17 );
+	addGroup( "weapons", "Weapons", 0 );
+	const InventoryRowId vegetableGroupId { CatalogId { "food" }, CatalogId { "vegetables" }, {}, {}, InventoryDepth::Group };
+	InventoryRow vegetableGroup;
+	vegetableGroup.id = vegetableGroupId;
+	vegetableGroup.name = "Vegetables";
+	vegetableGroup.total = 24;
+	rows.push_back( vegetableGroup );
+	InventoryRow vegetableItem;
+	vegetableItem.id = { CatalogId { "food" }, CatalogId { "vegetables" }, CatalogId { "Vegetable" }, {}, InventoryDepth::Item };
+	vegetableItem.name = "Vegetable";
+	vegetableItem.total = 24;
+	vegetableItem.spriteSheet = "build_Carrot.tga";
+	vegetableItem.spriteWidth = vegetableItem.spriteSheetWidth = 32;
+	vegetableItem.spriteHeight = vegetableItem.spriteSheetHeight = 36;
+	rows.push_back( vegetableItem );
+	const std::array<std::pair<const char*, const char*>, 24> vegetables {{
+		{ "Artichoke", "Artichoke" }, { "Asparagus", "Asparagus" }, { "Beans", "Beans" }, { "BeetRoot", "Beet root" },
+		{ "Bottlegourd", "Bottle gourd" }, { "Broccoli", "Broccoli" }, { "Cabbage", "Cabbage" }, { "Capsicum", "Capsicum" },
+		{ "Carrot", "Carrot" }, { "Cauliflower", "Cauliflower" }, { "Corn", "Corn" }, { "Cucumber", "Cucumber" },
+		{ "Garlic", "Garlic" }, { "Leek", "Leek" }, { "Lettuce", "Lettuce" }, { "Onion", "Onion" },
+		{ "Parsnip", "Parsnip" }, { "Peas", "Peas" }, { "Potato", "Potato" }, { "Radish", "Radish" },
+		{ "Sugarbeet", "Sugar beet" }, { "Tomato", "Tomato" }, { "Turnip", "Turnip" }, { "Woad", "Woad" }
+	} };
+	for ( const auto& [id, name] : vegetables )
+	{
+		InventoryRow vegetable;
+		vegetable.id = { CatalogId { "food" }, CatalogId { "vegetables" }, CatalogId { "Vegetable" }, CatalogId { id }, InventoryDepth::Material };
+		vegetable.name = name;
+		vegetable.total = 1;
+		vegetable.spriteSheet = std::string { "inventory_" } + id + ".tga";
+		vegetable.spriteWidth = vegetable.spriteSheetWidth = 40;
+		vegetable.spriteHeight = vegetable.spriteSheetHeight = 40;
+		rows.push_back( std::move( vegetable ) );
+	}
+	m_management6bController->applyInventory( { world, Revision { 1 }, std::move( rows ) } );
+	m_management6bController->setInventoryCategory( "food" );
+	m_management6bController->toggleInventoryExpanded( vegetableGroupId );
+	m_management6bController->toggleInventoryExpanded( vegetableItem.id );
+	return true;
+}
 std::string MainWindow::hudStatus() const
 {
 	return m_hudController ? m_hudController->state().status : std::string{};
@@ -278,6 +510,9 @@ bool MainWindow::dispatchShellSettingChangeForProbe( std::string_view id, float 
 
 bool MainWindow::activateManagementElement( std::string_view id )
 {
+	if ( m_management6aWindow && m_management6aWindow->binding && m_management6aWindow->binding->activateElement( id ) ) return true;
+	if ( m_management6bWindow && m_management6bWindow->binding && m_management6bWindow->binding->activateElement( id ) ) return true;
+	if ( m_management6cWindow && m_management6cWindow->binding && m_management6cWindow->binding->activateElement( id ) ) return true;
 	if ( m_management6a && m_management6a->activateElement( id ) ) return true;
 	if ( m_management6bBinding && m_management6bBinding->activateElement( id ) ) return true;
 	if ( m_management6cBinding && m_management6cBinding->activateElement( id ) ) return true;
@@ -285,32 +520,50 @@ bool MainWindow::activateManagementElement( std::string_view id )
 }
 bool MainWindow::setManagementFormValueForProbe( std::string_view id, std::string_view value )
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->setFormValueForProbe( id, value );
 	return m_management6a && m_management6a->setFormValueForProbe( id, value );
 }
 bool MainWindow::setManagementStockpileSearchForProbe( std::string_view value )
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->setStockpileSearchForProbe( value );
 	return m_management6a && m_management6a->setStockpileSearchForProbe( value );
 }
 bool MainWindow::activateFirstManagementStockpileFilterForProbe()
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->activateFirstStockpileFilterForProbe( ingnomia::ui::management6a::TriState::On, ingnomia::ui::FilterDepth::Material );
 	return m_management6a && m_management6a->activateFirstStockpileFilterForProbe( ingnomia::ui::management6a::TriState::On, ingnomia::ui::FilterDepth::Material );
 }
 bool MainWindow::activateManagementStockpileMaterialForProbe( std::string_view item, std::string_view material )
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->activateStockpileFilterForProbe( item, material );
 	return m_management6a && m_management6a->activateStockpileFilterForProbe( item, material );
 }
 bool MainWindow::selectFirstManagementMixedStockpileFilterForProbe()
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->activateFirstStockpileFilterForProbe( ingnomia::ui::management6a::TriState::Mixed, ingnomia::ui::FilterDepth::Item );
 	return m_management6a && m_management6a->activateFirstStockpileFilterForProbe( ingnomia::ui::management6a::TriState::Mixed, ingnomia::ui::FilterDepth::Item );
 }
 bool MainWindow::dispatchManagementStockpileFilterKeyForProbe( int keyIdentifier )
 {
+	if ( m_management6aWindow && m_management6aWindow->binding )
+		return m_management6aWindow->binding->dispatchStockpileFilterKeyForProbe( keyIdentifier );
 	return m_management6a && m_management6a->dispatchStockpileFilterKeyForProbe( keyIdentifier );
 }
 bool MainWindow::activateFirstManagementElement( std::string_view kind )
 {
 	if ( kind == "population" || kind == "schedule" || kind == "inventory" )
+	{
+		if ( m_management6bWindow && m_management6bWindow->binding )
+			return m_management6bWindow->binding->activateFirstDataElement( kind );
 		return m_management6bBinding && m_management6bBinding->activateFirstDataElement( kind );
+	}
+	if ( m_management6cWindow && m_management6cWindow->binding )
+		return m_management6cWindow->binding->activateFirstDataElement( kind );
 	return m_management6cBinding && m_management6cBinding->activateFirstDataElement( kind );
 }
 bool MainWindow::requestInventoryHistoryProbe()
@@ -486,8 +739,18 @@ MainWindow::keyPressEvent( QKeyEvent* event )
 		ingnomia::ui::accessibility::EscapeContext escape { m_uiCompositionActive, prompt, false, inspector,
 			m_workbenchCoordinator && m_workbenchCoordinator->state().workbench.has_value(),
 			m_hudController && m_hudController->state().tool.active.has_value(), false };
-		if ( ingnomia::ui::accessibility::escapeTarget( escape ) == ingnomia::ui::accessibility::EscapeLayer::Game &&
-			 m_shellController->handleEscape() )
+		const auto escapeLayer = ingnomia::ui::accessibility::escapeTarget( escape );
+		if ( escapeLayer == ingnomia::ui::accessibility::EscapeLayer::ActiveTool )
+		{
+			// Match the HUD's "RMB/Esc cancel" contract.  The active placement
+			// tool owns Escape before the shell can interpret it as Pause.
+			if ( m_hudController ) m_hudController->cancelTool();
+			event->accept();
+			idleRenderTick();
+			return;
+		}
+		if ( escapeLayer == ingnomia::ui::accessibility::EscapeLayer::Game &&
+				m_shellController->handleEscape() )
 		{
 			event->accept();
 			idleRenderTick();
@@ -858,6 +1121,12 @@ MainWindow::mouseMoveEvent( QMouseEvent* event )
 	if ( rmlUiActive() )
 
 	{
+		if ( m_rmlWindowDragging )
+		{
+			updateRmlWindowDrag( event->position() );
+			event->accept();
+			return;
+		}
 
 		m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
 
@@ -989,6 +1258,12 @@ MainWindow::mousePressEvent( QMouseEvent* event )
 	m_mouseY = gp.y();
 	if ( m_inspectorController )
 		m_inspectorController->setSelectionPointer( ingnomia::ui::inspector::PointerPosition { m_mouseX, m_mouseY } );
+	if ( event->button() == Qt::LeftButton && beginRmlWindowDrag( event->position() ) )
+	{
+		event->accept();
+		redraw();
+		return;
+	}
 	m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
 	const auto dispatch = m_rmlUiHost->input().mouseButtonDown( event->button(), event->modifiers() );
 	if ( dispatch.owner == ingnomia::ui::PointerOwner::Ui )
@@ -1036,6 +1311,13 @@ MainWindow::mouseReleaseEvent( QMouseEvent* event )
 	const auto gp = this->mapFromGlobal( event->globalPosition().toPoint() );
 	m_mouseX      = gp.x();
 	m_mouseY      = gp.y();
+	if ( m_rmlWindowDragging && event->button() == Qt::LeftButton )
+	{
+		endRmlWindowDrag();
+		event->accept();
+		redraw();
+		return;
+	}
 	if ( m_inspectorController )
 		m_inspectorController->setSelectionPointer( ingnomia::ui::inspector::PointerPosition { m_mouseX, m_mouseY } );
 	m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
@@ -1184,13 +1466,14 @@ MainWindow::focusOutEvent( QFocusEvent* e )
 	m_rightDown = false;
 
 	m_isMove = false;
+	endRmlWindowDrag();
 
 	QWindow::focusOutEvent( e );
 
 	redraw();
 }
 
-/// @brief Increments the view level (camera goes up a floor). Ctrl or Shift jumps multiple.
+/// @brief Shows the next layer without panning the canvas.
 
 /// @param shift True if Shift is held.
 
@@ -1202,24 +1485,14 @@ MainWindow::keyboardZPlus( bool shift, bool ctrl )
 
 {
 
-	int dimZ = Global::dimZ - 1;
-
-	GameState::viewLevel += 1;
-
-	GameState::viewLevel = qMax( 0, qMin( dimZ, GameState::viewLevel ) );
-
-	m_renderer->onRenderParamsChanged();
-
-	emit signalRenderParams( width(), height(), m_renderer->moveX(), m_renderer->moveY(), m_renderer->scale(), m_renderer->rotation() );
-
-	emit signalViewLevel( GameState::viewLevel );
+	onUiSetViewLevel( GameState::viewLevel + 1 );
 
 	emit signalMouse( m_mouseX, m_mouseY, shift, ctrl );
 
 	redraw();
 }
 
-/// @brief Decrements the view level (camera goes down a floor). Ctrl or Shift jumps multiple.
+/// @brief Shows the previous layer without panning the canvas.
 
 /// @param shift True if Shift is held.
 
@@ -1231,17 +1504,7 @@ MainWindow::keyboardZMinus( bool shift, bool ctrl )
 
 {
 
-	int dimZ = Global::dimZ - 1;
-
-	GameState::viewLevel -= 1;
-
-	GameState::viewLevel = qMax( 0, qMin( dimZ, GameState::viewLevel ) );
-
-	m_renderer->onRenderParamsChanged();
-
-	emit signalViewLevel( GameState::viewLevel );
-
-	emit signalRenderParams( width(), height(), m_renderer->moveX(), m_renderer->moveY(), m_renderer->scale(), m_renderer->rotation() );
+	onUiSetViewLevel( GameState::viewLevel - 1 );
 
 	emit signalMouse( m_mouseX, m_mouseY, shift, ctrl );
 
@@ -1341,8 +1604,16 @@ MainWindow::initializeRmlUi()
 		return false;
 	hudBinding->setPauseHandler( [this]()
 			{
-				if ( m_shellController ) m_shellController->activate( ingnomia::ui::shell::ShellControl::OpenPause );
+				if ( m_shellController ) m_shellController->activate( ingnomia::ui::shell::ShellControl::TogglePause );
 			} );
+	hudBinding->setOrdersToolsHandler( [this]( std::string_view id )
+		{
+			if ( !openDetachedOrdersTools( id ) )
+			{
+				qWarning() << "Could not open detached Orders & tools window";
+				return;
+			}
+		} );
 
 	auto* inspectorBinding = m_rmlUiHost->createInspectorBinding();
 
@@ -1375,12 +1646,24 @@ MainWindow::initializeRmlUi()
 	if ( !management6bBinding->initialize( *m_management6bController ) )
 
 		return false;
+	management6bBinding->setPresentationEnabled( false );
+	management6bBinding->stateChanged( m_management6bController->state() );
 
 	m_management6a = std::make_unique<ingnomia::ui::management6a::Management6AIntegration>( Global::eventConnector, *m_rmlUiHost->context(), this );
 
 	if ( !m_management6a->initialize() )
 
 		return false;
+	if ( auto* management6aBinding = m_management6a->binding() )
+	{
+		management6aBinding->setPresentationEnabled( false );
+		management6aBinding->stateChanged( m_management6a->controller()->state() );
+	}
+	m_management6a->setViewHandler( [this]( ingnomia::ui::management6a::ManagementView )
+		{
+			if ( !ensureDetachedManagement6A() )
+				qWarning() << "Could not open detached production management window";
+		} );
 
 	m_management6cCommands = std::make_unique<ingnomia::ui::management6c::Management6CQtCommandPort>( Global::eventConnector );
 
@@ -1393,6 +1676,8 @@ MainWindow::initializeRmlUi()
 	if ( !m_management6cBinding->initialize( *m_management6cController ) || !m_management6cBridge->attach( Global::eventConnector, *m_management6cController ) )
 
 		return false;
+	m_management6cBinding->setPresentationEnabled( false );
+	m_management6cBinding->stateChanged( m_management6cController->state() );
 
 	m_management6cBinding->setRouteCloseHandler( []( ingnomia::ui::RouteId, ingnomia::ui::FocusToken ) {} );
 
@@ -1400,35 +1685,35 @@ MainWindow::initializeRmlUi()
 
 	m_workbenchCoordinator = std::make_unique<navigation::WorkbenchCoordinator>( navigation::WorkbenchPorts { [this, management6bBinding]( FocusToken focus )
 
-																											  { if ( m_inspectorController ) m_inspectorController->close(); return management6bBinding->openPopulation( focus ); }, [management6bBinding]( FocusToken focus )
+																											  { if ( m_inspectorController ) m_inspectorController->close(); return ensureDetachedManagement6B() && m_management6bWindow && m_management6bWindow->binding && m_management6bWindow->binding->openPopulation( focus ); }, [this, management6bBinding]( FocusToken focus )
 
-																											  { return management6bBinding->openInventory( focus ); }, [this]( FocusToken focus )
+																											  { return ensureDetachedManagement6B() && m_management6bWindow && m_management6bWindow->binding && m_management6bWindow->binding->openInventory( focus ); }, [this]( FocusToken focus )
 
-																											  { return m_management6cBinding->openMilitary( management6c::View::Squads, focus ); }, [this]( FocusToken focus )
+																											  { return ensureDetachedManagement6C() && m_management6cWindow && m_management6cWindow->binding && m_management6cWindow->binding->openMilitary( management6c::View::Squads, focus ); }, [this]( FocusToken focus )
 
-																								  { return m_management6cBinding->openDiplomacy( management6c::View::Missions, focus ); }, [management6bBinding]
+																								  { return ensureDetachedManagement6C() && m_management6cWindow && m_management6cWindow->binding && m_management6cWindow->binding->openDiplomacy( management6c::View::Missions, focus ); }, [this, management6bBinding]
 
-																								  { management6bBinding->closeRoute(); }, [this]
+																								  { if ( m_management6bWindow && m_management6bWindow->binding ) m_management6bWindow->binding->closeRoute(); else management6bBinding->closeRoute(); }, [this]
 
-																								  { m_management6cBinding->closeRoute(); }, [management6bBinding]
+																								  { if ( m_management6cWindow && m_management6cWindow->binding ) m_management6cWindow->binding->closeRoute(); else m_management6cBinding->closeRoute(); }, [this, management6bBinding]
 
-																								  { management6bBinding->closePopulation(); }, [management6bBinding]
+																								  { if ( m_management6bWindow && m_management6bWindow->binding ) m_management6bWindow->binding->closePopulation(); else management6bBinding->closePopulation(); }, [this, management6bBinding]
 
-																								  { management6bBinding->closeInventory(); }, [this]
+																								  { if ( m_management6bWindow && m_management6bWindow->binding ) m_management6bWindow->binding->closeInventory(); else management6bBinding->closeInventory(); }, [this]
 
-																								  { m_management6cBinding->closeMilitary(); }, [this]
+																								  { if ( m_management6cWindow && m_management6cWindow->binding ) m_management6cWindow->binding->closeMilitary(); else m_management6cBinding->closeMilitary(); }, [this]
 
-																								  { m_management6cBinding->closeDiplomacy(); }, [hudBinding]( FocusToken focus )
+																								  { if ( m_management6cWindow && m_management6cWindow->binding ) m_management6cWindow->binding->closeDiplomacy(); else m_management6cBinding->closeDiplomacy(); }, [hudBinding]( FocusToken focus )
 
 																											  { hudBinding->restoreWorkbenchFocus( focus ); } } );
 
 	management6bBinding->setRouteCloseHandler( [this]( RouteId route, FocusToken focus )
 
-											   {if(m_workbenchCoordinator)(void)m_workbenchCoordinator->close(route,focus); } );
+											   { hideDetachedManagement6B(); if(m_workbenchCoordinator)(void)m_workbenchCoordinator->close(route,focus); } );
 
 	m_management6cBinding->setRouteCloseHandler( [this]( RouteId route, FocusToken focus )
 
-												 {if(m_workbenchCoordinator)(void)m_workbenchCoordinator->close(route,focus); } );
+												 { hideDetachedManagement6C(); if(m_workbenchCoordinator)(void)m_workbenchCoordinator->close(route,focus); } );
 
 	hudBinding->setWorkbenchHandlers( [this]( FocusToken focus )
 
@@ -1473,6 +1758,8 @@ MainWindow::initializeRmlUi()
 
 if( inMenu ) {
 
+hideDetachedManagementWindows();
+
 
 if(m_workbenchCoordinator)m_workbenchCoordinator->leaveGame();
 
@@ -1515,6 +1802,8 @@ m_debugData->setWorld( {} );
 
 
 const ingnomia::ui::WorldEpoch epoch{++m_uiWorldEpoch};
+
+m_creatureProfessionChoices.clear();
 
 
 if(m_workbenchCoordinator)(void)m_workbenchCoordinator->enterGame();
@@ -1562,53 +1851,52 @@ m_debugController->beginWorld( epoch );
 
 			 {
 				 if(m_management6bController&&m_management6bController->state().populationOpen)return;
+				 traceInspectorSkills( QStringLiteral( "route payload id=%1 name=%2 rows=%3" )
+					.arg( static_cast<qulonglong>( value.id ) ).arg( value.name ).arg( value.skills.size() ) );
 				 const auto creature=ingnomia::ui::inspector::InspectorQtDataAdapter::creature(value);
 				 const auto position=ingnomia::ui::inspector::InspectorQtDataAdapter::position(value.position);
-				 if(m_inspectorController&&m_inspectorController->state().creature&&m_inspectorController->state().creature->id==creature.id)
-				 {
-					 m_inspectorController->showCreature(creature,position);
-					 return;
-				 }
 				 for(auto& window:m_creatureInspectorWindows)
 				 {
 					 if(window.controller&&window.controller->state().creature&&window.controller->state().creature->id==creature.id)
 					 {
+						const auto& before = *window.controller->state().creature;
+						traceInspectorSkills( QStringLiteral( "route match slot=%1 id=%2 name=%3 beforeRows=%4 beforeSkillsReported=%5" )
+							.arg( window.slot )
+							.arg( static_cast<qulonglong>( before.id.value ) )
+							.arg( QString::fromStdString( before.name ) )
+							.arg( before.skills.size() )
+							.arg( before.skillsReported ? QStringLiteral( "true" ) : QStringLiteral( "false" ) ) );
 						 window.controller->showCreature(creature,position);
+						const auto& after = *window.controller->state().creature;
+						traceInspectorSkills( QStringLiteral( "route applied slot=%1 id=%2 name=%3 afterRows=%4 afterSkillsReported=%5" )
+							.arg( window.slot )
+							.arg( static_cast<qulonglong>( after.id.value ) )
+							.arg( QString::fromStdString( after.name ) )
+							.arg( after.skills.size() )
+							.arg( after.skillsReported ? QStringLiteral( "true" ) : QStringLiteral( "false" ) ) );
 						 return;
 					 }
 				 }
-				 for(auto& window:m_creatureInspectorWindows)
-				 {
-					 if(!window.controller||window.controller->state().kind!=ingnomia::ui::inspector::InspectorKind::None)continue;
-					 window.controller->showCreature(creature,position);
-					 return;
-				 }
-				 if(!m_rmlUiHost||m_creatureInspectorWindows.size()>=static_cast<std::size_t>(MainWindowRenderer::cameraPreviewSlotCount-1))return;
-				 const int slot=static_cast<int>(m_creatureInspectorWindows.size())+1;
-				 const int windowIndex=static_cast<int>(m_creatureInspectorWindows.size())+1;
-				 auto* binding=m_rmlUiHost->createCreatureInspectorBinding(slot,windowIndex);
-				 if(!binding)return;
-				 m_rmlUiHost->setCameraPreviewTexture("camera-preview://slot-"+std::to_string(slot),m_renderer->cameraPreviewTexture(slot),m_renderer->cameraPreviewWidth(),m_renderer->cameraPreviewHeight());
-				 CreatureInspectorWindow window;
-				 window.slot=slot;
-				 window.binding=binding;
-				 window.commands=std::make_unique<ingnomia::ui::inspector::InspectorQtCommandPort>(Global::eventConnector);
-				 window.controller=std::make_unique<ingnomia::ui::inspector::InspectorController>(*window.commands,*binding);
-				 if(!binding->initialize(*window.controller))return;
-				 const ingnomia::ui::WorldEpoch epoch{m_uiWorldEpoch};
-				 window.commands->setWorld(epoch,true);
-				 window.controller->beginWorld(epoch);
-				 window.controller->showCreature(creature,position);
-				 m_creatureInspectorWindows.push_back(std::move(window));
-			 }, Qt::QueuedConnection );
+				 traceInspectorSkills( QStringLiteral( "route no-match id=%1 name=%2 existingWindows=%3" )
+					.arg( static_cast<qulonglong>( value.id ) ).arg( value.name ).arg( m_creatureInspectorWindows.size() ) );
+					 // Creature inspectors now live in their own native windows. Clear any
+					 // stale in-canvas inspector state before opening one; leaving a tile or
+					 // workshop document mounted in the primary context lets its layout
+					 // compete with the HUD when a real creature selection arrives.
+					 if(m_inspectorController&&m_inspectorController->state().kind!=ingnomia::ui::inspector::InspectorKind::None)
+						m_inspectorController->close();
+					 (void)openDetachedCreatureInspector(creature,position);
+				 }, Qt::QueuedConnection );
 
 	connect( Global::eventConnector->aggregatorCreatureInfo(), &AggregatorCreatureInfo::signalCreatureCleared, this, [this]()
 
-			 {if(m_inspectorController&&m_inspectorController->state().kind==ingnomia::ui::inspector::InspectorKind::Creature)m_inspectorController->close(); }, Qt::QueuedConnection );
+			 // A detached inspector is an independent window. Clearing the shared
+			 // selection must not close every other inspector that the player opened.
+			 {if(m_inspectorController&&m_inspectorController->state().kind==ingnomia::ui::inspector::InspectorKind::Creature)m_inspectorController->close();}, Qt::QueuedConnection );
 
 	connect( Global::eventConnector->aggregatorCreatureInfo(), &AggregatorCreatureInfo::signalProfessionList, this, [this]( const QStringList& value )
 
-			 {std::vector<std::string> choices;choices.reserve(value.size());for(const auto&v:value)choices.push_back(v.toStdString());if(m_inspectorController)m_inspectorController->setProfessionChoices(choices);for(auto& window:m_creatureInspectorWindows)if(window.controller&&window.controller->state().kind==ingnomia::ui::inspector::InspectorKind::Creature)window.controller->setProfessionChoices(choices);}, Qt::QueuedConnection );
+			 {std::vector<std::string> choices;choices.reserve(value.size());for(const auto&v:value)choices.push_back(v.toStdString());m_creatureProfessionChoices=choices;if(m_inspectorController&&m_inspectorController->state().kind==ingnomia::ui::inspector::InspectorKind::Creature)m_inspectorController->setProfessionChoices(choices);for(auto&window:m_creatureInspectorWindows)if(window.controller&&window.controller->state().kind==ingnomia::ui::inspector::InspectorKind::Creature)window.controller->setProfessionChoices(choices);}, Qt::QueuedConnection );
 
 	connect( Global::eventConnector->aggregatorWorkshop(), &AggregatorWorkshop::signalUpdateInfo, this, [this]( const GuiWorkshopInfo& value )
 
@@ -1698,6 +1986,10 @@ m_management6bController->applyProfessionSkills(m_management6bController->state(
 
 			 {if(m_management6bController&&m_management6bData)m_management6bController->applyInventory(m_management6bData->inventory(value)); }, Qt::QueuedConnection );
 
+	connect( Global::eventConnector->aggregatorInventory(), &AggregatorInventory::signalInventoryChanged, this, [this]
+
+			 {if(m_management6bController)m_management6bController->inventoryChanged(); }, Qt::QueuedConnection );
+
 	connect( Global::eventConnector->aggregatorInventory(), &AggregatorInventory::signalInventoryHistory, this, [this]( const QString& item, const QString& material, const QList<GuiInventoryHistoryPoint>& value )
 
 			 {
@@ -1743,10 +2035,11 @@ m_management6bController->applyProfessionSkills(m_management6bController->state(
 							}
 							if ( available.second >= required.amount ) componentAvailable = true;
 						}
-						if ( !component.selected.value.empty() )
-						{
-							materials.push_back( component.selected );
-						}
+						// A workshop blueprint must carry one material token per required
+						// component. "any" lets it claim a suitable future item safely.
+						materials.push_back( component.selected.value.empty()
+							? ingnomia::ui::CatalogId{ "any" }
+							: component.selected );
 						if ( !componentAvailable )
 						{
 							buildable = false;
@@ -1757,6 +2050,8 @@ m_management6bController->applyProfessionSkills(m_management6bController->state(
 					ingnomia::ui::hud::BuildCatalogRow row;
 					row.id = ingnomia::ui::CatalogId{ item.id.toStdString() };
 					row.name = item.name.toStdString();
+					row.type = item.type.toStdString();
+					row.type = item.type.toStdString();
 					row.kind = kind;
 					row.defaultMaterials = std::move( materials );
 					row.components = std::move( components );
@@ -1968,7 +2263,10 @@ rows.push_back( { ingnomia::ui::SaveKingdomId{ key }, value.name.toStdString(), 
 }
 
 
-m_shellController->setLoadGameState( ingnomia::ui::shell::ShellDataAdapter::saves( std::move( rows ), {} ) ); }, Qt::QueuedConnection );
+auto state = ingnomia::ui::shell::ShellDataAdapter::saves( std::move( rows ), {} );
+const auto firstKingdom = state.selectedKingdom;
+m_shellController->setLoadGameState( std::move( state ) );
+if ( firstKingdom ) m_shellController->selectKingdom( *firstKingdom ); }, Qt::QueuedConnection );
 
 	connect( Global::eventConnector->aggregatorLoadGame(), &AggregatorLoadGame::signalSaveGames, this, [this]( const QList<GuiSaveInfo>& values )
 
@@ -2056,6 +2354,710 @@ for( const auto& row : state.saves ) if( row.compatible ) { state.selectedSlot =
 	return true;
 }
 
+bool MainWindow::openDetachedOrdersTools( std::string_view elementId )
+{
+	if ( !ensureDetachedOrdersTools( elementId ) ) return false;
+	const auto panelKey = ordersToolsPanelKeyForElement( elementId );
+	for ( auto& window : m_ordersToolsWindows )
+		if ( window && window->panelKey == panelKey && window->binding )
+			return window->binding->activateElement( elementId );
+	return true;
+}
+
+bool MainWindow::ensureDetachedOrdersTools( std::string_view elementId )
+{
+	if ( !m_rmlUiHost || !m_context || !m_renderer || !m_hudController ) return false;
+	const auto panelKey = ordersToolsPanelKeyForElement( elementId );
+	const auto panel = ordersToolsPanelForElement( elementId );
+	const auto title = ordersToolsWindowTitle( panel );
+	const auto size = ordersToolsWindowSize( panel );
+	const float userScale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
+	const auto sizeKey = panel == HudToolPanel::Build ? QStringLiteral( "UiWindow.orders.build.compact2" ) : QStringLiteral( "UiWindow.orders.%1" ).arg( QString::fromLatin1( panelKey.data(), static_cast<int>( panelKey.size() ) ) );
+	const QSize nativeSize = detachedWindowSize( sizeKey, size, userScale, this );
+	for ( auto& window : m_ordersToolsWindows )
+		if ( window && window->panelKey == panelKey && window->nativeWindow && window->binding )
+		{
+			window->nativeWindow->showAndActivate();
+			return true;
+		}
+	if ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) ) return false;
+
+	auto nativeWindow = std::make_unique<ingnomia::ui::RmlUiDetachedWindow>( *m_rmlUiHost, m_context,
+		title, nativeSize );
+	nativeWindow->setTransientParent( this );
+	if ( !nativeWindow->initializeOpenGL() || !nativeWindow->makeCurrent() ) return false;
+
+	const float ratio = static_cast<float>( devicePixelRatio() ) * userScale;
+	const QSize physicalSize( qMax( 1, qRound( nativeWindow->width() * nativeWindow->devicePixelRatio() ) ),
+		qMax( 1, qRound( nativeWindow->height() * nativeWindow->devicePixelRatio() ) ) );
+	auto detachedContext = m_rmlUiHost->createDetachedContext( nativeWindow.get(),
+		QStringLiteral( "ingnomia-orders-tools-" ) + QString::fromLatin1( panelKey.data(), static_cast<int>( panelKey.size() ) ), physicalSize, ratio );
+	if ( !detachedContext )
+	{
+		nativeWindow->doneCurrent();
+		return false;
+	}
+	nativeWindow->setUserUiScale( userScale );
+
+	auto window = std::make_unique<OrdersToolsWindow>();
+	window->panelKey = std::string( panelKey );
+	window->context = std::move( detachedContext );
+	window->nativeWindow = std::move( nativeWindow );
+	auto* detached = window->context.get();
+	window->binding = std::make_unique<ingnomia::ui::hud::HudRmlBinding>( *detached->context(),
+		ingnomia::ui::hud::HudRmlBinding::Presentation::OrdersTools, panel );
+	window->binding->setDocumentLoader( [this, detached]( const char* path )
+		{ return m_rmlUiHost ? m_rmlUiHost->loadDocument( *detached, QString::fromUtf8( path ), false ) : nullptr; } );
+	if ( !window->binding->initialize( *m_hudController ) )
+	{
+		window->binding->shutdown();
+		window->binding.reset();
+		(void)m_rmlUiHost->destroyDetachedContext( window->context );
+		window->nativeWindow->doneCurrent();
+		return false;
+	}
+	m_hudController->addViewPort( *window->binding );
+	m_ordersToolsWindows.push_back( std::move( window ) );
+	auto& added = *m_ordersToolsWindows.back();
+	added.nativeWindow->attachContext( added.context.get() );
+	const auto closeKey = added.panelKey;
+	added.binding->setCloseHandler( [this, closeKey]
+		{
+			for ( auto& window : m_ordersToolsWindows )
+				if ( window && window->panelKey == closeKey )
+				{
+					if ( window->nativeWindow ) window->nativeWindow->requestClose();
+					return;
+				}
+		} );
+	added.nativeWindow->setCloseHandler( [this, closeKey]
+		{ hideDetachedOrdersTools( closeKey ); } );
+	added.nativeWindow->setResizable( false );
+	added.nativeWindow->setResizeMinimumSize( QSize( 240, 240 ) );
+	added.nativeWindow->setResizeHandler( [sizeKey]( QSize resized ) { persistDetachedWindowSize( sizeKey, resized ); } );
+	added.nativeWindow->resetView( nativeSize );
+	const int cascade = static_cast<int>( m_ordersToolsWindows.size() - 1 ) * 32;
+	const QPoint desired = position() + QPoint( 72 + cascade, 104 + cascade );
+	if ( QScreen* screen = QGuiApplication::screenAt( desired ) )
+	{
+		const QRect bounds = screen->availableGeometry();
+		const int x = qBound( bounds.left() + 8, desired.x(), bounds.right() - added.nativeWindow->width() - 8 );
+		const int y = qBound( bounds.top() + 8, desired.y(), bounds.bottom() - added.nativeWindow->height() - 8 );
+		added.nativeWindow->setPosition( x, y );
+	}
+	added.nativeWindow->showAndActivate();
+	(void)m_context->makeCurrent( this );
+	return true;
+}
+
+bool MainWindow::ensureDetachedManagement6A()
+{
+	if ( !m_rmlUiHost || !m_context || !m_renderer || !m_management6a || !m_management6a->controller() ) return false;
+	if ( m_management6aWindow && m_management6aWindow->nativeWindow && m_management6aWindow->binding )
+	{
+		m_management6aWindow->nativeWindow->showAndActivate();
+		return true;
+	}
+	if ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) ) return false;
+
+	const float userScale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
+	const QSize baseSize( 900, 640 );
+	const auto sizeKey = QStringLiteral( "UiWindow.production" );
+	const QSize nativeSize = detachedWindowSize( sizeKey, baseSize, userScale, this );
+	auto nativeWindow = std::make_unique<ingnomia::ui::RmlUiDetachedWindow>( *m_rmlUiHost, m_context,
+		QStringLiteral( "Production management" ), nativeSize );
+	nativeWindow->setTransientParent( this );
+	if ( !nativeWindow->initializeOpenGL() || !nativeWindow->makeCurrent() ) return false;
+
+	const float ratio = static_cast<float>( devicePixelRatio() ) * userScale;
+	const QSize physicalSize( qMax( 1, qRound( nativeWindow->width() * nativeWindow->devicePixelRatio() ) ),
+		qMax( 1, qRound( nativeWindow->height() * nativeWindow->devicePixelRatio() ) ) );
+	auto detachedContext = m_rmlUiHost->createDetachedContext( nativeWindow.get(),
+		QStringLiteral( "ingnomia-management6a" ), physicalSize, ratio );
+	if ( !detachedContext )
+	{
+		nativeWindow->doneCurrent();
+		return false;
+	}
+	nativeWindow->setUserUiScale( userScale );
+
+	auto window = std::make_unique<Management6AWindow>();
+	window->context = std::move( detachedContext );
+	window->nativeWindow = std::move( nativeWindow );
+	auto* detached = window->context.get();
+	window->binding = std::make_unique<ingnomia::ui::management6a::Management6ARmlBinding>( *detached->context() );
+	window->binding->setDocumentLoader( [this, detached]( const char* path )
+		{ return m_rmlUiHost ? m_rmlUiHost->loadDocument( *detached, QString::fromUtf8( path ), false ) : nullptr; } );
+	if ( !window->binding->initialize( *m_management6a->controller() ) )
+	{
+		window->binding->shutdown();
+		window->binding.reset();
+		(void)m_rmlUiHost->destroyDetachedContext( window->context );
+		window->nativeWindow->doneCurrent();
+		return false;
+	}
+	m_management6a->controller()->addViewPort( *window->binding );
+	m_management6aWindow = std::move( window );
+	auto& added = *m_management6aWindow;
+	added.nativeWindow->attachContext( added.context.get() );
+	added.binding->setCloseHandler( [this]
+		{ if ( m_management6aWindow && m_management6aWindow->nativeWindow ) m_management6aWindow->nativeWindow->requestClose(); } );
+	added.nativeWindow->setCloseHandler( [this]
+		{
+			if ( m_management6a && m_management6a->controller()
+				&& m_management6a->controller()->state().view != ingnomia::ui::management6a::ManagementView::None )
+				m_management6a->controller()->close();
+			hideDetachedManagement6A();
+		} );
+	added.nativeWindow->setResizeMinimumSize( QSize( 560, 400 ) );
+	added.nativeWindow->setResizeHandler( [sizeKey]( QSize resized ) { persistDetachedWindowSize( sizeKey, resized ); } );
+	added.nativeWindow->resetView( nativeSize );
+	const QPoint desired = position() + QPoint( 48, 80 );
+	if ( QScreen* screen = QGuiApplication::screenAt( desired ) )
+	{
+		const QRect bounds = screen->availableGeometry();
+		const int x = qBound( bounds.left() + 8, desired.x(), bounds.right() - added.nativeWindow->width() - 8 );
+		const int y = qBound( bounds.top() + 8, desired.y(), bounds.bottom() - added.nativeWindow->height() - 8 );
+		added.nativeWindow->setPosition( x, y );
+	}
+	added.nativeWindow->showAndActivate();
+	(void)m_context->makeCurrent( this );
+	return true;
+}
+
+bool MainWindow::ensureDetachedManagement6B()
+{
+	if ( !m_rmlUiHost || !m_context || !m_renderer || !m_management6bController ) return false;
+	if ( m_management6bWindow && m_management6bWindow->nativeWindow && m_management6bWindow->binding )
+	{
+		m_management6bWindow->nativeWindow->showAndActivate();
+		return true;
+	}
+	if ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) ) return false;
+
+	const float userScale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
+	const QSize baseSize( 400, 720 );
+	const auto sizeKey = QStringLiteral( "UiWindow.population_inventory.compact2" );
+	const QSize minimumSize( 360, 420 );
+	const QSize nativeSize = detachedWindowSize( sizeKey, baseSize, userScale, this ).expandedTo( minimumSize );
+	auto nativeWindow = std::make_unique<ingnomia::ui::RmlUiDetachedWindow>( *m_rmlUiHost, m_context,
+		QStringLiteral( "Population and inventory" ), nativeSize );
+	nativeWindow->setTransientParent( this );
+	if ( !nativeWindow->initializeOpenGL() || !nativeWindow->makeCurrent() ) return false;
+
+	const float ratio = static_cast<float>( devicePixelRatio() ) * userScale;
+	const QSize physicalSize( qMax( 1, qRound( nativeWindow->width() * nativeWindow->devicePixelRatio() ) ),
+		qMax( 1, qRound( nativeWindow->height() * nativeWindow->devicePixelRatio() ) ) );
+	auto detachedContext = m_rmlUiHost->createDetachedContext( nativeWindow.get(),
+		QStringLiteral( "ingnomia-management6b" ), physicalSize, ratio );
+	if ( !detachedContext )
+	{
+		nativeWindow->doneCurrent();
+		return false;
+	}
+	nativeWindow->setUserUiScale( userScale );
+
+	auto window = std::make_unique<Management6BWindow>();
+	window->context = std::move( detachedContext );
+	window->nativeWindow = std::move( nativeWindow );
+	auto* detached = window->context.get();
+	window->binding = std::make_unique<ingnomia::ui::management6b::Management6BRmlBinding>( *detached->context() );
+	window->binding->setDocumentLoader( [this, detached]( const char* path )
+		{ return m_rmlUiHost ? m_rmlUiHost->loadDocument( *detached, QString::fromUtf8( path ), false ) : nullptr; } );
+	if ( !window->binding->initialize( *m_management6bController ) )
+	{
+		window->binding->shutdown();
+		window->binding.reset();
+		(void)m_rmlUiHost->destroyDetachedContext( window->context );
+		window->nativeWindow->doneCurrent();
+		return false;
+	}
+	m_management6bController->addViewPort( *window->binding );
+	m_management6bWindow = std::move( window );
+	auto& added = *m_management6bWindow;
+	added.nativeWindow->attachContext( added.context.get() );
+	added.binding->setRouteCloseHandler( [this]( ingnomia::ui::RouteId route, ingnomia::ui::FocusToken focus )
+		{ hideDetachedManagement6B(); if ( m_workbenchCoordinator ) (void)m_workbenchCoordinator->close( route, focus ); } );
+	added.nativeWindow->setCloseHandler( [this]
+		{
+			if ( m_management6bWindow && m_management6bWindow->binding ) m_management6bWindow->binding->closeRoute();
+			hideDetachedManagement6B();
+		} );
+	added.nativeWindow->setResizeMinimumSize( minimumSize );
+	added.nativeWindow->setResizeHandler( [sizeKey]( QSize resized ) { persistDetachedWindowSize( sizeKey, resized ); } );
+	added.nativeWindow->resetView( nativeSize );
+	const QPoint desired = position() + QPoint( 72, 104 );
+	if ( QScreen* screen = QGuiApplication::screenAt( desired ) )
+	{
+		const QRect bounds = screen->availableGeometry();
+		const int x = qBound( bounds.left() + 8, desired.x(), bounds.right() - added.nativeWindow->width() - 8 );
+		const int y = qBound( bounds.top() + 8, desired.y(), bounds.bottom() - added.nativeWindow->height() - 8 );
+		added.nativeWindow->setPosition( x, y );
+	}
+	added.nativeWindow->showAndActivate();
+	(void)m_context->makeCurrent( this );
+	return true;
+}
+
+bool MainWindow::ensureDetachedManagement6C()
+{
+	if ( !m_rmlUiHost || !m_context || !m_renderer || !m_management6cController ) return false;
+	if ( m_management6cWindow && m_management6cWindow->nativeWindow && m_management6cWindow->binding )
+	{
+		m_management6cWindow->nativeWindow->showAndActivate();
+		return true;
+	}
+	if ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) ) return false;
+
+	const float userScale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
+	const QSize baseSize( 960, 640 );
+	const auto sizeKey = QStringLiteral( "UiWindow.military_diplomacy" );
+	const QSize nativeSize = detachedWindowSize( sizeKey, baseSize, userScale, this );
+	auto nativeWindow = std::make_unique<ingnomia::ui::RmlUiDetachedWindow>( *m_rmlUiHost, m_context,
+		QStringLiteral( "Military and diplomacy" ), nativeSize );
+	nativeWindow->setTransientParent( this );
+	if ( !nativeWindow->initializeOpenGL() || !nativeWindow->makeCurrent() ) return false;
+
+	const float ratio = static_cast<float>( devicePixelRatio() ) * userScale;
+	const QSize physicalSize( qMax( 1, qRound( nativeWindow->width() * nativeWindow->devicePixelRatio() ) ),
+		qMax( 1, qRound( nativeWindow->height() * nativeWindow->devicePixelRatio() ) ) );
+	auto detachedContext = m_rmlUiHost->createDetachedContext( nativeWindow.get(),
+		QStringLiteral( "ingnomia-management6c" ), physicalSize, ratio );
+	if ( !detachedContext )
+	{
+		nativeWindow->doneCurrent();
+		return false;
+	}
+	nativeWindow->setUserUiScale( userScale );
+
+	auto window = std::make_unique<Management6CWindow>();
+	window->context = std::move( detachedContext );
+	window->nativeWindow = std::move( nativeWindow );
+	auto* detached = window->context.get();
+	window->binding = std::make_unique<ingnomia::ui::management6c::Management6CRmlBinding>( *detached->context() );
+	window->binding->setDocumentLoader( [this, detached]( const char* path )
+		{ return m_rmlUiHost ? m_rmlUiHost->loadDocument( *detached, QString::fromUtf8( path ), false ) : nullptr; } );
+	if ( !window->binding->initialize( *m_management6cController ) )
+	{
+		window->binding->shutdown();
+		window->binding.reset();
+		(void)m_rmlUiHost->destroyDetachedContext( window->context );
+		window->nativeWindow->doneCurrent();
+		return false;
+	}
+	m_management6cController->addViewPort( *window->binding );
+	m_management6cWindow = std::move( window );
+	auto& added = *m_management6cWindow;
+	added.nativeWindow->attachContext( added.context.get() );
+	added.binding->setRouteCloseHandler( [this]( ingnomia::ui::RouteId route, ingnomia::ui::FocusToken focus )
+		{ hideDetachedManagement6C(); if ( m_workbenchCoordinator ) (void)m_workbenchCoordinator->close( route, focus ); } );
+	added.nativeWindow->setCloseHandler( [this]
+		{
+			if ( m_management6cWindow && m_management6cWindow->binding ) m_management6cWindow->binding->closeRoute();
+			hideDetachedManagement6C();
+		} );
+	added.nativeWindow->setResizeMinimumSize( QSize( 720, 460 ) );
+	added.nativeWindow->setResizeHandler( [sizeKey]( QSize resized ) { persistDetachedWindowSize( sizeKey, resized ); } );
+	added.nativeWindow->resetView( nativeSize );
+	const QPoint desired = position() + QPoint( 96, 128 );
+	if ( QScreen* screen = QGuiApplication::screenAt( desired ) )
+	{
+		const QRect bounds = screen->availableGeometry();
+		const int x = qBound( bounds.left() + 8, desired.x(), bounds.right() - added.nativeWindow->width() - 8 );
+		const int y = qBound( bounds.top() + 8, desired.y(), bounds.bottom() - added.nativeWindow->height() - 8 );
+		added.nativeWindow->setPosition( x, y );
+	}
+	added.nativeWindow->showAndActivate();
+	(void)m_context->makeCurrent( this );
+	return true;
+}
+
+void MainWindow::hideDetachedManagement6A()
+{
+	if ( m_management6aWindow && m_management6aWindow->nativeWindow )
+	{
+		m_management6aWindow->nativeWindow->stopRendering();
+		m_management6aWindow->nativeWindow->hide();
+	}
+}
+
+void MainWindow::hideDetachedManagement6B()
+{
+	if ( m_management6bWindow && m_management6bWindow->nativeWindow )
+	{
+		m_management6bWindow->nativeWindow->stopRendering();
+		m_management6bWindow->nativeWindow->hide();
+	}
+}
+
+void MainWindow::hideDetachedManagement6C()
+{
+	if ( m_management6cWindow && m_management6cWindow->nativeWindow )
+	{
+		m_management6cWindow->nativeWindow->stopRendering();
+		m_management6cWindow->nativeWindow->hide();
+	}
+}
+
+void MainWindow::hideDetachedOrdersTools()
+{
+	for ( auto& window : m_ordersToolsWindows )
+		if ( window && window->nativeWindow )
+		{
+			window->nativeWindow->stopRendering();
+			window->nativeWindow->hide();
+		}
+}
+
+void MainWindow::hideDetachedOrdersTools( std::string_view panelKey )
+{
+	for ( auto& window : m_ordersToolsWindows )
+		if ( window && window->panelKey == panelKey && window->nativeWindow )
+		{
+			window->nativeWindow->stopRendering();
+			window->nativeWindow->hide();
+			return;
+		}
+}
+
+void MainWindow::hideDetachedManagementWindows()
+{
+	hideDetachedOrdersTools();
+	hideDetachedManagement6A();
+	hideDetachedManagement6B();
+	hideDetachedManagement6C();
+}
+
+void MainWindow::closeDetachedManagement6B()
+{
+	if ( m_management6bWindow && m_management6bWindow->binding )
+		m_management6bWindow->binding->closeRoute();
+	else
+		hideDetachedManagement6B();
+}
+
+void MainWindow::closeDetachedManagement6C()
+{
+	if ( m_management6cWindow && m_management6cWindow->binding )
+		m_management6cWindow->binding->closeRoute();
+	else
+		hideDetachedManagement6C();
+}
+
+void MainWindow::destroyDetachedManagementWindows()
+{
+	if ( !m_rmlUiHost ) return;
+
+	for ( auto& windowPtr : m_ordersToolsWindows )
+	{
+		if ( !windowPtr ) continue;
+		auto& window = *windowPtr;
+		if ( window.nativeWindow )
+		{
+			window.nativeWindow->stopRendering();
+			window.nativeWindow->setCloseHandler( {} );
+			window.nativeWindow->hide();
+		}
+		const bool detachedCurrent = window.nativeWindow && window.nativeWindow->makeCurrent();
+		if ( window.binding )
+		{
+			if ( m_hudController ) m_hudController->removeViewPort( *window.binding );
+			window.binding->setCloseHandler( {} );
+			window.binding->setDocumentLoader( {} );
+			window.binding->shutdown();
+			window.binding.reset();
+		}
+		const bool destroyed = detachedCurrent && m_rmlUiHost->destroyDetachedContext( window.context );
+		if ( detachedCurrent && window.nativeWindow ) window.nativeWindow->doneCurrent();
+		if ( !destroyed || !m_context || !m_context->makeCurrent( this ) )
+			qFatal( "RmlUi detached Orders & tools shutdown failed" );
+		if ( window.nativeWindow ) window.nativeWindow->attachContext( nullptr );
+	}
+	m_ordersToolsWindows.clear();
+
+	if ( m_management6aWindow )
+	{
+		auto& window = *m_management6aWindow;
+		if ( window.nativeWindow )
+		{
+			window.nativeWindow->stopRendering();
+			window.nativeWindow->setCloseHandler( {} );
+			window.nativeWindow->hide();
+		}
+		const bool detachedCurrent = window.nativeWindow && window.nativeWindow->makeCurrent();
+		if ( window.binding )
+		{
+			if ( m_management6a && m_management6a->controller() )
+				m_management6a->controller()->removeViewPort( *window.binding );
+			window.binding->setCloseHandler( {} );
+			window.binding->shutdown();
+			window.binding.reset();
+		}
+		const bool destroyed = detachedCurrent && m_rmlUiHost->destroyDetachedContext( window.context );
+		if ( detachedCurrent && window.nativeWindow ) window.nativeWindow->doneCurrent();
+		if ( !destroyed || !m_context || !m_context->makeCurrent( this ) )
+			qFatal( "RmlUi detached production management shutdown failed" );
+		if ( window.nativeWindow ) window.nativeWindow->attachContext( nullptr );
+		m_management6aWindow.reset();
+	}
+
+	if ( m_management6bWindow )
+	{
+		auto& window = *m_management6bWindow;
+		if ( window.nativeWindow )
+		{
+			window.nativeWindow->stopRendering();
+			window.nativeWindow->setCloseHandler( {} );
+			window.nativeWindow->hide();
+		}
+		const bool detachedCurrent = window.nativeWindow && window.nativeWindow->makeCurrent();
+		if ( window.binding )
+		{
+			if ( m_management6bController ) m_management6bController->removeViewPort( *window.binding );
+			window.binding->setRouteCloseHandler( {} );
+			window.binding->shutdown();
+			window.binding.reset();
+		}
+		const bool destroyed = detachedCurrent && m_rmlUiHost->destroyDetachedContext( window.context );
+		if ( detachedCurrent && window.nativeWindow ) window.nativeWindow->doneCurrent();
+		if ( !destroyed || !m_context || !m_context->makeCurrent( this ) )
+			qFatal( "RmlUi detached population management shutdown failed" );
+		if ( window.nativeWindow ) window.nativeWindow->attachContext( nullptr );
+		m_management6bWindow.reset();
+	}
+
+	if ( m_management6cWindow )
+	{
+		auto& window = *m_management6cWindow;
+		if ( window.nativeWindow )
+		{
+			window.nativeWindow->stopRendering();
+			window.nativeWindow->setCloseHandler( {} );
+			window.nativeWindow->hide();
+		}
+		const bool detachedCurrent = window.nativeWindow && window.nativeWindow->makeCurrent();
+		if ( window.binding )
+		{
+			if ( m_management6cController ) m_management6cController->removeViewPort( *window.binding );
+			window.binding->setRouteCloseHandler( {} );
+			window.binding->shutdown();
+			window.binding.reset();
+		}
+		const bool destroyed = detachedCurrent && m_rmlUiHost->destroyDetachedContext( window.context );
+		if ( detachedCurrent && window.nativeWindow ) window.nativeWindow->doneCurrent();
+		if ( !destroyed || !m_context || !m_context->makeCurrent( this ) )
+			qFatal( "RmlUi detached military management shutdown failed" );
+		if ( window.nativeWindow ) window.nativeWindow->attachContext( nullptr );
+		m_management6cWindow.reset();
+	}
+}
+
+bool MainWindow::openDetachedCreatureInspector( const ingnomia::ui::inspector::CreatureInspectorState& creature,
+	std::optional<ingnomia::ui::WorldPosition> position )
+{
+	if ( !m_rmlUiHost || !m_context || !m_renderer || !creature.id ) return false;
+	const float userScale = qMax( 0.5f, Global::cfg->get( "uiscale" ).toFloat() );
+	const auto inspectorSizeKey = QStringLiteral( "UiWindow.creature_inspector.workbench.compact" );
+	const QSize inspectorSize = detachedWindowSize( inspectorSizeKey,
+		QSize( 508, 405 ), userScale, this );
+	const ingnomia::ui::WorldEpoch epoch{ m_uiWorldEpoch ? m_uiWorldEpoch : 1 };
+	for ( const auto& window : m_creatureInspectorWindows )
+		if ( window.controller && window.controller->state().creature
+			&& window.controller->state().creature->id == creature.id )
+			return true;
+
+	// Parked inspectors retain their RmlUi and Qt OpenGL contexts after the
+	// player closes them. Reusing one avoids destroying a shared context while
+	// another inspector and the main canvas are still rendering.
+	for ( auto& window : m_creatureInspectorWindows )
+	{
+		if ( !window.nativeWindow || !window.context || !window.binding || !window.controller
+			|| window.nativeWindow->isVisible()
+			|| window.controller->state().kind != ingnomia::ui::inspector::InspectorKind::None )
+			continue;
+		window.nativeWindow->setTitle( QStringLiteral( "Gnome inspector - " ) + QString::fromStdString( creature.name ) );
+		window.controller->beginWorld( epoch );
+		window.controller->showCreature( creature, position );
+		if ( !m_creatureProfessionChoices.empty() ) window.controller->setProfessionChoices( m_creatureProfessionChoices );
+		// A parked context can retain compiled RmlUi geometry from the previous
+		// expanded state. Rebuild only the document on reuse; keep the native
+		// window and shared GL context alive so multiple inspectors remain safe.
+		// A hidden QWindow is not a current OpenGL surface on Windows. Expose it
+		// while rendering is stopped so the parked context can safely rebuild its
+		// document before the inspector is shown again.
+		window.nativeWindow->show();
+		if ( !window.nativeWindow->makeCurrent() )
+		{
+			qWarning() << "Could not make parked inspector current for document reset";
+			return false;
+		}
+		const bool documentReloaded = window.binding->reloadDocument( *window.controller );
+		window.nativeWindow->doneCurrent();
+		if ( !documentReloaded )
+		{
+			qWarning() << "Could not reload parked inspector document";
+			return false;
+		}
+		window.nativeWindow->resetView( detachedWindowSize( inspectorSizeKey,
+			QSize( 508, 405 ), userScale, this ) );
+        // Keep a reused inspector owned by the game window as well. On Windows,
+		// the transient-parent relationship keeps this native tool window above
+		// its owner when the game canvas regains focus, without making it
+		// permanently topmost over unrelated applications.
+		window.nativeWindow->setTransientParent( this );
+        window.nativeWindow->showAndActivate();
+		(void)m_context->makeCurrent( this );
+		return true;
+	}
+
+	int slot = 0;
+	for ( int candidate = 1; candidate < MainWindowRenderer::cameraPreviewSlotCount; ++candidate )
+	{
+		const bool inUse = std::any_of( m_creatureInspectorWindows.begin(), m_creatureInspectorWindows.end(),
+			[candidate]( const CreatureInspectorWindow& window ) { return window.slot == candidate; } );
+		if ( !inUse ) { slot = candidate; break; }
+	}
+	if ( slot == 0 )
+	{
+		qWarning() << "No camera preview slots remain for a detached creature inspector";
+		return false;
+	}
+
+	if ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) )
+	{
+		qWarning() << "Could not make the main OpenGL context current for a detached inspector";
+		return false;
+	}
+
+	const QString name = QStringLiteral( "Gnome inspector" );
+	auto nativeWindow = std::make_unique<ingnomia::ui::RmlUiDetachedWindow>( *m_rmlUiHost, m_context,
+		name + QStringLiteral( " - " ) + QString::fromStdString( creature.name ), inspectorSize );
+	// Make the inspector an owned/transient tool window. It remains independently
+	// movable and each inspector keeps its own native window, while the OS keeps
+	// it above the game instead of allowing it to disappear behind the canvas.
+	nativeWindow->setTransientParent( this );
+	if ( !nativeWindow->initializeOpenGL() ) return false;
+	if ( !nativeWindow->makeCurrent() )
+	{
+		qWarning() << "Could not make the detached OpenGL context current for inspector creation";
+		return false;
+	}
+
+	const float ratio = static_cast<float>( devicePixelRatio() ) * userScale;
+	const QSize physicalSize( qMax( 1, qRound( nativeWindow->width() * nativeWindow->devicePixelRatio() ) ),
+		qMax( 1, qRound( nativeWindow->height() * nativeWindow->devicePixelRatio() ) ) );
+	auto detachedContext = m_rmlUiHost->createDetachedContext( nativeWindow.get(),
+		QStringLiteral( "ingnomia-creature-inspector-%1" ).arg( slot ), physicalSize, ratio );
+	if ( !detachedContext )
+	{
+		nativeWindow->doneCurrent();
+		return false;
+	}
+	nativeWindow->setUserUiScale( userScale );
+
+	const std::string cameraSource = "camera-preview://slot-" + std::to_string( slot );
+	m_rmlUiHost->setCameraPreviewTexture( cameraSource, m_renderer->cameraPreviewTexture( slot ),
+		m_renderer->cameraPreviewWidth(), m_renderer->cameraPreviewHeight() );
+
+	CreatureInspectorWindow window;
+	window.slot = slot;
+	window.context = std::move( detachedContext );
+	window.nativeWindow = std::move( nativeWindow );
+	window.binding = new ingnomia::ui::inspector::InspectorRmlBinding( *window.context->context(), slot, 0, true );
+	// Detached contexts must load through the host so the shared system
+	// interface is pointed at this native window while RmlUi resolves and
+	// constructs the document. Loading directly from the binding leaves the
+	// window with only its clear color on some platforms.
+	if ( auto* detached = window.context.get() )
+	{
+		window.binding->setDocumentLoader( [this, detached]
+			{ return m_rmlUiHost ? m_rmlUiHost->loadDocument( *detached,
+				QStringLiteral( "screens/inspector.rml" ), false ) : nullptr; } );
+	}
+	window.commands = std::make_unique<ingnomia::ui::inspector::InspectorQtCommandPort>( Global::eventConnector );
+	window.controller = std::make_unique<ingnomia::ui::inspector::InspectorController>( *window.commands, *window.binding );
+	if ( !window.binding->initialize( *window.controller ) )
+	{
+		delete window.binding;
+		window.binding = nullptr;
+		window.controller.reset();
+		window.commands.reset();
+		(void)m_rmlUiHost->destroyDetachedContext( window.context );
+		window.nativeWindow->doneCurrent();
+		window.nativeWindow.reset();
+		return false;
+	}
+	window.commands->setWorld( epoch, true );
+    window.controller->beginWorld( epoch );
+    window.controller->showCreature( creature, position );
+    if ( !m_creatureProfessionChoices.empty() ) window.controller->setProfessionChoices( m_creatureProfessionChoices );
+    // Store the record before wiring close callbacks: native WM_CLOSE and the
+	// RmlUi close button both remove the same stable slot from this collection.
+	m_creatureInspectorWindows.push_back( std::move( window ) );
+	auto& added = m_creatureInspectorWindows.back();
+	added.nativeWindow->attachContext( added.context.get() );
+	added.binding->setCloseHandler( [this, slot]
+		{ if ( const auto it = std::ranges::find_if( m_creatureInspectorWindows,
+			[slot]( const CreatureInspectorWindow& value ) { return value.slot == slot; } ); it != m_creatureInspectorWindows.end() )
+			it->nativeWindow->requestClose(); } );
+	added.nativeWindow->setResizeMinimumSize( QSize( 508, 405 ) );
+	added.nativeWindow->setResizeHandler( [inspectorSizeKey]( QSize resized ) { persistDetachedWindowSize( inspectorSizeKey, resized ); } );
+	added.nativeWindow->resetView( inspectorSize );
+	added.nativeWindow->setCloseHandler( [this, slot]
+		{
+			// The native window X does not pass through the RmlUi close button.
+			// Clear the shared creature selection first so the periodic creature
+			// refresh cannot recreate the inspector after it has been closed.
+			if ( const auto it = std::ranges::find_if( m_creatureInspectorWindows,
+				[slot]( const CreatureInspectorWindow& value ) { return value.slot == slot; } );
+				it != m_creatureInspectorWindows.end() && it->controller
+				&& it->controller->state().kind == ingnomia::ui::inspector::InspectorKind::Creature )
+				it->controller->close();
+			QTimer::singleShot( 0, this, [this, slot] { closeDetachedCreatureInspector( slot ); } );
+		} );
+
+	const QPoint desired = this->position() + QPoint( 48 + ( slot - 1 ) * 28, 80 + ( slot - 1 ) * 28 );
+	if ( QScreen* screen = QGuiApplication::screenAt( desired ) )
+	{
+		const QRect bounds = screen->availableGeometry();
+		const int x = qBound( bounds.left() + 8, desired.x(), bounds.right() - added.nativeWindow->width() - 8 );
+		const int y = qBound( bounds.top() + 8, desired.y(), bounds.bottom() - added.nativeWindow->height() - 8 );
+		added.nativeWindow->setPosition( x, y );
+	}
+	added.nativeWindow->showAndActivate();
+	(void)m_context->makeCurrent( this );
+	return true;
+}
+
+void MainWindow::closeDetachedCreatureInspector( int slot )
+{
+	const auto it = std::ranges::find_if( m_creatureInspectorWindows,
+		[slot]( const CreatureInspectorWindow& window ) { return window.slot == slot; } );
+	if ( it == m_creatureInspectorWindows.end() ) return;
+	// The close event already hides the native surface. Keep the RmlUi context,
+	// renderer, and shared Qt OpenGL context parked for reuse; destroying one
+	// while another inspector is live can invalidate the remaining windows and
+	// the main canvas on drivers that share the GL resource group.
+	if ( it->controller && it->controller->state().kind != ingnomia::ui::inspector::InspectorKind::None )
+		it->controller->close();
+	if ( it->nativeWindow )
+	{
+		it->nativeWindow->stopRendering();
+		it->nativeWindow->resetView( QSize( 280, 300 ) );
+		it->nativeWindow->hide();
+	}
+	if ( m_rmlUiHost ) m_rmlUiHost->setSystemWindow( this );
+	if ( m_context && m_context->makeCurrent( this ) )
+	{
+		const int pixelWidth = qMax( 1, qRound( width() * devicePixelRatio() ) );
+		const int pixelHeight = qMax( 1, qRound( height() * devicePixelRatio() ) );
+		glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+		glViewport( 0, 0, pixelWidth, pixelHeight );
+	}
+	m_pendingUpdate = false;
+	redraw();
+}
+
 void
 
 MainWindow::shutdownRmlUi()
@@ -2069,6 +3071,8 @@ MainWindow::shutdownRmlUi()
 	if ( !m_context || ( QOpenGLContext::currentContext() != m_context && !m_context->makeCurrent( this ) ) )
 
 		qFatal( "Cannot safely shut down RmlUi without its owning Qt OpenGL context" );
+
+	destroyDetachedManagementWindows();
 
 	if ( m_management6a )
 
@@ -2107,7 +3111,37 @@ MainWindow::shutdownRmlUi()
 	m_management6bBinding = nullptr;
 
 	m_inspectorController.reset();
+	for ( auto& window : m_creatureInspectorWindows )
+	{
+		if ( window.nativeWindow )
+		{
+			window.nativeWindow->stopRendering();
+			window.nativeWindow->setCloseHandler( {} );
+			window.nativeWindow->hide();
+		}
+		const bool detachedCurrent = window.nativeWindow && window.nativeWindow->makeCurrent();
+		if ( window.binding )
+		{
+			window.binding->setCloseHandler( {} );
+			window.binding->shutdown();
+			delete window.binding;
+			window.binding = nullptr;
+		}
+		window.controller.reset();
+		window.commands.reset();
+        // RmlUi destroys the detached RenderManager and its GL objects as part
+        // of RemoveContext. Keep that detached context current until the host
+        // has removed the context and released its renderer; switching to the
+        // primary context first leaves shared GL resources with the wrong owner.
+        const bool destroyed = detachedCurrent && m_rmlUiHost
+            && m_rmlUiHost->destroyDetachedContext( window.context );
+        if ( detachedCurrent && window.nativeWindow ) window.nativeWindow->doneCurrent();
+        if ( !destroyed || !m_context || !m_context->makeCurrent( this ) )
+            qFatal( "RmlUi detached inspector shutdown failed" );
+		if ( window.nativeWindow ) window.nativeWindow->attachContext( nullptr );
+	}
 	m_creatureInspectorWindows.clear();
+	m_creatureProfessionChoices.clear();
 
 	m_inspectorCommands.reset();
 
@@ -2155,6 +3189,68 @@ MainWindow::resizeRmlUi()
 	if ( !m_rmlUiHost->resize( physicalSize, ratio ) )
 
 		qCritical() << "RmlUi resize/DPI update failed" << physicalSize << ratio;
+}
+
+bool MainWindow::beginRmlWindowDrag( QPointF position )
+{
+	if ( !rmlUiActive() || !m_rmlUiHost->context() ) return false;
+
+	const qreal dpr = qMax<qreal>( 0.01, devicePixelRatio() );
+	const auto point = Rml::Vector2f( static_cast<float>( std::lround( position.x() * dpr ) ),
+		static_cast<float>( std::lround( position.y() * dpr ) ) );
+	auto* element = m_rmlUiHost->context()->GetElementAtPoint( point );
+	Rml::Element* handle = nullptr;
+	for ( auto* current = element; current; current = current->GetParentNode() )
+	{
+		// Action buttons are siblings of the handle. Keep this guard so nested
+		// button content cannot accidentally turn a button press into a drag.
+		if ( current->GetTagName() == "button" ) return false;
+		if ( current->GetTagName() == "handle" )
+		{
+			handle = current;
+			break;
+		}
+	}
+	if ( !handle ) return false;
+
+	const auto targetId = handle->GetAttribute<Rml::String>( "move_target", "" );
+	if ( targetId.empty() || !handle->GetOwnerDocument() ) return false;
+	auto* target = handle->GetOwnerDocument()->GetElementById( targetId );
+	if ( !target || !target->GetParentNode() || !target->IsVisible( true ) ) return false;
+
+	const auto offset = target->GetRelativeOffset( Rml::BoxArea::Border );
+	m_rmlWindowDragTarget = target;
+	m_rmlWindowDragParent = target->GetParentNode();
+	m_rmlWindowDragStartPointer = position;
+	m_rmlWindowDragStartOffset = QPointF( offset.x, offset.y );
+	m_rmlWindowDragging = true;
+	setCursor( Qt::ClosedHandCursor );
+	return true;
+}
+
+void MainWindow::updateRmlWindowDrag( QPointF position )
+{
+	if ( !m_rmlWindowDragging || !m_rmlWindowDragTarget || !m_rmlWindowDragParent ) return;
+
+	const qreal dpr = qMax<qreal>( 0.01, devicePixelRatio() );
+	const QPointF delta = ( position - m_rmlWindowDragStartPointer ) * dpr;
+	const auto parentSize = m_rmlWindowDragParent->GetBox().GetSize();
+	const auto targetSize = m_rmlWindowDragTarget->GetBox().GetSize();
+	const float maxX = qMax( 0.0f, parentSize.x - targetSize.x );
+	const float maxY = qMax( 0.0f, parentSize.y - targetSize.y );
+	const float x = qBound( 0.0f, static_cast<float>( m_rmlWindowDragStartOffset.x() + delta.x() ), maxX );
+	const float y = qBound( 0.0f, static_cast<float>( m_rmlWindowDragStartOffset.y() + delta.y() ), maxY );
+	m_rmlWindowDragTarget->SetOffset( Rml::Vector2f( x, y ), m_rmlWindowDragParent, false );
+	redraw();
+}
+
+void MainWindow::endRmlWindowDrag()
+{
+	if ( !m_rmlWindowDragging ) return;
+	m_rmlWindowDragging = false;
+	m_rmlWindowDragTarget = nullptr;
+	m_rmlWindowDragParent = nullptr;
+	setCursor( Qt::ArrowCursor );
 }
 
 bool
@@ -2337,11 +3433,87 @@ MainWindow::paintGL()
 
 		return;
 
-	makeCurrent(); // Apply latest position
-	keyboardMove();
+	if ( !m_context->makeCurrent( this ) )
+	{
+		// A detached native window can briefly own the thread's GL context while
+		// it is being closed. Do not issue world/UI GL calls against no context;
+		// retry the complete frame after Qt finishes the surface transition.
+		qWarning() << "Main OpenGL context was unavailable for a frame; retrying";
+		m_pendingUpdate = false;
+		QTimer::singleShot( 50, this, [this] { redraw(); } );
+		return;
+	}
+	// Detached inspectors use a separate Qt GL context but RmlUi's system
+	// interface is process-global. Reassert the primary window at the frame
+	// boundary so the HUD cannot inherit an auxiliary window's services or
+	// dimensions after an inspector event.
+	if ( m_rmlUiHost ) m_rmlUiHost->setSystemWindow( this );
+	keyboardMove(); // Apply latest position
 	// Get the GPU busy
 
 	m_renderer->paintWorld();
+	// The world pass owns its own framebuffer/viewport. Restore the primary
+	// surface before RmlUi composes the HUD. Offscreen inspector camera passes
+	// are intentionally scheduled after this composition below: even a small
+	// driver-specific state leak from an auxiliary framebuffer must never be
+	// able to change which compiled HUD text is drawn into the primary surface.
+	const int primaryPixelWidth = qMax( 1, qRound( width() * devicePixelRatio() ) );
+	const int primaryPixelHeight = qMax( 1, qRound( height() * devicePixelRatio() ) );
+	glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+	glViewport( 0, 0, primaryPixelWidth, primaryPixelHeight );
+	glDisable( GL_SCISSOR_TEST );
+	glDisable( GL_STENCIL_TEST );
+	// Start the primary RmlUi pass from a neutral GL binding boundary. The
+	// world and preview passes use their own VAO/program/SSBO state; letting
+	// that state flow into RmlUi makes its text batches consume a stale index
+	// buffer on some drivers, which is visible as top-rail captions replacing
+	// sidebar button labels after a creature is selected.
+	glBindVertexArray( 0 );
+	glBindBuffer( GL_ARRAY_BUFFER, 0 );
+	glUseProgram( 0 );
+	glActiveTexture( GL_TEXTURE0 );
+    const bool uiUpdated = m_rmlUiHost && m_rmlUiHost->update();
+	const bool uiRendered = uiUpdated && m_rmlUiHost->render();
+	static bool uiFailureReported = false;
+	if ( !uiRendered )
+	{
+		if ( !uiFailureReported )
+		{
+			uiFailureReported = true;
+			qCritical() << "RmlUi production frame failed"
+				<< "updated" << uiUpdated
+				<< "mainContextCurrent" << ( QOpenGLContext::currentContext() == m_context )
+				<< "rendererInMenu" << ( m_renderer && m_renderer->isInMenu() );
+		}
+		// Do not swap the fallback clear over a valid front buffer when the
+		// detached-window handoff temporarily prevents the primary UI from
+		// rendering. Keep the last complete frame visible and retry after the
+		// platform has finished restoring the owner surface.
+		m_pendingUpdate = false;
+		QTimer::singleShot( 25, this, [this] { redraw(); } );
+		return;
+	}
+	uiFailureReported = false;
+	++m_uiFrameCount;
+	const auto captureFrame = std::max<std::uint32_t>( 1u, qEnvironmentVariable( "INGNOMIA_UI_CAPTURE_FRAME", "1" ).toUInt() );
+	if ( !m_uiCaptureDone && m_uiFrameCount >= captureFrame && qEnvironmentVariableIsSet( "INGNOMIA_UI_CAPTURE" ) )
+	{
+		const auto output = qEnvironmentVariable( "INGNOMIA_UI_CAPTURE" );
+		const int pixelWidth = qMax( 1, qRound( width() * devicePixelRatio() ) );
+		const int pixelHeight = qMax( 1, qRound( height() * devicePixelRatio() ) );
+		std::vector<unsigned char> pixels( static_cast<std::size_t>( pixelWidth ) * static_cast<std::size_t>( pixelHeight ) * 4 );
+		glReadPixels( 0, 0, pixelWidth, pixelHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data() );
+		QImage frame( pixels.data(), pixelWidth, pixelHeight, QImage::Format_RGBA8888 );
+		if ( frame.mirrored( false, true ).save( output ) ) qInfo() << "UI capture saved:" << output;
+		else qWarning() << "UI capture failed:" << output;
+		m_uiCaptureDone = true;
+	}
+
+	// Update the private inspector camera textures only after the primary HUD
+	// has been completely rendered and captured. Detached windows sample the
+	// last completed texture, so this one-frame latency is preferable to
+	// allowing the preview's offscreen GL work to share a live draw boundary
+	// with the main RmlUi document.
 	MainWindowRenderer::CameraPreviewTarget previewTarget;
 	const MainWindowRenderer::CameraPreviewTarget* previewTargetPtr = nullptr;
 	if ( m_inspectorController && m_inspectorController->state().kind == ingnomia::ui::inspector::InspectorKind::Creature &&
@@ -2366,24 +3538,6 @@ MainWindow::paintGL()
 			window.controller->state().selected->id
 		};
 		m_renderer->paintCameraPreview( &target, window.slot );
-	}
-
-	if ( !m_rmlUiHost->update() || !m_rmlUiHost->render() )
-
-		qCritical() << "RmlUi production frame failed";
-	++m_uiFrameCount;
-	const auto captureFrame = std::max<std::uint32_t>( 1u, qEnvironmentVariable( "INGNOMIA_UI_CAPTURE_FRAME", "1" ).toUInt() );
-	if ( !m_uiCaptureDone && m_uiFrameCount >= captureFrame && qEnvironmentVariableIsSet( "INGNOMIA_UI_CAPTURE" ) )
-	{
-		const auto output = qEnvironmentVariable( "INGNOMIA_UI_CAPTURE" );
-		const int pixelWidth = qMax( 1, qRound( width() * devicePixelRatio() ) );
-		const int pixelHeight = qMax( 1, qRound( height() * devicePixelRatio() ) );
-		std::vector<unsigned char> pixels( static_cast<std::size_t>( pixelWidth ) * static_cast<std::size_t>( pixelHeight ) * 4 );
-		glReadPixels( 0, 0, pixelWidth, pixelHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data() );
-		QImage frame( pixels.data(), pixelWidth, pixelHeight, QImage::Format_RGBA8888 );
-		if ( frame.mirrored( false, true ).save( output ) ) qInfo() << "UI capture saved:" << output;
-		else qWarning() << "UI capture failed:" << output;
-		m_uiCaptureDone = true;
 	}
 
 	m_context->swapBuffers( this ); // Use slower tick rate in menu (no game world to render)
@@ -2453,11 +3607,13 @@ MainWindow::onUiSetViewLevel( int level )
 	const int configuredDimZ = Global::cfg->get( "dimensionZ" ).toInt();
 	const int dimZ = Global::dimZ > 0 ? Global::dimZ : configuredDimZ;
 
-	GameState::viewLevel = qBound( 0, level, dimZ );
+	level = qBound( 0, level, qMax( 0, dimZ - 1 ) );
 
 	if ( m_renderer )
 
-		m_renderer->setViewLevel( GameState::viewLevel );
+		m_renderer->setViewLevel( level );
+	else
+		GameState::viewLevel = level;
 
 	emit signalViewLevel( GameState::viewLevel );
 
