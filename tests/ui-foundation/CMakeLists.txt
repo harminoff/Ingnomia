@@ -51,6 +51,11 @@ add_ui_foundation_test(ui_foundation_placement_math
     placement_math_tests.cpp
 )
 
+add_ui_foundation_test(ui_foundation_designer_model
+    designer_model_tests.cpp
+    "${INGNOMIA_REPOSITORY_ROOT}/src/gui/ui/designer/UiDesignerModel.cpp"
+)
+
 # These three targets exercise both public and development-only lookup paths.
 # The production application defines this macro only for Debug configuration;
 # release builds compile the development registrations out entirely.
@@ -60,6 +65,18 @@ target_compile_definitions(ui_foundation_action_validation PRIVATE INGNOMIA_DEVE
 
 add_test(NAME ui_foundation_mainwindow_rmlui_wiring
     COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-mainwindow-rmlui-wiring.cmake"
+)
+
+add_test(NAME ui_foundation_rmlui_hot_reload
+    COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-rmlui-hot-reload.cmake"
+)
+
+add_test(NAME ui_foundation_ui_designer
+    COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-ui-designer.cmake"
+)
+
+add_test(NAME ui_foundation_ui_designer_detached
+    COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_LIST_DIR}/verify-ui-designer-detached.cmake"
 )
 
 add_test(NAME ui_foundation_tutorial_contract

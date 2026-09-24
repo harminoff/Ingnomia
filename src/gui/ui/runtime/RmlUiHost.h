@@ -7,11 +7,14 @@
 #include <QString>
 #include <QStringList>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
 class QWindow;
+class QFileSystemWatcher;
+class QTimer;
 namespace Rml { class Context; class ElementDocument; }
 
 namespace ingnomia::ui
@@ -57,11 +60,13 @@ public:
     {
         QWindow* window = nullptr;
         QString assetRoot;
+        QString fallbackAssetRoot;
         QString contextName = "ingnomia-primary-ui";
         QSize physicalSize = {1, 1};
         float densityIndependentPixelRatio = 1.0f;
         QStringList fontFiles;
         bool enableDebugger = false;
+        bool enableHotReload = false;
     };
 
     RmlUiHost();
@@ -94,6 +99,12 @@ public:
     bool unloadDocument( Rml::ElementDocument* document );
     Rml::Context* context() const noexcept;
     RmlUiQtInputAdapter& input() noexcept;
+	using DocumentReloadHandler = std::function<bool()>;
+	void setDocumentReloadHandler( DocumentReloadHandler handler ) { m_documentReloadHandler = std::move( handler ); }
+	void requestDocumentReload();
+	bool processHotReload();
+	bool hotReloadEnabled() const noexcept { return static_cast<bool>( m_hotReloadWatcher ); }
+	bool toggleDebugger();
     shell::ShellRmlBinding* createShellBinding();
     hud::HudRmlBinding* createHudBinding();
     inspector::InspectorRmlBinding* createInspectorBinding();
@@ -106,6 +117,9 @@ public:
 private:
     bool requireGuiThread( const char* operation ) const;
     bool requireCurrentContext( const char* operation ) const;
+	void startHotReload( const QString& assetRoot );
+	void scanHotReloadFiles( bool detectChanges );
+	void queueHotReloadPath( const QString& path );
 
     QString m_contextName;
     QPointer<QWindow> m_ownerWindow;
@@ -124,5 +138,15 @@ private:
     std::unique_ptr<debug::DebugRmlBinding> m_debugBinding;
 #endif
     bool m_coreInitialized = false;
+	std::unique_ptr<QFileSystemWatcher> m_hotReloadWatcher;
+	std::unique_ptr<QTimer> m_hotReloadTimer;
+	DocumentReloadHandler m_documentReloadHandler;
+	QString m_hotReloadRoot;
+	QStringList m_hotReloadFiles;
+	QStringList m_hotReloadSignatures;
+	bool m_reloadStylesPending{};
+	bool m_reloadDocumentsPending{};
+	bool m_reloadTexturesPending{};
+	bool m_hotReloadReady{};
 };
 } // namespace ingnomia::ui

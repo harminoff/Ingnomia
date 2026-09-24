@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -41,6 +41,9 @@ public:
 private:
 	Position calcCursor( int mouseX, int mouseY, bool isFloor, bool useViewLevel ) const;
     void updateSelection();
+    void updateInspection();
+    bool m_inspectionActive = false;
+    unsigned int m_inspectedTile = 0;
     unsigned int posToInt( Position pos, quint8 rotation );
 
     int m_width = 0;       ///< Viewport width in pixels.
@@ -65,6 +68,7 @@ private:
     QMap<unsigned int, SelectionData> m_selectionData; ///< Per-tile preview grid keyed by encoded tile+rot ID.
 
 public slots:
+    void onSetInspection( bool active );
     void onActionChanged( const QString action );
     void onUpdateCursorPos( const QString pos );
     void onUpdateFirstClick( const QString pos );
@@ -78,6 +82,8 @@ public slots:
     void onRotateSelection();
 
 signals:
+    void signalInspectionChanged( bool active );
+    void signalInspectTile( unsigned int tileID );
     void signalAction( const QString action );
     void signalCursorPos( const QString pos );
     void signalFirstClick( const QString pos );

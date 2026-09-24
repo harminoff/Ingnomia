@@ -79,7 +79,22 @@ InputDispatch RmlUiQtInputAdapter::keyUp( int qtKey, Qt::KeyboardModifiers modif
 InputDispatch RmlUiQtInputAdapter::committedText( const QString& text )
 {
     if ( !m_context || text.isEmpty() ) return {};
-    const QByteArray utf8 = text.toUtf8();
+    // QKeyEvent::text() may contain the C0/C1 control code associated with an
+    // editing key (Backspace is U+0008, Delete is U+007F). Those keys have
+    // already been delivered through ProcessKeyDown; forwarding the control
+    // code again through ProcessTextInput inserts a replacement-box glyph and
+    // can undo normal text-edit behavior. Preserve printable UTF-16, including
+    // surrogate pairs used by non-BMP characters, and reject controls here.
+    QString printable;
+    printable.reserve( text.size() );
+    for ( const QChar character : text )
+    {
+        const auto code = character.unicode();
+        if ( code < 0x20u || ( code >= 0x7fu && code <= 0x9fu ) ) continue;
+        printable.append( character );
+    }
+    if ( printable.isEmpty() ) return {};
+    const QByteArray utf8 = printable.toUtf8();
     return {!m_context->ProcessTextInput( Rml::String( utf8.constData(), static_cast<size_t>( utf8.size() ) ) )};
 }
 

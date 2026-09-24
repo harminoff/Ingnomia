@@ -26,6 +26,7 @@
 #include "../base/dbhelper.h"
 #include "../base/global.h"
 #include "../game/game.h"
+#include "../game/tutorialmanager.h"
 #include "../game/creaturemanager.h"
 #include "../game/gnomemanager.h"
 #include "../gui/strings.h"
@@ -70,6 +71,7 @@ void AggregatorPopulation::init( Game* game )
 void AggregatorPopulation::onRequestPopulationUpdate()
 {
 	if( !g ) return;
+	emit signalSkillCatalog( m_skillIds );
 
 	emit signalProfessionList( g->gm()->professions() );
 
@@ -219,6 +221,7 @@ void AggregatorPopulation::onSetProfession( unsigned int gnomeID, QString profes
 		if( oldProf != profession )
 		{
 			gnome->selectProfession( profession );
+			if( g->tutorial() ) g->tutorial()->observeProfession( gnomeID, gnome->profession() );
 			onUpdateSingleGnome( gnomeID );
 		}
 	}
@@ -323,7 +326,17 @@ void AggregatorPopulation::onSetHourForAll( int hour, ScheduleActivity activity 
 void AggregatorPopulation::onRequestProfessions()
 {
 	if( !g ) return;
+	emit signalSkillCatalog( m_skillIds );
 	emit signalProfessionList( g->gm()->professions() );
+}
+void AggregatorPopulation::onCreateProfession( QString name )
+{
+	if( !g ) return;
+	name = name.trimmed();
+	if( name.isEmpty() || g->gm()->professions().contains( name ) ) return;
+	g->gm()->addProfession( name, {} );
+	emit signalProfessionList( g->gm()->professions() );
+	emit signalSelectEditProfession( name );
 }
 
 /// @brief Emits the list of skills used by the given profession (for the profession editor).

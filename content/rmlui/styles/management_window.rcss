@@ -1,0 +1,117 @@
+/* Shared, hot-reloadable insertion point for production management-window templates. */
+.c-management-window-template {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0dp;
+    padding: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.c-management-window-template > * {
+    pointer-events: auto;
+}
+
+/* Shared navigation frame for the detached management workbenches. */
+.c-management-shell {
+    display: flex;
+    flex: 1 1 0dp;
+    min-width: 0;
+    min-height: 0;
+    gap: 4dp;
+    padding: 6dp;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: #c0c0c0;
+}
+.c-management-rail {
+    display: flex;
+    flex: 0 0 112dp;
+    flex-direction: column;
+    width: 112dp;
+    min-width: 112dp;
+    min-height: 0;
+    padding: 4dp;
+    overflow-y: auto;
+    box-sizing: border-box;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.c-management-rail__heading {
+    display: block;
+    margin: 1dp 1dp 4dp;
+    padding-bottom: 3dp;
+    color: #000000;
+    border-bottom: 1dp #808080;
+    font-size: 10dp;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.c-management-rail__nav { display: flex; flex-direction: column; width: 100%; min-width: 0; gap: 2dp; box-sizing: border-box; }
+.c-management-rail__button {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 28dp;
+    padding: 4dp 6dp;
+    color: #000000;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
+    border-radius: 0;
+    text-align: left;
+    white-space: normal;
+}
+.c-management-rail__button:hover { background-color: #d4d0c8; }
+.c-management-rail__button.is-selected,
+.c-management-rail__button:focus {
+    background-color: #d4d0c8;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.c-management-main {
+    display: flex;
+    flex: 1 1 0dp;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background-color: #c0c0c0;
+}
+.c-management-views-toggle { display: none; flex: 0 0 auto; align-self: flex-start; min-height: 28dp; }
+.c-fixture-page .c-management-tooltip.is-visible {
+    position: absolute;
+    margin-top: 0;
+    z-index: 50;
+}
+@media (max-width: 760dp) {
+    .c-management-shell { position: relative; }
+    .c-management-rail { display: none; }
+    .c-management-shell.is-rail-open .c-management-rail {
+        display: flex;
+        position: absolute;
+        z-index: 10;
+        left: 6dp;
+        top: 42dp;
+        bottom: 6dp;
+        width: 148dp;
+        min-width: 148dp;
+        box-shadow: 2dp 2dp 0dp #404040;
+    }
+    .c-management-shell.is-rail-open .c-management-rail__nav,
+    .c-management-shell.is-rail-open .c-management-rail__button { width: 132dp; min-width: 132dp; }
+    .c-management-views-toggle { display: block; }
+}

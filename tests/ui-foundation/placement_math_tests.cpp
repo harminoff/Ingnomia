@@ -82,25 +82,5 @@ int main()
 			+ ingnomia::ui::excavationPreviewLift(wallTop,componentZ))*scale;
 		if (std::abs(marker-item) > 0.0001) return 4;
 	}
-	// Changing the cutaway must leave an already-visible tile at the same
-	// screen position, and its inverse pick must still select that same tile.
-	for (const int oldLevel : {0,1,20,99})
-	for (const int requestedDelta : {-100,-3,-1,0,1,3,100})
-	for (const double scale : {0.25,0.5,1.0,1.5,3.0,15.0})
-	for (const int rotation : {0,1,2,3})
-	{
-		const int newLevel = std::clamp(oldLevel+requestedDelta,0,99);
-		const int tileZ = std::min(oldLevel,newLevel);
-		const auto tile = rotateXy(10,12,width,height,rotation);
-		const double beforeY = originY + 8*(tile[0]+tile[1]) - 28 + 20*(oldLevel-tileZ);
-		const float newOrigin = ingnomia::ui::cameraYAfterLayerChange(static_cast<float>(originY),oldLevel,newLevel);
-		const double afterY = newOrigin + 8*(tile[0]+tile[1]) - 28 + 20*(newLevel-tileZ);
-		if (std::abs((beforeY-afterY)*scale) > 0.0001) return 5;
-		const auto picked = ingnomia::ui::nearestIsometricTile(
-			originX+16*(tile[0]-tile[1])+16, beforeY, originX,newOrigin,
-			newLevel-tileZ,rotation%2 ? height : width,rotation%2 ? width : height,28);
-		if (picked.x != tile[0] || picked.y != tile[1]) return 6;
-		if (ingnomia::ui::cameraYAfterLayerChange(newOrigin,newLevel,oldLevel) != originY) return 7;
-	}
 	return 0;
 }

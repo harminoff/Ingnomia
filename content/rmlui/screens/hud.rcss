@@ -1,3 +1,4 @@
+.l-hud-root.is-inspecting .l-hud-tools { transform: translate(0, 0); }
 .l-hud-root { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; color: #e7e2d7; }
 .l-hud-top { position: absolute; left: 12dp; right: 12dp; top: 10dp; min-height: 46dp; padding: 8dp 12dp; display: flex; gap: 18dp; align-items: center; pointer-events: auto; background-color: #20262b; border: 1dp #626b70; }
 .l-hud-settlement, .l-hud-controls, .l-hud-overlays { display: flex; gap: 7dp; align-items: center; }
@@ -64,12 +65,13 @@
     width: 170dp;
     max-width: 170dp;
     padding: 5dp;
-    background-color: #cbd5d9;
+    color: #000000;
+    background-color: #c0c0c0;
     border-width: 2dp;
-    border-top-color: #f7faf8;
-    border-left-color: #f7faf8;
-    border-right-color: #4d6476;
-    border-bottom-color: #4d6476;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
     max-height: 84%;
     overflow-y: auto;
     z-index: 3;
@@ -94,25 +96,28 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    color: #173d59;
-    background-color: #cbd5d9;
+    color: #000000;
+    background-color: #c0c0c0;
     border-width: 2dp;
     border-left-width: 0;
-    border-top-color: #f7faf8;
-    border-right-color: #4d6476;
-    border-bottom-color: #4d6476;
+    border-top-color: #ffffff;
+    border-right-color: #404040;
+    border-bottom-color: #404040;
     font-size: 18dp;
     line-height: 22dp;
     font-weight: bold;
-    decorator: text(">" #173d59);
+    decorator: text(">" #000000);
 }
 .l-hud-sidebar-edge:hover + .l-hud-sidebar-center .l-hud-tools,
 .l-hud-tools:hover {
     transform: translate(0, 0);
 }
-.l-hud-tools .c-hud-shelf-heading { margin-top: 6dp; padding-top: 5dp; border-top: 1dp #718591; }
-.l-hud-tools .c-button { margin-bottom: 2dp; min-height: 27dp; padding: 4dp 6dp; text-align: left; }
-.c-hud-shelf-heading { display: block; margin: 3dp 2dp 4dp; color: #526a78; font-size: 10dp; font-weight: bold; text-transform: uppercase; letter-spacing: 0.6dp; }
+.l-hud-tools .c-hud-shelf-heading { margin-top: 6dp; padding-top: 5dp; border-top: 1dp #808080; }
+.l-hud-tools .c-button { margin-bottom: 2dp; min-height: 27dp; padding: 4dp 6dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; border-radius: 0; text-align: left; }
+.l-hud-tools .c-button:hover { background-color: #d4d0c8; }
+.l-hud-tools .c-button:active, .l-hud-tools .c-button.is-selected { background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+.l-hud-tools .c-button:focus-visible { border-color: #000080; }
+.c-hud-shelf-heading { display: block; margin: 3dp 2dp 4dp; color: #000000; font-size: 10dp; font-weight: bold; text-transform: uppercase; letter-spacing: 0.6dp; }
 .l-hud-build { height: 180dp; max-height: 180dp; }
 /* The map owns the lower edge now; keep the legacy hint nodes bound but remove
    the full-width footer from the game view. */
@@ -500,6 +505,7 @@
 .l-hud-tutorial .c-button:hover{background-color:#e6c56a;color:#1c2d3b;}
 .l-hud-tutorial .c-button:active,.l-hud-tutorial .c-button:focus-visible{border-color:#80601f;}
 .tutorial-target { border-color: #80601f; box-shadow: 0dp 0dp 0dp 2dp #e0a94a; }
+#hud_tool_inspect.tutorial-target { border-color: #80601f; box-shadow: 0dp 0dp 0dp 2dp #e0a94a; }
 
 /* Static action lists stay in the HUD sidebar. The root page is swapped for one
    focused list, while the action body scrolls independently from its Back row. */
@@ -532,9 +538,9 @@
 .l-hud-sidebar .c-hud-sidebar-page-title {
     margin: 2dp 2dp 6dp;
     padding: 2dp 1dp 5dp;
-    color: #173d59;
+    color: #000000;
     border-bottom-width: 1dp;
-    border-bottom-color: #718793;
+    border-bottom-color: #808080;
     font-size: 13dp;
     line-height: 17dp;
 }
@@ -544,13 +550,13 @@
 }
 .l-hud-sidebar .l-hud-sidebar-actions p {
     margin: 2dp 2dp 6dp;
-    color: #30485c;
+    color: #000000;
     font-size: 11dp;
     line-height: 14dp;
 }
 .l-hud-sidebar .l-hud-sidebar-actions .c-hud-action-note {
     margin: 2dp 2dp 5dp;
-    color: #526a78;
+    color: #404040;
     font-size: 10dp;
     line-height: 13dp;
 }
@@ -611,3 +617,6 @@
 .l-hud-build-panel #hud_build_items .c-hud-build-card.is-unavailable .c-hud-build-action { color: #808080; background-color: #c0c0c0; border-top-color: #808080; border-left-color: #808080; border-right-color: #ffffff; border-bottom-color: #ffffff; pointer-events: none; }
 .l-hud-build-panel #hud_build_items .c-hud-build-card.is-unavailable .c-hud-build-action.can-place-blueprint { color: #000000; background-color: #c0c0c0; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; pointer-events: auto; }
 .l-hud-build-panel #hud_build_items .c-hud-build-card.is-unavailable .c-hud-build-action.can-place-blueprint:hover { background-color: #d4d0c8; }
+
+/* Keep lesson targets visible through the sidebar and build rail button styles. */
+.l-hud-sidebar .c-button.tutorial-target, .l-hud-build-category-list .c-hud-build-tab.tutorial-target { border-color: #80601f; box-shadow: 0dp 0dp 0dp 2dp #e0a94a; }

@@ -96,6 +96,27 @@ void ShellRmlBinding::shutdown()
 	controller_ = nullptr;
 }
 
+bool ShellRmlBinding::reloadDocuments()
+{
+	if ( !controller_ || !appShell_ ) return false;
+	const bool wasVisible = appShell_->IsVisible();
+	detachModalListeners();
+	detachRouteListeners();
+	detachLoadRowListeners();
+	if ( confirmation_ ) { context_.UnloadDocument( confirmation_ ); confirmation_ = nullptr; }
+	if ( routeDocument_ ) { context_.UnloadDocument( routeDocument_ ); routeDocument_ = nullptr; }
+	context_.UnloadDocument( appShell_ );
+	appShell_ = context_.LoadDocument( "documents/app_shell.rml" );
+	if ( !appShell_ ) return false;
+	localization::applyRmlText( *appShell_, textCatalog_ );
+	appShell_->Show();
+	routeValue_ = controller_->state().route.value;
+	if ( !loadRoute( routeValue_ ) ) return false;
+	stateChanged( controller_->state() );
+	setInMenu( wasVisible );
+	return true;
+}
+
 void ShellRmlBinding::setInMenu( bool inMenu )
 {
 	if ( !appShell_ ) return;
@@ -191,6 +212,7 @@ bool ShellRmlBinding::loadRoute( std::string_view route )
 void ShellRmlBinding::Callback::ProcessEvent( Rml::Event& event )
 {
 	event.StopPropagation();
+	if( event.GetCurrentElement() && event.GetCurrentElement()->HasAttribute( "disabled" ) ) return;
 	owner_.controller_->activate( control_ );
 }
 
@@ -199,7 +221,7 @@ void ShellRmlBinding::SettingCallback::ProcessEvent( Rml::Event& event )
 	if( owner_.updatingDom_ ) return;
 	auto* element = event.GetCurrentElement();
 	if( !element ) return;
-	if( setting_.value == "display.fullscreen" || setting_.value == "display.follow_monitor_refresh" || setting_.value == "camera.wheel_changes_level" )
+	if( setting_.value == "display.fullscreen" || setting_.value == "display.follow_monitor_refresh" || setting_.value == "camera.wheel_changes_level" || setting_.value == "game.autosave_continue" )
 		owner_.controller_->setSettingDraft( setting_, event.GetParameter<bool>( "checked", element->HasAttribute( "checked" ) ) );
 	else if( setting_.value == "interface.ui_scale" )
 	{
@@ -272,6 +294,9 @@ void ShellRmlBinding::bindCallbacks()
 	bindSettingCallback( "setting-keyboard-speed", "camera.keyboard_pan_speed" );
 	bindSettingCallback( "setting-minimum-light", "display.minimum_light" );
 	bindSettingCallback( "setting-wheel-level", "camera.wheel_changes_level" );
+	bindSettingCallback( "setting-master-volume", "audio.master_volume" );
+	bindSettingCallback( "setting-autosave-interval", "game.autosave_interval" );
+	bindSettingCallback( "setting-autosave-continue", "game.autosave_continue" );
 	bindNewGameFieldCallback( "new-kingdom-name", "kingdom_name" );
 	bindNewGameFieldCallback( "new-seed", "seed" );
 	bindNewGameFieldCallback( "new-peaceful", "peaceful" );
@@ -389,6 +414,7 @@ bool ShellRmlBinding::activateElement( std::string_view id )
 	}
 	const auto control = ShellRmlAdapter::controlForElement( id );
 	if( !controller_ || !control ) return false;
+	if( *control == ShellControl::ContinueLastGame && !controller_->state().continueAvailable ) return false;
 	controller_->activate( *control, FocusToken{ ++lastFocusToken_ } );
 	return true;
 }
@@ -433,7 +459,10 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 {
 	updatingDom_ = true;
 	setText( "shell-version", state.version.empty() ? "Version unavailable" : state.version );
-	setEnabled( "shell-continue", state.continueAvailable && !state.pendingRequest );
+	setEnabled( "shell-continue", state.continueAvailable );
+	setText( "shell-continue-reason", state.continueAvailable
+		? escape( state.continueSaveName + " · Last saved " + state.continueSavedAt )
+		: "No compatible save found" );
 	setVisible( "shell-action-error", state.actionError.has_value() );
 	if( state.actionError ) setText( "shell-action-error-detail", messageText( textCatalog_, state.actionError->message ) );
 	setVisible( "load-kingdoms-empty", state.loadGame.kingdomsStatus == RequestStatus::Empty );
@@ -521,12 +550,17 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 		else if( row.id.value == "camera.keyboard_pan_speed" ) elementId = "setting-keyboard-speed";
 		else if( row.id.value == "display.minimum_light" ) elementId = "setting-minimum-light";
 		else if( row.id.value == "camera.wheel_changes_level" ) elementId = "setting-wheel-level";
+		else if( row.id.value == "audio.master_volume" ) elementId = "setting-master-volume";
+		else if( row.id.value == "game.autosave_interval" ) elementId = "setting-autosave-interval";
+		else if( row.id.value == "game.autosave_continue" ) elementId = "setting-autosave-continue";
 		if( !elementId || !routeDocument_ ) continue;
 		const char* valueId = nullptr;
 		if( row.id.value == "display.frame_rate_limit" ) valueId = "setting-frame-rate-value";
 		else if( row.id.value == "interface.ui_scale" ) valueId = "setting-ui-scale-value";
 		else if( row.id.value == "display.minimum_light" ) valueId = "setting-minimum-light-value";
 		else if( row.id.value == "camera.keyboard_pan_speed" ) valueId = "setting-keyboard-speed-value";
+		else if( row.id.value == "audio.master_volume" ) valueId = "setting-master-volume-value";
+		else if( row.id.value == "game.autosave_interval" ) valueId = "setting-autosave-interval-value";
 		if( auto* element = routeDocument_->GetElementById( elementId ) )
 		{
 			if( const auto* boolValue = std::get_if<bool>( &row.authoritative ) )
@@ -539,7 +573,7 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 				element->SetAttribute( "value", *intValue );
 				if( valueId )
 				{
-					const auto suffix = row.id.value == "display.frame_rate_limit" ? " FPS" : row.id.value == "display.minimum_light" ? "%" : "";
+					const auto suffix = row.id.value == "display.frame_rate_limit" ? " FPS" : row.id.value == "display.minimum_light" || row.id.value == "audio.master_volume" ? "%" : row.id.value == "game.autosave_interval" ? ( *intValue == 1 ? " day" : " days" ) : "";
 					setText( valueId, std::to_string( *intValue ) + suffix );
 				}
 			}
@@ -679,12 +713,14 @@ void ShellRmlBinding::setEnabled( const char* id, bool enabled )
 	{
 		if( enabled ) element->RemoveAttribute( "disabled" );
 		else element->SetAttribute( "disabled", "disabled" );
+		element->SetAttribute( "tab-index", enabled ? "0" : "-1" );
 	}
 }
 
 void ShellRmlBinding::focusInitial( std::string_view route )
 {
-	const auto id = ShellRmlAdapter::initialFocusForRoute( route );
+	const auto id = route == "shell.main_menu" && controller_ && !controller_->state().continueAvailable
+		? std::string_view{ "shell-load" } : ShellRmlAdapter::initialFocusForRoute( route );
 	if( !id.empty() ) if( auto* element = routeDocument_->GetElementById( rml( id ) ) ) element->Focus();
 }
 

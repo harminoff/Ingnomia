@@ -34,6 +34,7 @@
 #include "../game/world.h"
 
 #include <QDebug>
+#include <algorithm>
 
 /** @brief Constructs farm properties by deserializing from a variant map.
  *  @param in Variant map containing plant type, seed item, harvest settings, and auto-harvest thresholds. */
@@ -129,6 +130,19 @@ Farm::Farm( QVariantMap vals, Game* game ) :
 		FarmField grofi;
 		auto gfm = vf.toMap();
 		grofi.pos       = Position( gfm.value( "Pos" ).toString() );
+		grofi.crop = gfm.value( "Crop" ).toString();
+		grofi.pendingCrop = gfm.value( "PendingCrop" ).toString();
+		grofi.pendingOrder = gfm.value( "PendingOrder" ).toUInt();
+		for ( const auto& value : gfm.value( "CropOrders" ).toList() )
+		{
+			const auto order = value.toMap();
+			FarmCropOrder cropOrder { order.value( "Id" ).toUInt(), order.value( "Crop" ).toString(), order.value( "Remaining", 1 ).toInt(), order.value( "Repeat" ).toBool() };
+			if ( !cropOrder.crop.isEmpty() )
+			{
+				grofi.orders.append( cropOrder );
+				m_nextCropOrderId = std::max( m_nextCropOrderId, cropOrder.id + 1 );
+			}
+		}
 		if( gfm.contains( "Job" ) )
 		{
 			grofi.job = g->jm()->getJob( gfm.value( "Job" ).toUInt() );
@@ -161,6 +175,13 @@ QVariant Farm::serialize() const
 	{
 		QVariantMap entry;
 		entry.insert( "Pos", field.pos.toString() );
+		entry.insert( "Crop", field.crop );
+		entry.insert( "PendingCrop", field.pendingCrop );
+		entry.insert( "PendingOrder", field.pendingOrder );
+		QVariantList orders;
+		for ( const auto& order : field.orders )
+			orders.append( QVariantMap { { "Id", order.id }, { "Crop", order.crop }, { "Remaining", order.remaining }, { "Repeat", order.repeat } } );
+		entry.insert( "CropOrders", orders );
 		if( field.job )
 		{
 			QSharedPointer<Job> spJob = field.job.toStrongRef();
@@ -196,6 +217,27 @@ void Farm::onTick( quint64 tick )
 
 	for( auto& gf : m_fields )
 	{
+		if ( !gf.pendingCrop.isEmpty() && !gf.job )
+		{
+			const auto plant = g->w()->plants().constFind( gf.pos.toInt() );
+			if ( plant != g->w()->plants().cend() && plant->isPlant() && plant->plantID() == gf.pendingCrop )
+			{
+				for ( auto order = gf.orders.begin(); order != gf.orders.end(); ++order )
+				{
+					if ( order->id != gf.pendingOrder ) continue;
+					if ( order->repeat )
+					{
+						const auto completed = *order;
+						gf.orders.erase( order );
+						gf.orders.append( completed );
+					}
+					else if ( --order->remaining <= 0 ) gf.orders.erase( order );
+					break;
+				}
+			}
+			gf.pendingCrop.clear();
+			gf.pendingOrder = 0;
+		}
 		if( !gf.job )
 		{
 			Tile& tile = g->w()->getTile( gf.pos );
@@ -234,16 +276,22 @@ void Farm::onTick( quint64 tick )
 				}
 				if ( tile.flags & TileFlag::TF_TILLED )
 				{
-					auto item = g->inv()->getClosestItem( m_fields.first().pos, true, m_properties.seedItem, m_properties.plantType );
+					const QString crop = gf.orders.isEmpty() ? ( gf.crop.isEmpty() ? m_properties.plantType : gf.crop ) : gf.orders.first().crop;
+					if ( crop.isEmpty() ) continue;
+					const QString seed = DB::select( "SeedItemID", "Plants", crop ).toString();
+					if ( seed.isEmpty() ) continue;
+					auto item = g->inv()->getClosestItem( gf.pos, true, seed, crop );
 					if ( item == 0 )
 					{
 						continue;
 					}
-					unsigned int jobID = g->jm()->addJob( "PlantFarm", gf.pos, "Plant", { m_properties.plantType}, 0, true );
+					unsigned int jobID = g->jm()->addJob( "PlantFarm", gf.pos, "Plant", { crop }, 0, true );
 					auto job = g->jm()->getJob( jobID );
 					if( job )
 					{
-						job->addRequiredItem( 1, m_properties.seedItem, m_properties.plantType, QStringList() );
+						job->addRequiredItem( 1, seed, crop, QStringList() );
+						gf.pendingCrop = crop;
+						gf.pendingOrder = gf.orders.isEmpty() ? 0 : gf.orders.first().id;
 						//job->setPrio();
 						gf.job = job;
 					}
@@ -452,4 +500,69 @@ void Farm::setPlantType( QString plantID )
 void Farm::setHarvest( bool harvest )
 {
 	m_properties.harvest = harvest;
+}
+
+bool Farm::setPlotCrop( const QList<Position>& plots, const QString& crop )
+{
+	if ( !crop.isEmpty() && ( DB::select( "Type", "Plants", crop ).toString() != "Plant"
+		|| DB::select( "SeedItemID", "Plants", crop ).toString().isEmpty() ) ) return false;
+	bool changed = false;
+	for ( const auto& plot : plots )
+	{
+		auto field = m_fields.find( plot.toInt() );
+		if ( field == m_fields.end() || field->crop == crop ) continue;
+		field->crop = crop;
+		changed = true;
+	}
+	return changed;
+}
+
+bool Farm::queuePlotCrop( const QList<Position>& plots, const QString& crop, int count, bool repeat )
+{
+	if ( count < 1 || count > 9999 || DB::select( "Type", "Plants", crop ).toString() != "Plant"
+		|| DB::select( "SeedItemID", "Plants", crop ).toString().isEmpty() ) return false;
+	bool changed = false;
+	for ( const auto& plot : plots )
+	{
+		auto field = m_fields.find( plot.toInt() );
+		if ( field == m_fields.end() ) continue;
+		field->orders.append( FarmCropOrder { m_nextCropOrderId++, crop, count, repeat } );
+		changed = true;
+	}
+	return changed;
+}
+
+bool Farm::hasAssignedCrop() const
+{
+	if ( !m_properties.plantType.isEmpty() ) return true;
+	return std::any_of( m_fields.cbegin(), m_fields.cend(), []( const FarmField& field ) { return !field.crop.isEmpty(); } );
+}
+
+bool Farm::hasQueuedCropOrder() const
+{
+	return std::any_of( m_fields.cbegin(), m_fields.cend(), []( const FarmField& field ) { return !field.orders.isEmpty(); } );
+}
+
+bool Farm::removePlotOrder( Position plot, unsigned int orderId )
+{
+	auto field = m_fields.find( plot.toInt() );
+	if ( field == m_fields.end() ) return false;
+	for ( auto order = field->orders.begin(); order != field->orders.end(); ++order )
+		if ( order->id == orderId ) { field->orders.erase( order ); return true; }
+	return false;
+}
+
+bool Farm::movePlotOrder( Position plot, unsigned int orderId, bool earlier )
+{
+	auto field = m_fields.find( plot.toInt() );
+	if ( field == m_fields.end() ) return false;
+	for ( int index = 0; index < field->orders.size(); ++index )
+	{
+		if ( field->orders[index].id != orderId ) continue;
+		const int destination = index + ( earlier ? -1 : 1 );
+		if ( destination < 0 || destination >= field->orders.size() ) return false;
+		field->orders.swapItemsAt( index, destination );
+		return true;
+	}
+	return false;
 }

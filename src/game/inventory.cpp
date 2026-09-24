@@ -20,6 +20,10 @@
  *         indexing, ownership tracking, and category hierarchy for the stock UI.
  */
 #include "inventory.h"
+#include "stockpile.h"
+#include <algorithm>
+#include <limits>
+#include <tuple>
 #include "game.h"
 
 #include "../base/config.h"
@@ -1849,4 +1853,56 @@ QList<QString> Inventory::allMats( unsigned int itemID )
 ItemHistory* Inventory::itemHistory()
 {
 	return m_itemHistory;
+}
+
+// Select without reserving or moving: both crafting claim paths use normal hauling.
+QList<unsigned int> Inventory::getWorkshopItems(const Position& input, const QString& itemSID,
+    const QString& materialSID, int count, bool requireSame, QStringList restrictions,
+    const QList<unsigned int>& linkedStockpiles)
+{
+    if(count<=0) return {};
+    restrictions.removeAll("");
+    QSet<QString> allowedMaterials;
+    for(const auto& restriction : restrictions) {
+        allowedMaterials.insert(restriction);
+        for(const auto& material : m_materialsInTypes.value(restriction)) allowedMaterials.insert(material);
+    }
+    QList<QPair<int,unsigned int>> locations;
+    for(auto id : linkedStockpiles) if(auto* sp=g->spm()->getStockpile(id)) {
+        int distance=std::numeric_limits<int>::max();
+        for(auto* field : sp->getFields()) distance=std::min(distance,input.distSquare(field->pos));
+        locations.append({distance,id});
+    }
+    std::sort(locations.begin(),locations.end());
+    QHash<unsigned int,int> rank;
+    for(int i=0;i<locations.size();++i) rank.insert(locations[i].second,i);
+    struct Candidate { unsigned int id; int rank, distance; QString material; };
+    QList<Candidate> candidates;
+    auto collect=[&](unsigned int id) {
+        auto* item=getItem(id);
+        if(item && item->isFree() && (restrictions.isEmpty() || allowedMaterials.contains(item->materialSID()))
+            && g->w()->regionMap().checkConnectedRegions(input,item->getPos()) && g->w()->fluidLevel(item->getPos())<6)
+            candidates.append({id,rank.value(item->isInStockpile(),locations.size()),input.distSquare(item->getPos()),item->materialSID()});
+        return true;
+    };
+    if(materialSID=="any") {
+        for(const auto& mat : m_octrees[itemSID].keys()) octree(itemSID,mat)->visit(input.x,input.y,input.z,collect);
+    } else octree(itemSID,materialSID)->visit(input.x,input.y,input.z,collect);
+    std::sort(candidates.begin(),candidates.end(),[](const Candidate& a,const Candidate& b) {
+        return std::tie(a.rank,a.distance,a.id)<std::tie(b.rank,b.distance,b.id);
+    });
+    QString sameMaterial;
+    if(requireSame) {
+        QHash<QString,int> totals;
+        for(const auto& candidate : candidates) ++totals[candidate.material];
+        for(const auto& candidate : candidates) if(totals[candidate.material]>=count) { sameMaterial=candidate.material; break; }
+        if(sameMaterial.isEmpty()) return {};
+    }
+    QList<unsigned int> out;
+    for(const auto& candidate : candidates) {
+        if(requireSame && candidate.material!=sameMaterial) continue;
+        out.append(candidate.id);
+        if(out.size()==count) return out;
+    }
+    return {}; // No partial reservation when the complete requirement is unavailable.
 }

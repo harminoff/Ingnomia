@@ -3,6 +3,7 @@
 
 #include "../../actions/UiActions.h"
 
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
@@ -13,8 +14,9 @@ enum class ManagementView : std::uint8_t { None, Workshop, Stockpile, Agricultur
 enum class RequestStatus : std::uint8_t { Idle, Loading, Ready, Empty, Error, Stale };
 enum class SortDirection : std::uint8_t { Ascending, Descending };
 enum class TriState : std::uint8_t { Off, On, Mixed };
-enum class StockpilePane : std::uint8_t { Contents, AllowList };
-enum class StockpileSortKey : std::uint8_t { Item, Quantity };
+enum class WorkshopPane : std::uint8_t { Craft, Queue, Settings, Trade };
+enum class StockpilePane : std::uint8_t { Contents, AllowList, Settings };
+enum class StockpileSortKey : std::uint8_t { Category, Group, Item, Material, Quantity, Total, Status };
 
 struct RequestState
 {
@@ -65,6 +67,7 @@ struct TradeRow
 	bool operator==( const TradeRow& ) const = default;
 };
 
+struct WorkshopStockpileRow { StockpileId id; std::string name; bool linked{}; bool operator==(const WorkshopStockpileRow&) const = default; };
 struct WorkshopSnapshot
 {
 	WorkshopId id;
@@ -72,6 +75,8 @@ struct WorkshopSnapshot
 	std::string subtype;
 	std::int32_t priority{ 1 }, maxPriority{ 1 };
 	bool suspended{}, acceptGenerated{}, autoCraftMissing{}, connectStockpile{};
+	bool canLinkStockpile{};
+	std::vector<WorkshopStockpileRow> stockpiles;
 	bool butcherCorpses{}, butcherExcess{}, catchFish{}, processFish{};
 	std::vector<WorkshopProductRow> products;
 	std::vector<CraftQueueRow> queue;
@@ -80,6 +85,9 @@ struct WorkshopSnapshot
 
 struct WorkshopState
 {
+	WorkshopPane pane{ WorkshopPane::Craft };
+	bool orderPending{};
+	std::string orderFeedback;
 	RequestState request;
 	Revision revision;
 	WorkshopSnapshot value;
@@ -104,7 +112,8 @@ struct WorkshopState
 
 struct StockpileContentRowId
 {
-	CatalogId item, material;
+	CatalogId category, group, item, material;
+	FilterDepth depth{ FilterDepth::Category };
 	bool operator==( const StockpileContentRowId& ) const = default;
 };
 
@@ -125,9 +134,9 @@ struct StockpileFilterRow
 struct StockpileContentRow
 {
 	StockpileContentRowId id;
-	std::string itemName, materialName;
-	std::uint32_t count{};
-	bool allowed{};
+	std::string name;
+	std::uint32_t stockpiled{}, total{};
+	StockpileFilterRow::Icon icon;
 	bool operator==( const StockpileContentRow& ) const = default;
 };
 
@@ -139,6 +148,7 @@ struct StockpileSnapshot
 	bool suspended{}, pullFromOthers{}, allowPullFromHere{};
 	std::vector<StockpileFilterRow> filters;
 	std::vector<StockpileContentRow> contents;
+	std::vector<std::string> templateNames;
 	bool operator==( const StockpileSnapshot& ) const = default;
 };
 
@@ -152,16 +162,29 @@ struct StockpileState
 	std::string filterSearch;
 	std::string contentSearch;
 	std::string filterSearchBeforeReveal;
+	std::string templateName;
+	std::array<std::string, 6> contentColumnFilters;
+	std::array<std::string, 5> allowColumnFilters;
+	std::array<std::vector<std::string>, 6> contentColumnSelections;
+	std::array<std::vector<std::string>, 5> allowColumnSelections;
+	CatalogId filterCategory;
 	SortDirection sort{ SortDirection::Ascending };
-	StockpileSortKey contentSort{ StockpileSortKey::Item };
+	StockpileSortKey contentSort{ StockpileSortKey::Category };
+	SortDirection allowSortDirection{ SortDirection::Ascending };
+	StockpileSortKey allowSort{ StockpileSortKey::Category };
 	StockpilePane pane{ StockpilePane::Contents };
 	std::optional<StockpileFilterRowId> selectedFilter;
 	std::optional<StockpileContentRowId> selectedContent;
 	std::vector<StockpileFilterRowId> expandedFilters;
+	std::vector<StockpileContentRowId> expandedContents;
+	std::vector<StockpileFilterRowId> matchingFilterLeaves;
 	std::vector<StockpileFilterRow> visibleFilters;
 	std::vector<StockpileContentRow> visibleContents;
 	bool selectionFiltered{};
 	bool filterSearchRevealed{};
+	bool templateMenuOpen{};
+	bool templateOverwriteConfirmationRequired{};
+	std::string pendingTemplateOverwrite;
 	bool operator==( const StockpileState& ) const = default;
 };
 
@@ -170,7 +193,26 @@ struct AgricultureCatalogRow
 	CatalogId id;
 	std::string name;
 	std::uint32_t available{}, planted{}, harvested{};
+	std::string iconSheet;
 	bool operator==( const AgricultureCatalogRow& ) const = default;
+};
+
+struct FarmCropOrderRow
+{
+	std::uint32_t id{};
+	CatalogId crop;
+	std::int32_t remaining{ 1 };
+	bool repeat{};
+	bool operator==( const FarmCropOrderRow& ) const = default;
+};
+
+struct FarmPlotRow
+{
+	WorldPosition position;
+	CatalogId assignedCrop, plantedCrop;
+	bool tilled{}, planted{}, ready{}, busy{};
+	std::vector<FarmCropOrderRow> orders;
+	bool operator==( const FarmPlotRow& ) const = default;
 };
 
 struct PastureAnimalRow
@@ -196,26 +238,33 @@ struct AgricultureSnapshot
 	AgricultureTarget target;
 	std::string name;
 	CatalogId product;
+	std::string productName;
+	std::int32_t productSeeds{}, productItems{}, productPlants{};
 	std::int32_t priority{ 1 }, maxPriority{ 1 };
 	std::int32_t plots{}, tilled{}, planted{}, ready{};
 	std::int32_t male{}, female{}, total{}, capacity{}, maxMale{}, maxFemale{};
 	std::int32_t foodCurrent{}, foodMax{}, hayCurrent{}, hayMax{};
 	bool suspended{}, harvest{}, harvestHay{}, tame{}, pick{}, plant{}, fell{};
 	std::vector<AgricultureCatalogRow> catalog;
+	std::vector<FarmPlotRow> fields;
 	std::vector<PastureAnimalRow> animals;
 	std::vector<PastureFoodRow> foods;
 	bool operator==( const AgricultureSnapshot& ) const = default;
 };
+
+enum class AgriculturePane : std::uint8_t { Overview, Products, Settings, Work };
 
 struct AgricultureState
 {
 	RequestState request;
 	Revision revision;
 	AgricultureSnapshot value;
+	AgriculturePane pane{ AgriculturePane::Overview };
 	std::optional<WorldPosition> position;
 	std::string search;
 	SortDirection sort{ SortDirection::Ascending };
 	std::optional<CatalogId> selectedProduct;
+	std::vector<WorldPosition> selectedPlots;
 	std::optional<CreatureId> selectedAnimal;
 	std::vector<AgricultureCatalogRow> visibleCatalog;
 	std::vector<PastureAnimalRow> visibleAnimals;

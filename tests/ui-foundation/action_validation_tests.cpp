@@ -50,10 +50,17 @@ int main()
 	CHECK( test, registry.validate( level, worldContext ).valid() );
 
 	UiActionEnvelope tool{ ActionId{ "tool.activate" }, RequestId{ 3 }, WorldEpoch{ 7 }, std::nullopt,
-		ActivateToolPayload{ ToolId{ "suspend_job" }, std::nullopt, {} } };
+		ActivateToolPayload{ ToolId{ "not_a_tool" }, std::nullopt, {} } };
 	CHECK( test, registry.validate( tool, worldContext ).code == ActionValidationCode::InvalidPayload );
 	tool.payload = ActivateToolPayload{ ToolId{ "mine" }, std::nullopt, {} };
 	CHECK( test, registry.validate( tool, worldContext ).valid() );
+
+	const StockpileFilterRowId filterRow{ StockpileId{ 4 }, CatalogId{ "food" }, CatalogId{ "raw" }, CatalogId{ "fruit" }, CatalogId{ "apple" }, FilterDepth::Material };
+	UiActionEnvelope bulkFilters{ ActionId{ "stockpile.set_filters" }, RequestId{ 31 }, WorldEpoch{ 7 }, std::nullopt,
+		SetStockpileFiltersPayload{ StockpileId{ 4 }, { filterRow }, true } };
+	CHECK( test, registry.validate( bulkFilters, worldContext ).valid() );
+	bulkFilters.payload = SetStockpileFiltersPayload{ StockpileId{ 4 }, {}, true };
+	CHECK( test, registry.validate( bulkFilters, worldContext ).code == ActionValidationCode::InvalidPayload );
 
 	UiActionEnvelope select{ ActionId{ "inspect.select" }, RequestId{ 4 }, WorldEpoch{ 7 }, std::nullopt,
 		SelectPayload{ EntityRef{ WorldEpoch{ 6 }, EntityKind::Creature, 23, std::nullopt } } };

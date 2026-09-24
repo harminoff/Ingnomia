@@ -22,6 +22,7 @@ public:
 	Snapshot<std::vector<PopulationRow>> population( const GuiPopulationInfo& );
 	RowPatch<PopulationRow> populationPatch( const GuiGnomeInfo& );
 	Snapshot<std::vector<ProfessionRow>> professions( const QStringList& );
+	std::vector<SkillCatalogRow> skillCatalog( const QList<GuiSkillInfo>& ) const;
 	std::pair<ProfessionId, std::vector<CatalogId>> professionSkills( const QString&, const QList<GuiSkillInfo>& ) const;
 	Snapshot<std::vector<ScheduleRow>> schedules( const GuiScheduleInfo& );
 	RowPatch<ScheduleRow> schedulePatch( const GuiGnomeScheduleInfo& );

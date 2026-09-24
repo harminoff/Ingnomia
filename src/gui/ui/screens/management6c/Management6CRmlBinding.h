@@ -35,9 +35,11 @@ public:
 	explicit Management6CRmlBinding( Rml::Context& );
 	~Management6CRmlBinding() override;
 	bool initialize( Management6CController& );
+	bool reloadDocuments();
 	void shutdown();
 	void setDocumentLoader( DocumentLoader loader ) { documentLoader_ = std::move( loader ); }
 	void setPresentationEnabled( bool enabled ) { presentationEnabled_ = enabled; }
+    void setWindowSurface(bool secondary) { secondarySurface_ = secondary; }
 	bool openMilitary( View, FocusToken );
 	bool openDiplomacy( View, FocusToken );
 	void closeMilitary();
@@ -128,7 +130,7 @@ private:
 	};
 	std::vector<Listener> listeners_;
 	DocumentLoader documentLoader_;
-	bool presentationEnabled_{ true };
+	std::optional<bool> secondarySurface_;bool presentationEnabled_{ true };
 };
 
 } // namespace ingnomia::ui::management6c

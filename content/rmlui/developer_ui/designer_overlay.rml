@@ -1,0 +1,47 @@
+<rml>
+<head>
+  <title>UI Designer</title>
+  <link type="text/rcss" href="/styles/base.rcss" />
+  <link type="text/rcss" href="/styles/components.rcss" />
+  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <link type="text/rcss" href="/developer_ui/designer_overlay.rcss" />
+</head>
+<body id="designer_overlay" class="designer-overlay">
+  <div id="designer_toolbar" class="designer-toolbar" role="toolbar" aria-label="UI Designer">
+    <button id="designer_toggle" class="c-button designer-toolbar__title">UI DESIGNER</button>
+    <span id="designer_mode" class="designer-toolbar__mode">PLAY</span>
+    <button id="designer_play" class="c-button">Play</button>
+    <button id="designer_design" class="c-button">Design</button>
+    <button id="designer_undo" class="c-button">Undo</button>
+    <button id="designer_save" class="c-button">Save project</button>
+    <button id="designer_export" class="c-button">Export handoff</button>
+    <button id="designer_close" class="c-button">Close</button>
+  </div>
+  <aside id="designer_palette" class="designer-panel designer-palette" aria-label="Components">
+    <h2>Components</h2>
+    <p class="designer-help">Choose a component, then click a container.</p>
+    <div class="designer-component-grid">
+      <button id="designer_component_panel" class="c-button">Panel</button>
+      <button id="designer_component_label" class="c-button">Label</button>
+      <button id="designer_component_button" class="c-button">Button</button>
+      <button id="designer_component_input" class="c-button">Input box</button>
+      <button id="designer_component_list" class="c-button">List</button>
+      <button id="designer_component_checkbox" class="c-button">Checkbox</button>
+      <button id="designer_component_image" class="c-button">Image</button>
+      <button id="designer_component_separator" class="c-button">Separator</button>
+    </div>
+    <h2>Current window</h2>
+    <p id="designer_surface" class="designer-help">Live target: main</p>
+    <p id="designer_status" class="designer-status">Select a UI element to edit.</p>
+  </aside>
+  <aside id="designer_inspector" class="designer-panel designer-inspector" aria-label="Properties">
+    <h2>Properties</h2>
+    <label>X <input id="designer_x" class="text" type="text" value="0" /></label>
+    <label>Y <input id="designer_y" class="text" type="text" value="0" /></label>
+    <label>Width <input id="designer_width" class="text" type="text" value="0" /></label>
+    <label>Height <input id="designer_height" class="text" type="text" value="0" /></label>
+    <p class="designer-help">Generated rows are protected. Use scoped styling for repeated content.</p>
+  </aside>
+  <div id="designer_selection" class="designer-selection" aria-hidden="true"></div>
+</body>
+</rml>

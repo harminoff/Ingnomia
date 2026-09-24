@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16.0)
 set(CMAKE_CONFIGURATION_TYPES Debug RelWithDebInfo CACHE STRING INTERNAL FORCE)
 
 # Project version, 4 numbers representation
-set(DEFAULT_VERSION "0.9.0.0" CACHE STRING "Version" FORCE)
+set(DEFAULT_VERSION "0.10.0.0" CACHE STRING "Version" FORCE)
 # Set from CI only
 set(BUILD_ID "0" CACHE INTERNAL "")
 set(GIT_REPO "" CACHE INTERNAL "")
@@ -36,15 +36,19 @@ include(GNUInstallDirs)
 
 # The program itself
 add_executable(${PROJECT_NAME})
+option(INGNOMIA_ENABLE_IPO "Enable interprocedural optimization for the game" ON)
 
 # C++ version
 set_target_properties(${PROJECT_NAME}
 	PROPERTIES
 		CXX_STANDARD 23
 		AUTOMOC ON
-		INTERPROCEDURAL_OPTIMIZATION ON
+		INTERPROCEDURAL_OPTIMIZATION ${INGNOMIA_ENABLE_IPO}
 		INSTALL_RPATH "$ORIGIN"
 )
+if(MSVC AND NOT INGNOMIA_ENABLE_IPO)
+	target_compile_options(${PROJECT_NAME} PRIVATE /bigobj)
+endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY AUTOGEN_SOURCE_GROUP "Generated")
 
@@ -134,6 +138,10 @@ target_compile_definitions(${PROJECT_NAME}
 )
 
 option(INGNOMIA_BUILD_UI_FOUNDATION_TESTS "Build framework-neutral UI foundation tests" ${BUILD_TESTING})
+option(INGNOMIA_UI_DESIGNER "Compile the in-game RmlUi visual designer" OFF)
+if(INGNOMIA_UI_DESIGNER)
+	target_compile_definitions(${PROJECT_NAME} PRIVATE INGNOMIA_UI_DESIGNER=1)
+endif()
 if(INGNOMIA_BUILD_UI_FOUNDATION_TESTS)
 	add_subdirectory(tests/ui-foundation)
 endif()

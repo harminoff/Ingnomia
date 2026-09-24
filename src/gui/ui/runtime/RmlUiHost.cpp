@@ -17,18 +17,40 @@
 #endif
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDebug>
+#include <QDirIterator>
+#include <QFile>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QGuiApplication>
 #include <QOpenGLContext>
 #include <QThread>
+#include <QTextStream>
+#include <QTimer>
 #include <QWindow>
 
 #include <algorithm>
+#include <utility>
 
 namespace ingnomia::ui
 {
 namespace
 {
+void traceHotReload( bool success, bool documents, bool styles, bool textures )
+{
+	const auto path = qEnvironmentVariable( "INGNOMIA_AUTOMATE_TRACE_PATH" );
+	if ( path.isEmpty() ) return;
+	QFile file( path );
+	if ( !file.open( QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text ) ) return;
+	QTextStream stream( &file );
+	stream << QDateTime::currentDateTime().toString( Qt::ISODateWithMs )
+		<< " rmlui_hot_reload success=" << ( success ? "true" : "false" )
+		<< " documents=" << ( documents ? "true" : "false" )
+		<< " styles=" << ( styles ? "true" : "false" )
+		<< " textures=" << ( textures ? "true" : "false" ) << "\n";
+}
+
 RmlUiHost* activeHost = nullptr;
 
 Rml::String toRml( const QString& value )
@@ -89,7 +111,7 @@ bool RmlUiHost::initialize( const Config& config )
     m_ownerWindow = config.window;
     m_contextName = config.contextName;
     m_system = std::make_unique<QtRmlSystemInterface>( config.window );
-    m_files = std::make_unique<QtRmlFileInterface>( config.assetRoot );
+    m_files = std::make_unique<QtRmlFileInterface>( config.assetRoot, config.fallbackAssetRoot );
     if ( !m_files->valid() ) return shutdown() && false;
     m_renderer = std::make_unique<IngnomiaRmlUiRenderer>();
     if ( !*m_renderer )
@@ -137,6 +159,7 @@ bool RmlUiHost::initialize( const Config& config )
 
     qInfo().noquote() << "RmlUi host initialized, version" << QString::fromStdString( Rml::GetVersion() )
                       << "context" << m_contextName << "asset root" << m_files->assetRoot();
+	if ( config.enableHotReload ) startHotReload( config.assetRoot );
     return update();
 }
 
@@ -151,6 +174,9 @@ bool RmlUiHost::shutdown()
         return false;
     }
 
+	m_hotReloadTimer.reset();
+	m_hotReloadWatcher.reset();
+	m_documentReloadHandler = {};
     m_input.cancelInteraction();
     m_input.setContext( nullptr );
 #if defined(INGNOMIA_DEVELOPER_UI)
@@ -392,6 +418,113 @@ bool RmlUiHost::unloadDocument( Rml::ElementDocument* document )
 
 Rml::Context* RmlUiHost::context() const noexcept { return m_context; }
 RmlUiQtInputAdapter& RmlUiHost::input() noexcept { return m_input; }
+
+void RmlUiHost::startHotReload( const QString& assetRoot )
+{
+	m_hotReloadRoot = QFileInfo( assetRoot ).canonicalFilePath();
+	if ( m_hotReloadRoot.isEmpty() )
+	{
+		qWarning() << "RmlUi hot reload requires an existing source asset root:" << assetRoot;
+		return;
+	}
+	m_hotReloadWatcher = std::make_unique<QFileSystemWatcher>();
+	m_hotReloadTimer = std::make_unique<QTimer>();
+	m_hotReloadTimer->setSingleShot( true );
+	m_hotReloadTimer->setInterval( 120 );
+	QObject::connect( m_hotReloadWatcher.get(), &QFileSystemWatcher::fileChanged, [this]( const QString& path )
+		{ queueHotReloadPath( path ); scanHotReloadFiles( false ); } );
+	QObject::connect( m_hotReloadWatcher.get(), &QFileSystemWatcher::directoryChanged, [this]( const QString& )
+		{ scanHotReloadFiles( true ); } );
+	QObject::connect( m_hotReloadTimer.get(), &QTimer::timeout, [this] { m_hotReloadReady = true; } );
+	scanHotReloadFiles( false );
+	qInfo() << "RmlUi hot reload watching" << m_hotReloadRoot << '(' << m_hotReloadFiles.size() << "files )";
+}
+
+void RmlUiHost::queueHotReloadPath( const QString& path )
+{
+	const QString suffix = QFileInfo( path ).suffix().toLower();
+	if ( suffix == "rcss" ) m_reloadStylesPending = true;
+	else if ( suffix == "rml" ) m_reloadDocumentsPending = true;
+	else if ( suffix == "png" || suffix == "tga" ) m_reloadTexturesPending = true;
+	if ( m_hotReloadTimer ) m_hotReloadTimer->start();
+}
+
+void RmlUiHost::scanHotReloadFiles( bool detectChanges )
+{
+	if ( !m_hotReloadWatcher || m_hotReloadRoot.isEmpty() ) return;
+	QStringList files;
+	QStringList signatures;
+	QDirIterator iterator( m_hotReloadRoot, { "*.rml", "*.rcss", "*.png", "*.tga" }, QDir::Files, QDirIterator::Subdirectories );
+	while ( iterator.hasNext() )
+	{
+		const QString path = QFileInfo( iterator.next() ).canonicalFilePath();
+		if ( path.isEmpty() ) continue;
+		const QFileInfo info( path );
+		files.push_back( path );
+		signatures.push_back( QString::number( info.lastModified().toMSecsSinceEpoch() ) + ':' + QString::number( info.size() ) );
+	}
+	if ( detectChanges )
+		for ( qsizetype index = 0; index < files.size(); ++index )
+		{
+			const qsizetype previous = m_hotReloadFiles.indexOf( files[index] );
+			if ( previous < 0 || previous >= m_hotReloadSignatures.size() || m_hotReloadSignatures[previous] != signatures[index] )
+				queueHotReloadPath( files[index] );
+		}
+	m_hotReloadFiles = files;
+	m_hotReloadSignatures = signatures;
+	const QStringList watchedFiles = m_hotReloadWatcher->files();
+	for ( const QString& file : files ) if ( !watchedFiles.contains( file ) ) m_hotReloadWatcher->addPath( file );
+	QStringList directories { m_hotReloadRoot };
+	QDirIterator directoryIterator( m_hotReloadRoot, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories );
+	while ( directoryIterator.hasNext() ) directories.push_back( QFileInfo( directoryIterator.next() ).canonicalFilePath() );
+	const QStringList watchedDirectories = m_hotReloadWatcher->directories();
+	for ( const QString& directory : directories ) if ( !directory.isEmpty() && !watchedDirectories.contains( directory ) ) m_hotReloadWatcher->addPath( directory );
+}
+
+void RmlUiHost::requestDocumentReload()
+{
+	m_reloadDocumentsPending = true;
+	m_hotReloadReady = true;
+}
+
+bool RmlUiHost::processHotReload()
+{
+	if ( !m_hotReloadReady || !initialized() || !requireCurrentContext( "processHotReload" ) ) return false;
+	m_hotReloadReady = false;
+	const bool documents = std::exchange( m_reloadDocumentsPending, false );
+	const bool styles = std::exchange( m_reloadStylesPending, false );
+	const bool textures = std::exchange( m_reloadTexturesPending, false );
+	bool success = true;
+	if ( documents )
+		success = m_documentReloadHandler && m_documentReloadHandler();
+	else if ( styles )
+	{
+		const auto reload = []( Rml::Context* context )
+		{
+			if ( !context ) return;
+			for ( int index = 0; index < context->GetNumDocuments(); ++index )
+				if ( auto* document = context->GetDocument( index ) ) document->ReloadStyleSheet();
+		};
+		reload( m_context );
+		for ( auto* detached : m_detachedContexts ) if ( detached ) reload( detached->context() );
+	}
+	if ( textures ) Rml::ReleaseTextures( m_renderer ? m_renderer->interface() : nullptr );
+	qInfo() << "RmlUi hot reload" << ( success ? "completed" : "failed" )
+		<< "documents" << documents << "styles" << styles << "textures" << textures;
+	traceHotReload( success, documents, styles, textures );
+	return success;
+}
+
+bool RmlUiHost::toggleDebugger()
+{
+#if defined(INGNOMIA_RMLUI_DEBUGGER)
+	if ( !initialized() ) return false;
+	Rml::Debugger::SetVisible( !Rml::Debugger::IsVisible() );
+	return true;
+#else
+	return false;
+#endif
+}
 
 shell::ShellRmlBinding* RmlUiHost::createShellBinding()
 {

@@ -4,6 +4,7 @@
 
 #include <QPoint>
 #include <QSize>
+#include <QString>
 #include <QWindow>
 
 #include <functional>
@@ -41,13 +42,17 @@ public:
     void doneCurrent();
     void attachContext( RmlUiDetachedContext* );
     void setUserUiScale( float scale ) noexcept { m_userUiScale = scale; }
-    void setResizable( bool value ) noexcept { m_resizable = value; }
+    void setResizable( bool value );
     void setResizeMinimumSize( QSize size );
     void setResizeHandler( std::function<void( QSize )> handler );
     void setCloseHandler( std::function<void()> );
+    void setDesignerFocusHandler( std::function<void()> handler );
+    void setDesignerKeyHandler( std::function<bool( int, Qt::KeyboardModifiers )> handler );
+    void setDesignerMousePressHandler( std::function<bool( QPointF, Qt::MouseButton, Qt::KeyboardModifiers )> handler );
     void showAndActivate();
     void stopRendering() noexcept;
     void resetView( QSize logicalSize );
+    void requestAutomationCapture( QString path );
     void requestClose();
 
 protected:
@@ -56,6 +61,7 @@ protected:
     void exposeEvent( QExposeEvent* ) override;
     void resizeEvent( QResizeEvent* ) override;
     void focusOutEvent( QFocusEvent* ) override;
+    void focusInEvent( QFocusEvent* ) override;
     void keyPressEvent( QKeyEvent* ) override;
     void keyReleaseEvent( QKeyEvent* ) override;
     void mouseMoveEvent( QMouseEvent* ) override;
@@ -80,6 +86,9 @@ private:
     QTimer* m_timer = nullptr;
     std::function<void()> m_closeHandler;
     std::function<void( QSize )> m_resizeHandler;
+    std::function<void()> m_designerFocusHandler;
+    std::function<bool( int, Qt::KeyboardModifiers )> m_designerKeyHandler;
+    std::function<bool( QPointF, Qt::MouseButton, Qt::KeyboardModifiers )> m_designerMousePressHandler;
     Qt::Edges m_resizeEdges = Qt::Edges();
     QPointF m_resizeStart;
     QRect m_resizeGeometry;
@@ -88,10 +97,11 @@ private:
     QSize m_resizeMinimumSize = QSize( 240, 240 );
     bool m_resizing = false;
     bool m_moving = false;
-    bool m_resizable = true;
+    bool m_resizable = false;
     float m_userUiScale = 1.0f;
     bool m_closeQueued = false;
     bool m_automationCaptureDone = false;
+    QString m_automationCapturePath;
     bool m_inspectorLayoutTraceDone = false;
     int m_automationCaptureSkipFrames = 0;
     bool m_renderingEnabled = false;

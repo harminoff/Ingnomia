@@ -13,7 +13,7 @@ namespace ingnomia::ui::management6a
 class Management6AQtCommandPort final : public CommandPort
 {
 public:
-	explicit Management6AQtCommandPort( EventConnector* );
+	explicit Management6AQtCommandPort( EventConnector*, ManagementView = ManagementView::Workshop );
 	CommandResult dispatch( const UiActionEnvelope&, DispatchOrigin ) override;
 	void setWorld( WorldEpoch world, bool acceptsActions ) { activeWorld_ = world; acceptsActions_ = acceptsActions; }
 	void rememberWorkshopLink( WorkshopId id, bool linked ) { workshopLinks_[id.value] = linked; }
@@ -24,6 +24,7 @@ private:
 	CommandResult queue( std::function<void()> ) const;
 	[[nodiscard]] std::uint32_t rememberedTradeOffer( const TradeRowId& ) const;
 	QPointer<EventConnector> connector_;
+	ManagementView view_;
 	QHash<unsigned int,bool> workshopLinks_;
 	struct RememberedTrade { TradeRowId id; std::uint32_t offered{}; };
 	std::vector<RememberedTrade> tradeOffers_;

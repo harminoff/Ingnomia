@@ -92,6 +92,7 @@ public:
 	bool hasPriority( unsigned int stockpileID, unsigned int stockpileID2 );
 
 	QString name( unsigned int id );
+	QString uniqueName(QString requested, unsigned int exceptId = 0);
 
 private:
 	QPointer<Game> g;
@@ -101,6 +102,7 @@ private:
 	QHash<unsigned int, unsigned int> m_allStockpileTiles;
 
 	unsigned int m_lastAdded = 0;
+	unsigned int m_nextName = 1;
 
 signals:
 	void signalSuspendStatusChanged( unsigned int stockpileUID );

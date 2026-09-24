@@ -166,10 +166,37 @@ void Game::generateWorld( NewGameSettings* ngs, GameStartMode mode )
 	m_pf.reset( new PathFinder( m_world.get(), this ) );
 	if( mode == GameStartMode::InteractiveTutorial )
 	{
+		// The tutorial terrain is level and empty at embark. Place the same
+		// accessible gathering targets every time, clear of the starting kit.
+		const auto pineStates = DB::selectRows( "Plants_States", "PineTree" );
+		const auto pineLayout = pineStates.isEmpty() ? QString{} : pineStates.last().value( "Layout" ).toString();
+		for( const auto& offset : { Position( 8, 3, 0 ), Position( 13, 6, 0 ), Position( 8, 10, 0 ) } )
+		{
+			Position tree = GameState::origin + offset;
+			m_world->getFloorLevelBelow( tree, false );
+			if( tree.valid() && m_world->isWalkableGnome( tree ) && ( pineLayout.isEmpty() || Plant::testLayoutMulti( pineLayout, tree, this ) ) )
+				m_world->plantTree( tree, "PineTree", true );
+		}
 		Position stagedCrop = GameState::origin;
 		stagedCrop.x += 8;
+		stagedCrop.y -= 5;
 		m_world->getFloorLevelBelow( stagedCrop, false );
-		m_world->addPlant( Plant( stagedCrop, "Strawberry", true, this ) );
+		if( stagedCrop.valid() && m_world->isWalkableGnome( stagedCrop ) )
+		{
+			m_world->addPlant( Plant( stagedCrop, "Strawberry", true, this ) );
+			m_world->getTile( stagedCrop ).wallSpriteUID = m_world->plants()[stagedCrop.toInt()].getSprite()->uID;
+			m_world->addToUpdateList( stagedCrop );
+		}
+		int stagedTrees = 0;
+		for( const auto& offset : { Position( 8, 3, 0 ), Position( 13, 6, 0 ), Position( 8, 10, 0 ) } )
+		{
+			Position tree = GameState::origin + offset;
+			m_world->getFloorLevelBelow( tree, false );
+			if( m_world->plants().contains( tree.toInt() ) ) ++stagedTrees;
+		}
+		simulationTrace( QString( "tutorial_scenario origin=%1,%2,%3 surface_z=%4 trees=%5 crop=%6" )
+			.arg( GameState::origin.x ).arg( GameState::origin.y ).arg( GameState::origin.z )
+			.arg( stagedCrop.z ).arg( stagedTrees ).arg( m_world->plants().contains( stagedCrop.toInt() ) ? "true" : "false" ) );
 		m_tutorialManager->start();
 		GameState::tutorial.clear();
 		m_tutorialManager->serialize( GameState::tutorial );

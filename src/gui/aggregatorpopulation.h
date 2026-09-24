@@ -116,6 +116,7 @@ public slots:
 	void onSetHourForAll( int hour, ScheduleActivity activity );
 
 	void onRequestProfessions();
+	void onCreateProfession( QString name );
 	void onRequestSkills( QString profession );
 
 	void onUpdateProfession( QString name, QString newName, QStringList skills );
@@ -125,6 +126,7 @@ signals:
 	void signalPopulationUpdate( const GuiPopulationInfo& info );
 	void signalProfessionList( const QStringList& professions );
 	void signalProfessionSkills( QString profession, const QList<GuiSkillInfo>& skills );
+	void signalSkillCatalog( const QList<GuiSkillInfo>& skills );
 
 	void signalUpdateSingleGnome( const GuiGnomeInfo& gnome );
 

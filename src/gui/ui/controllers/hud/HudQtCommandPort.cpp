@@ -27,7 +27,7 @@ CommandResult HudQtCommandPort::dispatch( const UiActionEnvelope& action )
 	if( action.id.value == "sim.set_paused" )
 	{
 		const auto* value = std::get_if<SetPausedPayload>( &action.payload ); if( !value ) return reject( "ui.error.invalid_payload" );
-		return queue( [target = connector_, paused = value->paused]() { if( target ) { target->onSetPause( paused ); target->onTutorialFact( static_cast<unsigned int>( TutorialFact::PauseResume ) ); } } );
+			return queue( [target = connector_, paused = value->paused]() { if( target ) target->onSetPause( paused ); } );
 	}
 	if( action.id.value == "sim.set_speed" )
 	{

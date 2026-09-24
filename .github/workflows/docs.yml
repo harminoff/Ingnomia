@@ -8,6 +8,8 @@ on:
 
 jobs:
   docs:
+    # This workflow publishes the official upstream documentation only.
+    if: github.repository == 'rschurade/Ingnomia'
     runs-on: ubuntu-latest
 
     steps:

@@ -39,7 +39,17 @@ int main()
 	wall.unavailableReason = "block x1";
 	hud.setBuildCatalog( { wall } );
 	hud.chooseBuild( CatalogId{ "wall" } );
-	check( port.dispatches == 1, "unavailable non-workshop build dispatched" );
-	check( hud.state().status == "block x1", "unavailable material reason missing" );
-	std::cout << "HUD workshop-blueprint availability passed\n";
+	check( port.dispatches == 2, "unavailable terrain blueprint was blocked" );
+	check( hud.state().tool.active == ToolId{ "build" }, "terrain blueprint did not activate placement" );
+	BuildCatalogRow chair;
+	chair.id = CatalogId{ "chair" };
+	chair.name = "Chair";
+	chair.kind = BuildKind::Item;
+	chair.available = false;
+	chair.unavailableReason = "plank x2";
+	hud.setBuildCatalog( { chair } );
+	hud.chooseBuild( CatalogId{ "chair" } );
+	check( port.dispatches == 3, "unavailable item blueprint was blocked" );
+	check( hud.state().tool.active == ToolId{ "build" }, "item blueprint did not activate placement" );
+	std::cout << "HUD all-build blueprint availability passed\n";
 }

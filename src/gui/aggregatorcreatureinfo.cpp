@@ -26,6 +26,7 @@
 #include "../base/util.h"
 
 #include "../game/game.h"
+#include "../game/tutorialmanager.h"
 #include "../game/creaturemanager.h"
 #include "../game/inventory.h"
 #include "../game/gnomemanager.h"
@@ -278,6 +279,7 @@ void AggregatorCreatureInfo::onSetProfession( unsigned int gnomeID, QString prof
 		if( oldProf != profession )
 		{
 			gnome->selectProfession( profession );
+			if( g->tutorial() ) g->tutorial()->observeProfession( gnomeID, gnome->profession() );
 			//onUpdateSingleGnome( gnomeID );
 		}
 	}

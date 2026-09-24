@@ -163,6 +163,7 @@ struct Management6CState
 	Revision revision, squadRevision, roleRevision, neighborRevision, availableGnomeRevision, missionRevision;
 	bool acceptsWorldActions{}, open{}, militaryOpen{}, diplomacyOpen{};
 	View view{ View::Squads };
+    View militaryView{View::Squads}, diplomacyView{View::Missions};
 	Sort militarySort{ Sort::SourceOrder }, diplomacySort{ Sort::SourceOrder };
 	LoadState availableGnomeLoad{ LoadState::Idle };
 	LoadState militaryLoad{ LoadState::Idle }, diplomacyLoad{ LoadState::Idle }, missionLoad{ LoadState::Idle };

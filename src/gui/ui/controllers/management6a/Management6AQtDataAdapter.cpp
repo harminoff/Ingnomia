@@ -3,11 +3,16 @@
 
 #include "../../../../base/db.h"
 #include "../../../../base/dbhelper.h"
+#include "../../../../base/config.h"
+#include "../../../../base/global.h"
 #include "../../../aggregatoragri.h"
 #include "../../../aggregatorstockpile.h"
+#include "../../../aggregatorinventory.h"
+#include "../../../strings.h"
 #include "../../../aggregatorworkshop.h"
 
 #include <algorithm>
+#include <QFileInfo>
 #include <map>
 
 namespace ingnomia::ui::management6a
@@ -50,72 +55,6 @@ TriState triState( int on, int total )
 	return on == 0 ? TriState::Off : on == total ? TriState::On
 																		 : TriState::Mixed;
 }
-QVariantMap findFilterBaseSprite( const QString& spriteID )
-{
-	if ( spriteID.isEmpty() )
-		return {};
-	const auto direct = DB::selectRows( "BaseSprites", spriteID );
-	if ( !direct.isEmpty() )
-		return direct.front();
-	const auto materialRows = DB::selectRows( "Sprites_ByMaterialTypes", "ID", spriteID );
-	for ( const auto& row : materialRows )
-	{
-		if ( row.value( "MaterialType" ).toString() != "Wood" )
-			continue;
-		const auto mapped = DB::selectRows( "BaseSprites", row.value( "Sprite" ).toString() );
-		if ( !mapped.isEmpty() )
-			return mapped.front();
-	}
-	for ( const auto& row : materialRows )
-	{
-		const auto mapped = DB::selectRows( "BaseSprites", row.value( "Sprite" ).toString() );
-		if ( !mapped.isEmpty() )
-			return mapped.front();
-		const auto rotations = DB::selectRows( "Sprites_Rotations", row.value( "Sprite" ).toString() );
-		for ( const auto& rotation : rotations )
-		{
-			const auto rotated = DB::selectRows( "BaseSprites", rotation.value( "BaseSprite" ).toString() );
-			if ( !rotated.isEmpty() )
-				return rotated.front();
-		}
-	}
-	const auto spriteRows = DB::selectRows( "Sprites", spriteID );
-	if ( !spriteRows.isEmpty() )
-	{
-		const auto base = DB::selectRows( "BaseSprites", spriteRows.front().value( "BaseSprite" ).toString() );
-		if ( !base.isEmpty() )
-			return base.front();
-	}
-	return {};
-}
-StockpileFilterRow::Icon filterIcon( const QString& itemID )
-{
-	const auto base = findFilterBaseSprite( DBH::spriteID( itemID ) );
-	if ( base.isEmpty() )
-		return {};
-	const auto baseID = base.value( "ID" ).toString();
-	if ( baseID.isEmpty() )
-		return {};
-	const auto rect = base.value( "SourceRectangle" ).toString().split( " ", Qt::SkipEmptyParts );
-	if ( rect.size() != 4 )
-		return {};
-	bool ok = false;
-	const auto width = rect[2].toInt( &ok );
-	if ( !ok || width <= 0 )
-		return {};
-	const auto height = rect[3].toInt( &ok );
-	if ( !ok || height <= 0 )
-		return {};
-	const auto sheet = base.value( "Tilesheet" ).toString().toLower();
-	const bool hasCroppedTga = sheet == "default.png" || sheet == "furniture.png" || sheet == "workshops.png" || sheet == "terrain.png" || sheet == "plants.png" || sheet == "food_drink_ingredients.png" || sheet == "weapons_armour.png" || sheet == "windmill.png" || sheet == "traps_mechanism.png" || sheet == "automatons.png" || sheet == "gnomes.png" || sheet == "animals.png" || sheet == "mushroom_biome_grass.png" || sheet == "goblin.png" || sheet == "mushrooms.png" || sheet == "multitrees.png" || sheet == "seasonalgrass.png";
-	if ( !hasCroppedTga )
-		return {};
-	// The stockpile list uses normalized alpha-trimmed thumbnails. The regular
-	// build_ crops intentionally retain their DB rectangles for other UIs, but
-	// those rectangles can contain almost entirely transparent padding for
-	// equipment sprites (making the visible art look like a tiny speck).
-	return { "filter_" + baseID.toUtf8().toStdString() + ".tga", 24, 24 };
-}
 } // namespace
 
 WorkshopSnapshot Management6AQtDataAdapter::workshop( const GuiWorkshopInfo& in )
@@ -130,6 +69,8 @@ WorkshopSnapshot Management6AQtDataAdapter::workshop( const GuiWorkshopInfo& in 
 	out.acceptGenerated  = in.acceptGenerated;
 	out.autoCraftMissing = in.autoCraftMissing;
 	out.connectStockpile = in.linkStockpile;
+	out.canLinkStockpile = in.canLinkStockpile;
+	for(const auto& row : in.stockpiles) out.stockpiles.push_back({StockpileId{row.id},text(row.name),row.linked});
 	out.butcherCorpses   = in.butcherCorpses;
 	out.butcherExcess    = in.butcherExcess;
 	out.catchFish        = in.catchFish;
@@ -186,53 +127,88 @@ StockpileSnapshot Management6AQtDataAdapter::stockpile( const GuiStockpileInfo& 
 	out.itemCount         = in.itemCount;
 	out.reserved          = in.reserved;
 	auto filter           = in.filter;
-	static std::map<std::string, StockpileFilterRow::Icon> itemIcons;
-	const auto iconFor = [&]( const QString& item ) -> const StockpileFilterRow::Icon&
+	const auto iconFor = []( const QString& item, const QString& material = QString {} ) -> StockpileFilterRow::Icon
 	{
-		const auto key = text( item );
-		if ( const auto found = itemIcons.find( key ); found != itemIcons.end() )
-			return found->second;
-		return itemIcons.emplace( key, filterIcon( item ) ).first->second;
+		return { text( AggregatorInventory::inventoryIcon( item, material ) ), 40, 40 };
 	};
-	for ( const auto& category : filter.categories() )
+	const auto alphabetized = []( auto values )
+	{
+		std::stable_sort( values.begin(), values.end(), []( const QString& a, const QString& b )
+			{
+				const auto displayA = QString::fromUtf8( displayFilterLabel( a ).c_str() );
+				const auto displayB = QString::fromUtf8( displayFilterLabel( b ).c_str() );
+				const auto foldedOrder = QString::compare( displayA, displayB, Qt::CaseInsensitive );
+				return foldedOrder == 0 ? a < b : foldedOrder < 0;
+			} );
+		return values;
+	};
+	for ( const auto& category : alphabetized( filter.categories() ) )
 	{
 		int categoryOn = 0, categoryTotal = 0;
 		std::vector<StockpileFilterRow> descendants;
-		for ( const auto& group : filter.groups( category ) )
+		for ( const auto& group : alphabetized( filter.groups( category ) ) )
 		{
 			int groupOn = 0, groupTotal = 0;
 			std::vector<StockpileFilterRow> groupRows;
-			for ( const auto& item : filter.items( category, group ) )
+			for ( const auto& item : alphabetized( filter.items( category, group ) ) )
 			{
 				int itemOn = 0, itemTotal = 0;
 				const auto& itemIcon = iconFor( item );
 				std::vector<StockpileFilterRow> materialRows;
-				for ( const auto& material : filter.materials( category, group, item ) )
+				for ( const auto& material : alphabetized( filter.materials( category, group, item ) ) )
 				{
 					const bool active = filter.getCheckState( category, group, item, material );
 					itemOn += active ? 1 : 0;
 					++itemTotal;
-					materialRows.push_back( { { out.id, catalog( category ), catalog( group ), catalog( item ), catalog( material ), FilterDepth::Material }, displayFilterLabel( material ), active ? TriState::On : TriState::Off, itemIcon } );
+					materialRows.push_back( { { out.id, catalog( category ), catalog( group ), catalog( item ), catalog( material ), FilterDepth::Material }, text( S::s( "$MaterialName_" + material ) ), active ? TriState::On : TriState::Off, iconFor( item, material ) } );
 				}
 				groupOn += itemOn;
 				groupTotal += itemTotal;
-				groupRows.push_back( { { out.id, catalog( category ), catalog( group ), catalog( item ), {}, FilterDepth::Item }, displayFilterLabel( item ), triState( itemOn, itemTotal ), itemIcon } );
+				groupRows.push_back( { { out.id, catalog( category ), catalog( group ), catalog( item ), {}, FilterDepth::Item }, text( S::s( "$ItemName_" + item ) ), triState( itemOn, itemTotal ), itemIcon } );
 				groupRows.insert( groupRows.end(), materialRows.begin(), materialRows.end() );
 			}
 			categoryOn += groupOn;
 			categoryTotal += groupTotal;
-			descendants.push_back( { { out.id, catalog( category ), catalog( group ), {}, {}, FilterDepth::Group }, displayFilterLabel( group ), triState( groupOn, groupTotal ) } );
+			descendants.push_back( { { out.id, catalog( category ), catalog( group ), {}, {}, FilterDepth::Group }, text( S::s( "$GroupName_" + group ) ), triState( groupOn, groupTotal ) } );
 			descendants.insert( descendants.end(), groupRows.begin(), groupRows.end() );
 		}
-		out.filters.push_back( { { out.id, catalog( category ), {}, {}, {}, FilterDepth::Category }, displayFilterLabel( category ), triState( categoryOn, categoryTotal ) } );
+		out.filters.push_back( { { out.id, catalog( category ), {}, {}, {}, FilterDepth::Category }, text( S::s( "$CategoryName_" + category ) ), triState( categoryOn, categoryTotal ) } );
 		out.filters.insert( out.filters.end(), descendants.begin(), descendants.end() );
 	}
-	const auto& active = filter.getActive();
-	// Contents come from physical stockpile fields. Keep blocked rows in the
-	// projection; the allow-list is policy, not a destructive inventory view.
+	std::map<std::pair<std::string, std::string>, const ItemsSummary*> stored;
 	for ( const auto& value : in.summary )
-		if ( value.count > 0 )
-			out.contents.push_back( { { catalog( value.itemSID ), catalog( value.materialSID ) }, text( value.itemName ), text( value.materialName ), static_cast<std::uint32_t>( value.count ), active.contains( { value.itemSID, value.materialSID } ) } );
+		if ( value.count > 0 ) stored[{ text( value.itemSID ), text( value.materialSID ) }] = &value;
+	std::vector<StockpileContentRow> leaves;
+	for ( const auto& filterRow : out.filters )
+	{
+		if ( filterRow.id.depth != FilterDepth::Material ) continue;
+		const auto found = stored.find( { filterRow.id.item.value, filterRow.id.material.value } );
+		if ( found == stored.end() ) continue;
+		const auto& value = *found->second;
+		leaves.push_back( { { filterRow.id.category, filterRow.id.group, filterRow.id.item, filterRow.id.material, FilterDepth::Material }, displayFilterLabel( value.materialName ), static_cast<std::uint32_t>( value.count ), static_cast<std::uint32_t>( std::max( 0, value.total ) ), filterRow.icon } );
+	}
+	const auto descendant = []( const StockpileContentRow& leaf, const StockpileFilterRow& parent )
+	{
+		if ( leaf.id.category != parent.id.category ) return false;
+		if ( parent.id.depth >= FilterDepth::Group && leaf.id.group != parent.id.group ) return false;
+		if ( parent.id.depth >= FilterDepth::Item && leaf.id.item != parent.id.item ) return false;
+		return parent.id.depth != FilterDepth::Material || leaf.id.material == parent.id.material;
+	};
+	for ( const auto& filterRow : out.filters )
+	{
+		if ( filterRow.id.depth == FilterDepth::Material )
+		{
+			const auto leaf = std::find_if( leaves.begin(), leaves.end(), [&]( const auto& row ) { return row.id.category == filterRow.id.category && row.id.group == filterRow.id.group && row.id.item == filterRow.id.item && row.id.material == filterRow.id.material; } );
+			if ( leaf != leaves.end() ) out.contents.push_back( *leaf );
+			continue;
+		}
+		std::uint32_t stockpiled = 0, total = 0;
+		for ( const auto& leaf : leaves )
+			if ( descendant( leaf, filterRow ) ) { stockpiled += leaf.stockpiled; total += leaf.total; }
+		if ( stockpiled > 0 )
+			out.contents.push_back( { { filterRow.id.category, filterRow.id.group, filterRow.id.item, {}, filterRow.id.depth }, filterRow.label, stockpiled, total, filterRow.icon } );
+	}
+	for ( const auto& name : in.templateNames ) out.templateNames.push_back( text( name ) );
 	return out;
 }
 
@@ -242,6 +218,10 @@ AgricultureSnapshot Management6AQtDataAdapter::farm( const GuiFarmInfo& in )
 	out.target      = { AgricultureKind::Farm, { in.ID } };
 	out.name        = text( in.name );
 	out.product     = catalog( in.plantType );
+	out.productName = text( in.product.name );
+	out.productSeeds = in.product.seedCount;
+	out.productItems = in.product.itemCount;
+	out.productPlants = in.product.plantCount;
 	out.priority    = in.priority;
 	out.maxPriority = in.maxPriority;
 	out.plots       = in.numPlots;
@@ -250,6 +230,16 @@ AgricultureSnapshot Management6AQtDataAdapter::farm( const GuiFarmInfo& in )
 	out.ready       = in.cropReady;
 	out.suspended   = in.suspended;
 	out.harvest     = in.harvest;
+	for ( const auto& field : in.fields )
+	{
+		FarmPlotRow row;
+		row.position = { field.x, field.y, field.z };
+		row.assignedCrop = catalog( field.assignedCrop );
+		row.plantedCrop = catalog( field.plantedCrop );
+		row.tilled = field.tilled; row.planted = field.planted; row.ready = field.ready; row.busy = field.busy;
+		for ( const auto& order : field.orders ) row.orders.push_back( { order.id, catalog( order.crop ), order.remaining, order.repeat } );
+		out.fields.push_back( std::move( row ) );
+	}
 	return out;
 }
 AgricultureSnapshot Management6AQtDataAdapter::pasture( const GuiPastureInfo& in )
@@ -302,7 +292,18 @@ std::vector<AgricultureCatalogRow> Management6AQtDataAdapter::plants( const QLis
 {
 	std::vector<AgricultureCatalogRow> out;
 	for ( const auto& v : in )
-		out.push_back( { catalog( v.plantID ), text( v.name ), static_cast<std::uint32_t>( std::max( 0, v.seedCount ) ), static_cast<std::uint32_t>( std::max( 0, v.plantCount ) ), static_cast<std::uint32_t>( std::max( 0, v.itemCount ) ) } );
+	{
+		QString icon;
+		if ( Global::cfg )
+		{
+			const QString sheetRoot = Global::cfg->get( "dataPath" ).toString() + "/tilesheet/";
+			const QString plantIcon = "filter_" + v.plantID + ".tga";
+			const QString seedIcon = "catalog_" + v.seedID + "__" + v.materialID + ".tga";
+			if ( QFileInfo::exists( sheetRoot + plantIcon ) ) icon = plantIcon;
+			else if ( QFileInfo::exists( sheetRoot + seedIcon ) ) icon = seedIcon;
+		}
+		out.push_back( { catalog( v.plantID ), text( v.name ), static_cast<std::uint32_t>( std::max( 0, v.seedCount ) ), static_cast<std::uint32_t>( std::max( 0, v.plantCount ) ), static_cast<std::uint32_t>( std::max( 0, v.itemCount ) ), text( icon ) } );
+	}
 	return out;
 }
 std::vector<AgricultureCatalogRow> Management6AQtDataAdapter::animals( const QList<GuiAnimal>& in )

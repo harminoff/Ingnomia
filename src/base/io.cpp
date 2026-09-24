@@ -62,6 +62,7 @@
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -114,6 +115,30 @@ bool IO::saveCompatible( QString folder )
 		return false;
 	}
 	return true;
+}
+
+std::optional<CompatibleSave> IO::newestCompatibleSave()
+{
+	const QDir savesRoot( getDataFolder() + "/save" );
+	std::optional<CompatibleSave> newest;
+	for( const auto& kingdom : savesRoot.entryList( QDir::Dirs | QDir::NoDotAndDotDot ) )
+	{
+		const QDir kingdomRoot( savesRoot.filePath( kingdom ) );
+		for( const auto& save : kingdomRoot.entryList( QDir::Dirs | QDir::NoDotAndDotDot ) )
+		{
+			const QString folder = kingdomRoot.filePath( save ) + "/";
+			const QFileInfo gameFile( folder + "game.json" );
+			const QFileInfo worldFile( folder + "world.dat" );
+			if( !gameFile.isFile() || !worldFile.isFile() || worldFile.size() == 0 || !saveCompatible( folder ) ) continue;
+			QJsonDocument document;
+			if( !loadFile( gameFile.filePath(), document ) || !document.isArray() || document.array().isEmpty()
+				|| !document.array().first().isObject() ) continue;
+			const QString name = document.array().first().toObject().value( "kingdomName" ).toString();
+			CompatibleSave candidate{ folder, name.isEmpty() ? kingdom : name, gameFile.lastModified() };
+			if( !newest || candidate.modified > newest->modified ) newest = std::move( candidate );
+		}
+	}
+	return newest;
 }
 
 /** @brief Checks whether any save game exists in the user data save folder.

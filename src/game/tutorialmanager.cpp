@@ -12,10 +12,13 @@
 #include "farm.h"
 #include "roommanager.h"
 #include "stockpilemanager.h"
+#include "stockpile.h"
 #include "jobmanager.h"
 #include "job.h"
 #include "world.h"
+#include "../base/config.h"
 #include "../base/gamestate.h"
+#include "../base/global.h"
 
 #include <QStringList>
 
@@ -27,12 +30,12 @@ QString stepName( TutorialStepId step )
 	{
 	case TutorialStepId::Orientation: return QStringLiteral( "tutorial.step.orientation" );
 	case TutorialStepId::InspectAndAssign: return QStringLiteral( "tutorial.step.inspect_assign" );
-	case TutorialStepId::ShelterAndStorage: return QStringLiteral( "tutorial.step.shelter_storage" );
+	case TutorialStepId::Gathering: return QStringLiteral( "tutorial.step.gathering" );
 	case TutorialStepId::MiningAndLevels: return QStringLiteral( "tutorial.step.mining_levels" );
-	case TutorialStepId::Farming: return QStringLiteral( "tutorial.step.farming" );
+	case TutorialStepId::Stockpile: return QStringLiteral( "tutorial.step.stockpile" );
 	case TutorialStepId::Crafting: return QStringLiteral( "tutorial.step.crafting" );
-	case TutorialStepId::Cooking: return QStringLiteral( "tutorial.step.cooking" );
-	case TutorialStepId::PopulationExpansion: return QStringLiteral( "tutorial.step.population" );
+	case TutorialStepId::Farming: return QStringLiteral( "tutorial.step.farming" );
+	case TutorialStepId::Shelter: return QStringLiteral( "tutorial.step.shelter" );
 	case TutorialStepId::Graduation: return QStringLiteral( "tutorial.step.graduation" );
 	}
 	return {};
@@ -48,11 +51,14 @@ void TutorialManager::start( const char* scenarioId, std::uint32_t version )
 {
 	progress_ = {};
 	progress_.mode = TutorialMode::Interactive;
-	progress_.scenarioId = scenarioId ? scenarioId : "scenario_v1";
+	progress_.scenarioId = scenarioId ? scenarioId : "scenario_v2";
 	progress_.scenarioVersion = version;
 	progress_.hintsEnabled = true;
 	incompatible_ = false;
 	facts_ = {};
+	workshopStockpileLinked_ = false;
+	stockpileAllowsRawWood_ = false;
+	starterBedRepairApplied_ = true; // New worlds receive the corrected starter kit.
 	pausedForLesson_ = true;
 	migrationQueued_ = false;
 	baselinePlank_ = game_ && game_->inv() ? static_cast<int>( game_->inv()->itemCount( "Plank", "any" ) ) : 0;
@@ -71,21 +77,27 @@ void TutorialManager::start( const char* scenarioId, std::uint32_t version )
 void TutorialManager::tick()
 {
 	if( !active() ) return;
-	if( game_->rm() && !game_->rm()->allRooms().isEmpty() )
+	if( game_->rm() )
 	{
-		facts_ |= tutorialFactBit( TutorialFact::Shelter );
 		int beds = 0;
-		for( auto* room : game_->rm()->allRooms() ) if( room ) beds += room->numBeds();
+		for( auto* room : game_->rm()->allRooms() )
+			if( room && room->type() == RoomType::Dorm )
+			{
+				facts_ |= tutorialFactBit( TutorialFact::Shelter );
+				beds += room->numBeds();
+			}
 		if( beds >= 5 ) facts_ |= tutorialFactBit( TutorialFact::Beds );
 	}
 	if( game_->spm() && !game_->spm()->allStockpiles().isEmpty() ) facts_ |= tutorialFactBit( TutorialFact::Stockpile );
+	stockpileAllowsRawWood_ = hasAllowedRawWoodStockpile();
 	if( game_->fm() && game_->fm()->countFarms() > 0 )
 	{
 		facts_ |= tutorialFactBit( TutorialFact::Farm );
 		for( auto* farm : game_->fm()->allFarms() )
 		{
 			if( !farm ) continue;
-			if( !farm->plantType().isEmpty() ) facts_ |= tutorialFactBit( TutorialFact::CropSelected );
+			if( farm->hasAssignedCrop() ) facts_ |= tutorialFactBit( TutorialFact::CropSelected );
+			if( farm->hasQueuedCropOrder() ) facts_ |= tutorialFactBit( TutorialFact::CropQueued );
 			int plots = 0, tilled = 0, planted = 0, ready = 0;
 			farm->getInfo( plots, tilled, planted, ready );
 			Q_UNUSED( plots ); Q_UNUSED( tilled ); Q_UNUSED( ready );
@@ -97,7 +109,11 @@ void TutorialManager::tick()
 		for( auto* workshop : game_->wsm()->workshops() )
 		{
 			if( !workshop ) continue;
-			if( workshop->type() == "Crude" ) facts_ |= tutorialFactBit( TutorialFact::Workshop );
+			if( workshop->type() == "Crude" )
+			{
+				facts_ |= tutorialFactBit( TutorialFact::Workshop );
+				if( !workshop->linkedStockpiles().isEmpty() ) workshopStockpileLinked_ = true;
+			}
 			if( workshop->type() == "Kitchen" ) facts_ |= tutorialFactBit( TutorialFact::Kitchen );
 		}
 	}
@@ -108,50 +124,79 @@ void TutorialManager::tick()
 		if( static_cast<int>( game_->inv()->itemCount( "Bread", "any" ) ) > baselineBread_ ) facts_ |= tutorialFactBit( TutorialFact::Bread );
 		if( static_cast<int>( game_->inv()->itemCount( "Fruit", "any" ) ) > baselineFruit_ ) facts_ |= tutorialFactBit( TutorialFact::Harvest );
 	}
-	if( game_ && game_->gm() )
-		for( auto* gnome : game_->gm()->gnomes() )
-			if( gnome && baselineProfessions_.contains( gnome->id() ) && gnome->profession() != baselineProfessions_.value( gnome->id() ) ) facts_ |= tutorialFactBit( TutorialFact::AssignWork );
-	if( game_ && game_->jm() )
-		for( auto it = game_->jm()->allJobs().cbegin(); it != game_->jm()->allJobs().cend(); ++it )
-			if( it.value() && it.value()->phase() == JobPhase::COMPLETE )
-			{
-				const auto type = it.value()->type();
-				if( type == "Harvest" ) facts_ |= tutorialFactBit( TutorialFact::Harvest );
-				if( type == "Mine" || type == "RemoveFloor" || type == "DigHole" || type == "DigStairsDown" || type == "MineStairsUp" )
-				{
-					completedExcavationJobs_.insert( it.key() );
-					facts_ |= tutorialFactBit( TutorialFact::Excavation );
-					if( type != "Mine" ) facts_ |= tutorialFactBit( TutorialFact::LowerLevel );
-				}
-			}
-	// Keep the migration deterministic and let EventManager own its prompt and
-	// acceptance semantics.  The event is queued once after the initial lesson
-	// window, so a paused tutorial is still immediately playable.
-	if( !migrationQueued_ && game_ && game_->em() && progress_.step == TutorialStepId::PopulationExpansion )
+	evaluateCurrentStep();
+}
+
+void TutorialManager::observeProfession( unsigned int gnomeId, const QString& profession )
+{
+	if( !active() ) return;
+	if( profession == QStringLiteral( "Woodcutter" ) && baselineProfessions_.contains( gnomeId )
+		&& baselineProfessions_.value( gnomeId ) != profession ) observeFact( TutorialFact::AssignWork );
+}
+
+void TutorialManager::observeWorkshopStockpileLink( unsigned int workshopId )
+{
+	if( !active() || !game_ || !game_->wsm() ) return;
+	auto* workshop = game_->wsm()->workshop( workshopId );
+	if( !workshop || workshop->type() != "Crude" || workshop->linkedStockpiles().isEmpty() ) return;
+	workshopStockpileLinked_ = true;
+	evaluateCurrentStep();
+}
+
+void TutorialManager::observeStockpileAllowRule( unsigned int stockpileId )
+{
+	if( !active() || !game_ || !game_->spm() ) return;
+	Q_UNUSED( stockpileId );
+	stockpileAllowsRawWood_ = hasAllowedRawWoodStockpile();
+	evaluateCurrentStep();
+}
+
+bool TutorialManager::hasAllowedRawWoodStockpile() const
+{
+	if( !game_ || !game_->spm() ) return false;
+	for( const auto id : game_->spm()->allStockpiles() )
 	{
-		QVariantMap args;
-		args.insert( "Amount", 3 );
-		Position migrationAnchor = GameState::origin;
-		migrationAnchor.x += 16;
-		if( game_->w() ) game_->w()->getFloorLevelBelow( migrationAnchor, false );
-		if( game_->w() && !game_->w()->isWalkableGnome( migrationAnchor ) )
-		{
-			for( int radius = 1; radius <= 4 && !game_->w()->isWalkableGnome( migrationAnchor ); ++radius )
-				for( int dx = -radius; dx <= radius && !game_->w()->isWalkableGnome( migrationAnchor ); ++dx )
-					for( int dy = -radius; dy <= radius && !game_->w()->isWalkableGnome( migrationAnchor ); ++dy )
-					{
-						Position candidate = migrationAnchor;
-						candidate.x += dx;
-						candidate.y += dy;
-						game_->w()->getFloorLevelBelow( candidate, false );
-						if( game_->w()->isWalkableGnome( candidate ) ) migrationAnchor = candidate;
-					}
-		}
-		args.insert( "Location", migrationAnchor.toString() );
-		game_->em()->onDebugEvent( EventType::MIGRATION, args );
-		migrationQueued_ = true;
+		auto* stockpile = game_->spm()->getStockpile( id );
+		if( stockpile && stockpile->pFilter()
+			&& stockpile->pFilter()->getCheckState( "Materials", "Wood", "RawWood", "Pine" ) ) return true;
 	}
-	if( game_ && game_->gm() && game_->gm()->numGnomes() >= 8 ) facts_ |= tutorialFactBit( TutorialFact::Migration );
+	return false;
+}
+
+bool TutorialManager::hasLinkedAllowedRawWoodStockpile() const
+{
+	if( !game_ || !game_->wsm() || !game_->spm() ) return false;
+	for( auto* workshop : game_->wsm()->workshops() )
+	{
+		if( !workshop || workshop->type() != "Crude" ) continue;
+		for( const auto id : workshop->linkedStockpiles() )
+		{
+			auto* stockpile = game_->spm()->getStockpile( id );
+			if( stockpile && stockpile->pFilter()
+				&& stockpile->pFilter()->getCheckState( "Materials", "Wood", "RawWood", "Pine" ) ) return true;
+		}
+	}
+	return false;
+}
+
+void TutorialManager::repairMissingStarterBeds()
+{
+	if( starterBedRepairApplied_ || !active() || progress_.step != TutorialStepId::Shelter || !game_ || !game_->inv() ) return;
+	int beds = static_cast<int>( game_->inv()->itemCountWithInJob( "Bed", "any" ) );
+	if( game_->rm() )
+		for( auto* room : game_->rm()->allRooms() )
+			if( room ) beds += room->numBeds();
+	for( ; beds < 5; ++beds ) game_->inv()->createItem( GameState::origin, "Bed", "Pine" );
+	starterBedRepairApplied_ = true;
+}
+
+void TutorialManager::observeCompletedJob( const QString& type )
+{
+	if( !active() ) return;
+	if( type == "Harvest" ) facts_ |= tutorialFactBit( TutorialFact::Harvest );
+	else if( type == "FellTree" ) facts_ |= tutorialFactBit( TutorialFact::FellTree );
+	else if( type == "Mine" ) facts_ |= tutorialFactBit( TutorialFact::MineWall );
+	else if( type == "DigStairsDown" || type == "MineStairsUp" ) facts_ |= tutorialFactBit( TutorialFact::LowerLevel );
 	evaluateCurrentStep();
 }
 
@@ -187,6 +232,7 @@ void TutorialManager::advance()
 		return;
 	}
 	progress_.step = static_cast<TutorialStepId>( static_cast<std::uint8_t>( progress_.step ) + 1 );
+	repairMissingStarterBeds();
 	pausedForLesson_ = true;
 	evaluateCurrentStep();
 }
@@ -202,17 +248,18 @@ void TutorialManager::restart()
 {
 	if( progress_.mode == TutorialMode::Off && !progress_.completed && !incompatible_ ) return;
 	// Restart the guidance in-place so the world and real player work remain
-	// intact. Scenario baselines are preserved, so prior crafted items still
-	// count as out-of-order progress after the restart.
+	// intact. Preserve observed actions as well as item baselines: a felled tree
+	// or harvested plant cannot necessarily be repeated after a restart.
 	const bool migrationAlreadyHandled = migrationQueued_ || ( game_ && game_->gm() && game_->gm()->numGnomes() >= 8 );
 	progress_.mode = TutorialMode::Interactive;
+	progress_.scenarioId = "scenario_v2";
+	progress_.scenarioVersion = 2;
 	progress_.step = TutorialStepId::Orientation;
 	progress_.completedMask = 0;
 	progress_.skippedMask = 0;
 	progress_.hintsEnabled = true;
 	progress_.completed = false;
 	incompatible_ = false;
-	facts_ = 0;
 	pausedForLesson_ = true;
 	migrationQueued_ = migrationAlreadyHandled;
 	lastSnapshot_ = {};
@@ -256,6 +303,10 @@ void TutorialManager::serialize( QVariantMap& out ) const
 	tutorial.insert( "completed", progress_.completed );
 	tutorial.insert( "incompatible", incompatible_ );
 	tutorial.insert( "facts", static_cast<uint>( facts_ ) );
+	tutorial.insert( "lessonRevision", 4 );
+	tutorial.insert( "workshopStockpileLinked", workshopStockpileLinked_ );
+	tutorial.insert( "stockpileAllowsRawWood", stockpileAllowsRawWood_ );
+	tutorial.insert( "starterBedRepairApplied", starterBedRepairApplied_ );
 	tutorial.insert( "migrationQueued", migrationQueued_ );
 	tutorial.insert( "baselinePlank", baselinePlank_ );
 	tutorial.insert( "baselineFlour", baselineFlour_ );
@@ -277,17 +328,23 @@ bool TutorialManager::deserialize( const QVariantMap& in )
 	{
 		progress_ = {};
 		facts_ = {};
+		workshopStockpileLinked_ = false;
+		stockpileAllowsRawWood_ = false;
+		starterBedRepairApplied_ = false;
 		incompatible_ = false;
 		emitIfChanged();
 		return true;
 	}
 	const auto version = tutorial.value( "scenarioVersion", 0 ).toUInt();
-	if( version != 1 || tutorial.value( "scenarioId" ).toString() != QStringLiteral( "scenario_v1" ) )
+	if( version != 2 || tutorial.value( "scenarioId" ).toString() != QStringLiteral( "scenario_v2" ) )
 	{
 		progress_ = {};
 		progress_.scenarioId = tutorial.value( "scenarioId" ).toString().toStdString();
 		progress_.scenarioVersion = version;
 		facts_ = {};
+		workshopStockpileLinked_ = false;
+		stockpileAllowsRawWood_ = false;
+		starterBedRepairApplied_ = false;
 		incompatible_ = true;
 		emitIfChanged();
 		return false;
@@ -299,9 +356,22 @@ bool TutorialManager::deserialize( const QVariantMap& in )
 	progress_.skippedMask = tutorial.value( "skippedMask" ).toUInt();
 	progress_.hintsEnabled = tutorial.value( "hintsEnabled", true ).toBool();
 	progress_.completed = tutorial.value( "completed" ).toBool();
-	progress_.scenarioId = "scenario_v1";
+	progress_.scenarioId = "scenario_v2";
 	incompatible_ = false;
 	facts_ = tutorial.value( "facts" ).toUInt();
+	workshopStockpileLinked_ = tutorial.value( "workshopStockpileLinked", false ).toBool();
+	stockpileAllowsRawWood_ = tutorial.value( "stockpileAllowsRawWood", false ).toBool();
+	starterBedRepairApplied_ = tutorial.value( "starterBedRepairApplied", false ).toBool();
+	stockpileAllowsRawWood_ = hasAllowedRawWoodStockpile();
+	if( tutorial.value( "lessonRevision", 1 ).toInt() < 2 && progress_.step == TutorialStepId::InspectAndAssign )
+		facts_ &= ~( tutorialFactBit( TutorialFact::InspectGnome ) | tutorialFactBit( TutorialFact::OpenPopulation ) | tutorialFactBit( TutorialFact::OpenInventory ) | tutorialFactBit( TutorialFact::AssignWork ) );
+	if( tutorial.value( "lessonRevision", 1 ).toInt() < 4
+		&& ( progress_.step == TutorialStepId::Stockpile || progress_.step == TutorialStepId::Crafting ) )
+	{
+		progress_.step = TutorialStepId::Stockpile;
+		progress_.completedMask &= ~( tutorialBit( TutorialStepId::Stockpile ) | tutorialBit( TutorialStepId::Crafting ) );
+		progress_.skippedMask &= ~( tutorialBit( TutorialStepId::Stockpile ) | tutorialBit( TutorialStepId::Crafting ) );
+	}
 	migrationQueued_ = tutorial.value( "migrationQueued", false ).toBool();
 	baselinePlank_ = tutorial.value( "baselinePlank", 0 ).toInt();
 	baselineFlour_ = tutorial.value( "baselineFlour", 0 ).toInt();
@@ -313,6 +383,7 @@ bool TutorialManager::deserialize( const QVariantMap& in )
 	completedExcavationJobs_.clear();
 	for( const auto& id : tutorial.value( "completedExcavationJobs" ).toList() ) completedExcavationJobs_.insert( id.toUInt() );
 	pausedForLesson_ = active();
+	repairMissingStarterBeds();
 	emitIfChanged();
 	return true;
 }
@@ -325,11 +396,13 @@ void TutorialManager::evaluateCurrentStep()
 		return;
 	}
 	const auto bit = tutorialBit( progress_.step );
-	if( ( facts_ & requiredFacts( progress_.step ) ) == requiredFacts( progress_.step ) )
+	if( ( facts_ & requiredFacts( progress_.step ) ) == requiredFacts( progress_.step )
+		&& ( progress_.step != TutorialStepId::Stockpile || hasLinkedAllowedRawWoodStockpile() ) )
 	{
 		progress_.completedMask |= bit;
 		pausedForLesson_ = true;
 	}
+	else if( progress_.step == TutorialStepId::Stockpile ) progress_.completedMask &= ~bit;
 	emitIfChanged();
 }
 
@@ -362,27 +435,54 @@ TutorialSnapshot TutorialManager::snapshot() const
 	value.steps = incompatible_ ? QStringList{} : stepsFor( progress_.step );
 	value.completedSteps = incompatible_ ? QVector<bool>{} : completedStepsFor( progress_.step );
 	value.progress = incompatible_ ? QString{} : QStringLiteral( "%1 / 9" ).arg( static_cast<int>( progress_.step ) + 1 );
-	static const QStringList highlights{
-		QStringLiteral( "hud_tool_inspect" ), QStringLiteral( "hud_open_population" ), QStringLiteral( "hud_tool_build" ),
-		QStringLiteral( "hud_tool_mine" ), QStringLiteral( "hud_tool_agriculture" ), QStringLiteral( "hud_tool_build" ),
-		QStringLiteral( "hud_tool_build" ), QStringLiteral( "hud_open_population" ), QStringLiteral( "tutorial-finish" ) };
-	if( !incompatible_ && static_cast<int>( progress_.step ) < highlights.size() ) value.highlightedIds = { highlights[static_cast<int>( progress_.step)] };
+	// Point at the next unfinished interaction. The target changes as the player
+	// completes each action, including actions completed before its lesson opens.
+	static const QVector<QStringList> highlights{
+		{ "", "", "", "", "hud_level_down", "hud_pause", "hud_speed_fast" },
+		{ "hud_tool_inspect", "", "", "hud_open_population", "hud_open_inventory" },
+		{ "hud_tool_agriculture", "hud_tool_inspect" },
+		{ "hud_tool_mine", "hud_tool_mine" },
+		{ "hud_tool_build", "hud_tool_designations", "hud_tool_inspect", "", "" },
+		{ "", "hud_open_inventory" },
+		{ "hud_tool_designations", "", "", "hud_pause" },
+		{ "hud_tool_designations", "hud_tool_build" },
+		{ "tutorial-finish" } };
+	const auto index = static_cast<int>( progress_.step );
+	if( !incompatible_ && index < highlights.size() )
+	{
+		const auto done = value.completedSteps;
+		int next = 0;
+		while( next < done.size() && done[next] ) ++next;
+		if( next < highlights[index].size() )
+		{
+			value.highlightedIds = { highlights[index][next] };
+			if( progress_.step == TutorialStepId::Gathering && next == 0 ) value.highlightedIds << "hud_tool_fell_tree";
+			else if( progress_.step == TutorialStepId::MiningAndLevels ) value.highlightedIds << ( next == 0 ? "hud_mine_stairs_down" : "hud_mine_walls" );
+			else if( progress_.step == TutorialStepId::Stockpile && next == 0 ) value.highlightedIds << "hud_build_workshop";
+			else if( progress_.step == TutorialStepId::Stockpile && next == 1 ) value.highlightedIds << "hud_tool_stockpile";
+			else if( progress_.step == TutorialStepId::Farming && next == 0 ) value.highlightedIds << "hud_tool_farm";
+			else if( progress_.step == TutorialStepId::Shelter && next == 0 ) value.highlightedIds << "hud_tool_dormitory";
+			else if( progress_.step == TutorialStepId::Shelter && next == 1 ) value.highlightedIds << "hud_build_furniture";
+		}
+	}
 	return value;
 }
 
 QString TutorialManager::titleFor( TutorialStepId step ) const { return stepName( step ); }
 QString TutorialManager::explanationFor( TutorialStepId step ) const
 {
-	Q_UNUSED( step );
+	if( step == TutorialStepId::InspectAndAssign ) return QStringLiteral( "tutorial.explanation.inspect_assign" );
+	if( step == TutorialStepId::Stockpile ) return QStringLiteral( "tutorial.explanation.stockpile" );
+	if( step == TutorialStepId::Farming ) return QStringLiteral( "tutorial.explanation.farming" );
 	return QStringLiteral( "tutorial.explanation" );
 }
 QString TutorialManager::objectiveFor( TutorialStepId step ) const
 {
 	static const QStringList objectives{
 		QStringLiteral( "tutorial.objective.orientation" ), QStringLiteral( "tutorial.objective.inspect_assign" ),
-		QStringLiteral( "tutorial.objective.shelter_storage" ), QStringLiteral( "tutorial.objective.mining_levels" ),
-		QStringLiteral( "tutorial.objective.farming" ), QStringLiteral( "tutorial.objective.crafting" ),
-		QStringLiteral( "tutorial.objective.cooking" ), QStringLiteral( "tutorial.objective.population" ),
+		QStringLiteral( "tutorial.objective.gathering" ), QStringLiteral( "tutorial.objective.mining_levels" ),
+		QStringLiteral( "tutorial.objective.stockpile" ), QStringLiteral( "tutorial.objective.crafting" ),
+		QStringLiteral( "tutorial.objective.farming" ), QStringLiteral( "tutorial.objective.shelter" ),
 		QStringLiteral( "tutorial.objective.graduation" ) };
 	const auto index = static_cast<std::size_t>( step );
 	return index < objectives.size() ? objectives[index] : QString{};
@@ -390,44 +490,44 @@ QString TutorialManager::objectiveFor( TutorialStepId step ) const
 
 QStringList TutorialManager::stepsFor( TutorialStepId step ) const
 {
-	static const QStringList orientation{
-		QStringLiteral( "tutorial.steps.orientation.pan" ), QStringLiteral( "tutorial.steps.orientation.zoom" ),
+	const bool wheelChangesLevel = Global::cfg && Global::cfg->get( "toggleMouseWheel" ).toBool();
+	const QStringList orientation{
+		QStringLiteral( "tutorial.steps.orientation.pan" ),
+		wheelChangesLevel ? QStringLiteral( "tutorial.steps.orientation.wheel_level_ctrl" ) : QStringLiteral( "tutorial.steps.orientation.wheel_level" ),
+		wheelChangesLevel ? QStringLiteral( "tutorial.steps.orientation.zoom_plain" ) : QStringLiteral( "tutorial.steps.orientation.zoom" ),
 		QStringLiteral( "tutorial.steps.orientation.rotate" ), QStringLiteral( "tutorial.steps.orientation.level" ),
 		QStringLiteral( "tutorial.steps.orientation.pause" ), QStringLiteral( "tutorial.steps.orientation.speed" ) };
 	static const QStringList inspect{
 		QStringLiteral( "tutorial.steps.inspect.select" ), QStringLiteral( "tutorial.steps.inspect.inspect" ),
-		QStringLiteral( "tutorial.steps.inspect.population" ), QStringLiteral( "tutorial.steps.inspect.inventory" ),
-		QStringLiteral( "tutorial.steps.inspect.assignment" ) };
-	static const QStringList shelter{
-		QStringLiteral( "tutorial.steps.shelter.build" ), QStringLiteral( "tutorial.steps.shelter.room" ),
-		QStringLiteral( "tutorial.steps.shelter.beds" ), QStringLiteral( "tutorial.steps.shelter.stockpile" ) };
+		QStringLiteral( "tutorial.steps.inspect.assignment" ), QStringLiteral( "tutorial.steps.inspect.population" ),
+		QStringLiteral( "tutorial.steps.inspect.inventory" ) };
+	static const QStringList gathering{
+		QStringLiteral( "tutorial.steps.gathering.wood" ), QStringLiteral( "tutorial.steps.gathering.food" ) };
 	static const QStringList mining{
-		QStringLiteral( "tutorial.steps.mining.open" ), QStringLiteral( "tutorial.steps.mining.wall" ),
-		QStringLiteral( "tutorial.steps.mining.floor" ), QStringLiteral( "tutorial.steps.mining.stairs" ) };
+		QStringLiteral( "tutorial.steps.mining.stairs" ), QStringLiteral( "tutorial.steps.mining.wall" ) };
+	static const QStringList stockpile{ QStringLiteral( "tutorial.steps.stockpile.workshop" ),
+		QStringLiteral( "tutorial.steps.stockpile.designate" ), QStringLiteral( "tutorial.steps.stockpile.allow" ), QStringLiteral( "tutorial.steps.stockpile.open" ),
+		QStringLiteral( "tutorial.steps.stockpile.link" ) };
 	static const QStringList farming{
 		QStringLiteral( "tutorial.steps.farming.designate" ), QStringLiteral( "tutorial.steps.farming.crop" ),
-		QStringLiteral( "tutorial.steps.farming.plant" ), QStringLiteral( "tutorial.steps.farming.harvest" ) };
+		QStringLiteral( "tutorial.steps.farming.queue" ),
+		QStringLiteral( "tutorial.steps.farming.plant" ) };
 	static const QStringList crafting{
-		QStringLiteral( "tutorial.steps.crafting.build" ), QStringLiteral( "tutorial.steps.crafting.recipe" ),
-		QStringLiteral( "tutorial.steps.crafting.collect" ) };
-	static const QStringList cooking{
-		QStringLiteral( "tutorial.steps.cooking.kitchen" ), QStringLiteral( "tutorial.steps.cooking.flour" ),
-		QStringLiteral( "tutorial.steps.cooking.bread" ) };
-	static const QStringList population{
-		QStringLiteral( "tutorial.steps.population.prompt" ), QStringLiteral( "tutorial.steps.population.accept" ),
-		QStringLiteral( "tutorial.steps.population.confirm" ) };
+		QStringLiteral( "tutorial.steps.crafting.recipe" ), QStringLiteral( "tutorial.steps.crafting.collect" ) };
+	static const QStringList shelter{
+		QStringLiteral( "tutorial.steps.shelter.room" ), QStringLiteral( "tutorial.steps.shelter.beds" ) };
 	static const QStringList graduation{
 		QStringLiteral( "tutorial.steps.graduation.review" ), QStringLiteral( "tutorial.steps.graduation.continue" ) };
 	switch( step )
 	{
 	case TutorialStepId::Orientation: return orientation;
 	case TutorialStepId::InspectAndAssign: return inspect;
-	case TutorialStepId::ShelterAndStorage: return shelter;
+	case TutorialStepId::Gathering: return gathering;
 	case TutorialStepId::MiningAndLevels: return mining;
-	case TutorialStepId::Farming: return farming;
+	case TutorialStepId::Stockpile: return stockpile;
 	case TutorialStepId::Crafting: return crafting;
-	case TutorialStepId::Cooking: return cooking;
-	case TutorialStepId::PopulationExpansion: return population;
+	case TutorialStepId::Farming: return farming;
+	case TutorialStepId::Shelter: return shelter;
 	case TutorialStepId::Graduation: return graduation;
 	}
 	return {};
@@ -435,17 +535,22 @@ QStringList TutorialManager::stepsFor( TutorialStepId step ) const
 
 QVector<bool> TutorialManager::completedStepsFor( TutorialStepId step ) const
 {
+	if( step == TutorialStepId::Stockpile )
+		return { ( facts_ & tutorialFactBit( TutorialFact::Workshop ) ) != 0,
+			( facts_ & tutorialFactBit( TutorialFact::Stockpile ) ) != 0,
+			stockpileAllowsRawWood_,
+			( facts_ & tutorialFactBit( TutorialFact::OpenWorkshop ) ) != 0,
+			workshopStockpileLinked_ && hasLinkedAllowedRawWoodStockpile() };
 	static const auto factsFor = []( TutorialStepId value ) {
 		switch( value )
 		{
-		case TutorialStepId::Orientation: return QVector<TutorialFact>{ TutorialFact::Pan, TutorialFact::Zoom, TutorialFact::Rotate, TutorialFact::ChangeLevel, TutorialFact::PauseResume, TutorialFact::ChangeSpeed };
-		case TutorialStepId::InspectAndAssign: return QVector<TutorialFact>{ TutorialFact::SelectGnome, TutorialFact::InspectGnome, TutorialFact::OpenPopulation, TutorialFact::OpenInventory, TutorialFact::AssignWork };
-		case TutorialStepId::ShelterAndStorage: return QVector<TutorialFact>{ TutorialFact::Shelter, TutorialFact::Shelter, TutorialFact::Beds, TutorialFact::Stockpile };
-		case TutorialStepId::MiningAndLevels: return QVector<TutorialFact>{ TutorialFact::Excavation, TutorialFact::Excavation, TutorialFact::LowerLevel, TutorialFact::LowerLevel };
-		case TutorialStepId::Farming: return QVector<TutorialFact>{ TutorialFact::Farm, TutorialFact::CropSelected, TutorialFact::Plant, TutorialFact::Harvest };
-		case TutorialStepId::Crafting: return QVector<TutorialFact>{ TutorialFact::Workshop, TutorialFact::Workshop, TutorialFact::Plank };
-		case TutorialStepId::Cooking: return QVector<TutorialFact>{ TutorialFact::Kitchen, TutorialFact::Flour, TutorialFact::Bread };
-		case TutorialStepId::PopulationExpansion: return QVector<TutorialFact>{ TutorialFact::Migration, TutorialFact::Migration, TutorialFact::Migration };
+		case TutorialStepId::Orientation: return QVector<TutorialFact>{ TutorialFact::Pan, TutorialFact::WheelLevel, TutorialFact::Zoom, TutorialFact::Rotate, TutorialFact::ChangeLevel, TutorialFact::PauseResume, TutorialFact::ChangeSpeed };
+		case TutorialStepId::InspectAndAssign: return QVector<TutorialFact>{ TutorialFact::SelectGnome, TutorialFact::InspectGnome, TutorialFact::AssignWork, TutorialFact::OpenPopulation, TutorialFact::OpenInventory };
+		case TutorialStepId::Gathering: return QVector<TutorialFact>{ TutorialFact::FellTree, TutorialFact::Harvest };
+		case TutorialStepId::MiningAndLevels: return QVector<TutorialFact>{ TutorialFact::LowerLevel, TutorialFact::MineWall };
+		case TutorialStepId::Crafting: return QVector<TutorialFact>{ TutorialFact::QueuePlank, TutorialFact::Plank };
+		case TutorialStepId::Farming: return QVector<TutorialFact>{ TutorialFact::Farm, TutorialFact::CropSelected, TutorialFact::CropQueued, TutorialFact::Plant };
+		case TutorialStepId::Shelter: return QVector<TutorialFact>{ TutorialFact::Shelter, TutorialFact::Beds };
 		case TutorialStepId::Graduation: return QVector<TutorialFact>{};
 		}
 		return QVector<TutorialFact>{};
@@ -459,15 +564,15 @@ std::uint32_t TutorialManager::requiredFacts( TutorialStepId step ) const noexce
 {
 	switch( step )
 	{
-	case TutorialStepId::Orientation: return tutorialFactBit( TutorialFact::Pan ) | tutorialFactBit( TutorialFact::Zoom ) | tutorialFactBit( TutorialFact::Rotate ) | tutorialFactBit( TutorialFact::ChangeLevel ) | tutorialFactBit( TutorialFact::PauseResume ) | tutorialFactBit( TutorialFact::ChangeSpeed );
+	case TutorialStepId::Orientation: return tutorialFactBit( TutorialFact::Pan ) | tutorialFactBit( TutorialFact::WheelLevel ) | tutorialFactBit( TutorialFact::Zoom ) | tutorialFactBit( TutorialFact::Rotate ) | tutorialFactBit( TutorialFact::ChangeLevel ) | tutorialFactBit( TutorialFact::PauseResume ) | tutorialFactBit( TutorialFact::ChangeSpeed );
 	case TutorialStepId::InspectAndAssign: return tutorialFactBit( TutorialFact::SelectGnome ) | tutorialFactBit( TutorialFact::InspectGnome ) | tutorialFactBit( TutorialFact::OpenPopulation ) | tutorialFactBit( TutorialFact::OpenInventory ) | tutorialFactBit( TutorialFact::AssignWork );
-	case TutorialStepId::ShelterAndStorage: return tutorialFactBit( TutorialFact::Shelter ) | tutorialFactBit( TutorialFact::Beds ) | tutorialFactBit( TutorialFact::Stockpile );
-	case TutorialStepId::MiningAndLevels: return tutorialFactBit( TutorialFact::Excavation ) | tutorialFactBit( TutorialFact::LowerLevel );
-	case TutorialStepId::Farming: return tutorialFactBit( TutorialFact::Farm ) | tutorialFactBit( TutorialFact::CropSelected ) | tutorialFactBit( TutorialFact::Plant ) | tutorialFactBit( TutorialFact::Harvest );
-	case TutorialStepId::Crafting: return tutorialFactBit( TutorialFact::Workshop ) | tutorialFactBit( TutorialFact::Plank );
-	case TutorialStepId::Cooking: return tutorialFactBit( TutorialFact::Kitchen ) | tutorialFactBit( TutorialFact::Flour ) | tutorialFactBit( TutorialFact::Bread );
-	case TutorialStepId::PopulationExpansion: return tutorialFactBit( TutorialFact::Migration );
-	case TutorialStepId::Graduation: return tutorialBit( TutorialStepId::ShelterAndStorage ) | tutorialBit( TutorialStepId::MiningAndLevels ) | tutorialBit( TutorialStepId::Farming ) | tutorialBit( TutorialStepId::Crafting ) | tutorialBit( TutorialStepId::Cooking ) | tutorialBit( TutorialStepId::PopulationExpansion );
+	case TutorialStepId::Gathering: return tutorialFactBit( TutorialFact::FellTree ) | tutorialFactBit( TutorialFact::Harvest );
+	case TutorialStepId::MiningAndLevels: return tutorialFactBit( TutorialFact::LowerLevel ) | tutorialFactBit( TutorialFact::MineWall );
+	case TutorialStepId::Stockpile: return tutorialFactBit( TutorialFact::Workshop ) | tutorialFactBit( TutorialFact::Stockpile ) | tutorialFactBit( TutorialFact::OpenWorkshop );
+	case TutorialStepId::Crafting: return tutorialFactBit( TutorialFact::QueuePlank ) | tutorialFactBit( TutorialFact::Plank );
+	case TutorialStepId::Farming: return tutorialFactBit( TutorialFact::Farm ) | tutorialFactBit( TutorialFact::CropSelected ) | tutorialFactBit( TutorialFact::CropQueued ) | tutorialFactBit( TutorialFact::Plant );
+	case TutorialStepId::Shelter: return tutorialFactBit( TutorialFact::Shelter ) | tutorialFactBit( TutorialFact::Beds );
+	case TutorialStepId::Graduation: return 0;
 	}
 	return 0;
 }

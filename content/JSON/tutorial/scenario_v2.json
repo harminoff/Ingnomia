@@ -1,0 +1,40 @@
+{
+  "scenarioId": "scenario_v2",
+  "scenarioVersion": 2,
+  "seed": "133693463",
+  "world": {
+    "dimensions": { "x": 64, "y": 64, "z": 100 },
+    "ground": 70,
+    "flatness": 0,
+    "oceanSize": 0,
+    "rivers": 0,
+    "peaceful": true,
+    "wildAnimals": 0
+  },
+  "startingGnomes": 5,
+  "landmarks": {
+    "camp": { "x": 31, "y": 31, "z": 70 },
+    "harvest": { "x": 39, "y": 26, "z": 70 },
+    "trees": [ { "x": 39, "y": 34, "z": 70 }, { "x": 44, "y": 37, "z": 70 }, { "x": 39, "y": 41, "z": 70 } ],
+    "mine": { "x": 23, "y": 31, "z": 70 },
+    "workshop": { "x": 31, "y": 39, "z": 70 }
+  },
+  "starterKit": {
+    "items": [
+      { "item": "Pickaxe", "material": "Pine", "amount": 2 },
+      { "item": "FellingAxe", "material": "Pine", "amount": 1 },
+      { "item": "RawWood", "material": "Pine", "amount": 32 },
+      { "item": "RawStone", "material": "Granite", "amount": 16 },
+      { "item": "Bed", "material": "Pine", "amount": 5 },
+      { "item": "Chair", "material": "Pine", "amount": 1 },
+      { "item": "Table", "material": "Pine", "amount": 1 },
+      { "item": "Knife", "material": "Granite", "amount": 1 },
+      { "item": "Bread", "material": "Wheat", "amount": 8 },
+      { "item": "Grain", "material": "Wheat", "amount": 16 },
+      { "item": "Seed", "material": "Strawberry", "amount": 16 }
+    ],
+    "matureCrop": "Strawberry",
+    "matureTrees": "PineTree"
+  },
+  "ambientEvents": false
+}

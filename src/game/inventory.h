@@ -83,6 +83,8 @@ public:
 	* get closest items with connected region check
 	*/
 	QList<unsigned int> getClosestItems( const Position& pos, bool allowInStockpile, QString itemSID, QString materialSID, int count );
+    QList<unsigned int> getWorkshopItems(const Position& input, const QString& item, const QString& material,
+        int count, bool requireSame, QStringList restrictions, const QList<unsigned int>& linkedStockpiles);
 	bool checkReachableItems( Position pos, bool allowInStockpile, int count, QString itemSID, QString materialSID = "any" );
 	QList<unsigned int> getClosestItemsForStockpile( unsigned int stockpileID, Position& pos, bool allowInStockpile, QSet<QPair<QString, QString>> filter );
 

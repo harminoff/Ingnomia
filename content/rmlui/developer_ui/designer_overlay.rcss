@@ -1,0 +1,119 @@
+.designer-overlay {
+  position: absolute;
+  left: 0dp;
+  top: 0dp;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  color: #000000;
+  font-family: LatoLatin;
+  font-size: 12dp;
+}
+
+.designer-toolbar,
+.designer-panel {
+  position: absolute;
+  pointer-events: auto;
+  background-color: #c0c0c0;
+  border-top: 2dp solid #ffffff;
+  border-left: 2dp solid #ffffff;
+  border-right: 2dp solid #404040;
+  border-bottom: 2dp solid #404040;
+  box-sizing: border-box;
+}
+
+.designer-toolbar {
+  left: 8dp;
+  top: 8dp;
+  right: 8dp;
+  height: 34dp;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4dp;
+  padding: 3dp;
+  z-index: 1000;
+}
+
+.designer-toolbar__title {
+  min-width: 120dp;
+  color: #ffffff;
+  background-color: #356c9d;
+}
+
+.designer-toolbar__mode {
+  min-width: 52dp;
+  padding: 4dp 6dp;
+  font-weight: bold;
+  text-align: center;
+}
+
+.designer-panel {
+  top: 50dp;
+  bottom: 8dp;
+  width: 196dp;
+  padding: 8dp;
+  z-index: 999;
+  overflow-y: auto;
+}
+
+.designer-palette { left: 8dp; }
+.designer-inspector { right: 8dp; }
+
+.designer-panel h2 {
+  margin: 0 0 6dp 0;
+  font-size: 13dp;
+}
+
+.designer-help,
+.designer-status {
+  margin: 4dp 0 8dp 0;
+  font-size: 10dp;
+  line-height: 13dp;
+}
+
+.designer-status {
+  padding: 5dp;
+  background-color: #ffffff;
+  border: 1dp solid #808080;
+}
+
+.designer-component-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4dp;
+}
+
+.designer-component-grid .c-button {
+  width: 100%;
+  min-height: 25dp;
+  text-align: left;
+}
+
+.designer-inspector label {
+  display: block;
+  margin-bottom: 6dp;
+}
+
+.designer-inspector input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 2dp;
+}
+
+.designer-selection {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  border: 2dp solid #f1ca4f;
+  background-color: rgba(53, 108, 157, 0.12);
+  z-index: 998;
+}
+
+.designer-added {
+  min-width: 80dp;
+  min-height: 24dp;
+  margin: 4dp;
+  padding: 4dp;
+  border: 1dp dashed #356c9d;
+}

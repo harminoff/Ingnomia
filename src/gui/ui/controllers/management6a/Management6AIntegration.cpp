@@ -29,6 +29,16 @@ bool Management6AIntegration::initialize()
 		shutdown();
 		return false;
 	}
+    stockpileBinding_ = std::make_unique<Management6ARmlBinding>(context_);
+    agricultureBinding_ = std::make_unique<Management6ARmlBinding>(context_);
+    stockpileCommands_ = std::make_unique<Management6AQtCommandPort>(connector_, ManagementView::Stockpile);
+    agricultureCommands_ = std::make_unique<Management6AQtCommandPort>(connector_, ManagementView::Agriculture);
+    stockpileController_ = std::make_unique<Management6AController>(*stockpileCommands_, *stockpileBinding_);
+    agricultureController_ = std::make_unique<Management6AController>(*agricultureCommands_, *agricultureBinding_);
+    stockpileBinding_->setPresentationEnabled(false);
+    agricultureBinding_->setPresentationEnabled(false);
+    if (!stockpileBinding_->initialize(*stockpileController_) || !agricultureBinding_->initialize(*agricultureController_))
+    { shutdown(); return false; }
 	connectSignals();
 	return true;
 }
@@ -36,8 +46,13 @@ void Management6AIntegration::shutdown()
 {
 	if ( binding_ )
 		binding_->shutdown();
+    if (stockpileBinding_) stockpileBinding_->shutdown();
+    if (agricultureBinding_) agricultureBinding_->shutdown();
+    stockpileController_.reset(); agricultureController_.reset();
+    stockpileBinding_.reset(); agricultureBinding_.reset();
 	controller_.reset();
 	commands_.reset();
+	stockpileCommands_.reset(); agricultureCommands_.reset();
 	binding_.reset();
 	connected_ = false;
 }
@@ -47,15 +62,13 @@ void Management6AIntegration::beginWorld( WorldEpoch world )
 	stockpileRevision_   = {};
 	agricultureRevision_ = {};
 	selectedPosition_.reset();
-	commands_->setWorld( world, true );
-	controller_->beginWorld( world );
+	for ( auto* command : {commands_.get(), stockpileCommands_.get(), agricultureCommands_.get()} ) if(command) command->setWorld( world, true );
+	for(auto* c : {controller_.get(), stockpileController_.get(), agricultureController_.get()}) if(c) c->beginWorld(world);
 }
 void Management6AIntegration::endWorld()
 {
-	if ( commands_ )
-		commands_->setWorld( {}, false );
-	if ( controller_ )
-		controller_->endWorld();
+	for ( auto* command : {commands_.get(), stockpileCommands_.get(), agricultureCommands_.get()} ) if(command) command->setWorld( {}, false );
+	for(auto* c : {controller_.get(), stockpileController_.get(), agricultureController_.get()}) if(c) c->endWorld();
 	selectedPosition_.reset();
 	plants_.clear();
 	animals_.clear();
@@ -91,12 +104,15 @@ void Management6AIntegration::connectSignals()
 		return;
 	connected_ = true;
 	auto* ws   = connector_->aggregatorWorkshop();
+    connect(ws,&AggregatorWorkshop::signalCraftOrderResult,this,[this](unsigned int id,bool accepted) {
+        if(controller_) controller_->onWorkshopOrderResult(WorkshopId{id},accepted);
+    },Qt::QueuedConnection);
 	auto* sp   = connector_->aggregatorStockpile();
 	auto* ag   = connector_->aggregatorAgri();
 	connect( ws, &AggregatorWorkshop::signalOpenWorkshopWindow, this, [this]( unsigned int )
-			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Workshop);controller_->showLoading(ManagementView::Workshop);} }, Qt::QueuedConnection );
+			 {if(controller_){activeView_=ManagementView::Workshop;if(viewHandler_)viewHandler_(activeView_);controller_->showLoading(ManagementView::Workshop);} }, Qt::QueuedConnection );
 	auto workshop = [this]( const GuiWorkshopInfo& value )
-	{if(!controller_)return;commands_->rememberWorkshopLink(WorkshopId{value.workshopID},value.linkStockpile);controller_->showWorkshop(Management6AQtDataAdapter::workshop(value),Revision{++workshopRevision_.value},selectedPosition_); };
+	{if(!controller_)return;commands_->rememberWorkshopLink(WorkshopId{value.workshopID},value.linkStockpile);const auto& state=controller_->state().workshop;const auto position=state.value.id==WorkshopId{value.workshopID}?state.position:selectedPosition_;controller_->showWorkshop(Management6AQtDataAdapter::workshop(value),Revision{++workshopRevision_.value},position); };
 	connect( ws, &AggregatorWorkshop::signalUpdateInfo, this, workshop, Qt::QueuedConnection );
 	connect( ws, &AggregatorWorkshop::signalUpdateContent, this, workshop, Qt::QueuedConnection );
 	connect( ws, &AggregatorWorkshop::signalUpdateCraftList, this, workshop, Qt::QueuedConnection );
@@ -115,25 +131,25 @@ void Management6AIntegration::connectSignals()
 	connect( ws, &AggregatorWorkshop::signalUpdatePlayerValue, this, [this]( int value )
 			 {if(controller_)controller_->setTradeValues(controller_->state().workshop.traderOfferValue,value); }, Qt::QueuedConnection );
 	connect( sp, &AggregatorStockpile::signalOpenStockpileWindow, this, [this]( unsigned int )
-			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Stockpile);controller_->showLoading(ManagementView::Stockpile);} }, Qt::QueuedConnection );
+			 {if(stockpileController_){activeView_=ManagementView::Stockpile;if(viewHandler_)viewHandler_(activeView_);stockpileController_->showLoading(ManagementView::Stockpile);stockpileController_->setStockpilePane(StockpilePane::Contents);} }, Qt::QueuedConnection );
 	auto stockpile = [this]( const GuiStockpileInfo& value )
-	{if(controller_)controller_->showStockpile(Management6AQtDataAdapter::stockpile(value),Revision{++stockpileRevision_.value},selectedPosition_); };
+	{if(!stockpileController_)return;auto snapshot=Management6AQtDataAdapter::stockpile(value);const auto& state=stockpileController_->state().stockpile;const auto position=state.value.id==snapshot.id?state.position:selectedPosition_;stockpileController_->showStockpile(std::move(snapshot),Revision{++stockpileRevision_.value},position); };
 	connect( sp, &AggregatorStockpile::signalUpdateInfo, this, stockpile, Qt::QueuedConnection );
 	connect( sp, &AggregatorStockpile::signalUpdateContent, this, stockpile, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalShowAgri, this, [this]( unsigned int )
-			 {if(controller_){if(viewHandler_)viewHandler_(ManagementView::Agriculture);controller_->showLoading(ManagementView::Agriculture);} }, Qt::QueuedConnection );
+			 {if(agricultureController_){activeView_=ManagementView::Agriculture;if(viewHandler_)viewHandler_(activeView_);agricultureController_->showLoading(ManagementView::Agriculture);} }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalGlobalPlantInfo, this, [this]( const QList<GuiPlant>& v )
-			 {plants_=Management6AQtDataAdapter::plants(v);if(controller_)controller_->setAgricultureCatalog(AgricultureKind::Farm,plants_); }, Qt::QueuedConnection );
+			 {plants_=Management6AQtDataAdapter::plants(v);if(agricultureController_)agricultureController_->setAgricultureCatalog(AgricultureKind::Farm,plants_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalGlobalTreeInfo, this, [this]( const QList<GuiPlant>& v )
-			 {trees_=Management6AQtDataAdapter::plants(v);if(controller_)controller_->setAgricultureCatalog(AgricultureKind::Grove,trees_); }, Qt::QueuedConnection );
+			 {trees_=Management6AQtDataAdapter::plants(v);if(agricultureController_)agricultureController_->setAgricultureCatalog(AgricultureKind::Grove,trees_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalGlobalAnimalInfo, this, [this]( const QList<GuiAnimal>& v )
-			 {animals_=Management6AQtDataAdapter::animals(v);if(controller_)controller_->setAgricultureCatalog(AgricultureKind::Pasture,animals_); }, Qt::QueuedConnection );
+			 {animals_=Management6AQtDataAdapter::animals(v);if(agricultureController_)agricultureController_->setAgricultureCatalog(AgricultureKind::Pasture,animals_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalUpdateFarm, this, [this]( const GuiFarmInfo& v )
-			 {if(!controller_)return;auto value=Management6AQtDataAdapter::farm(v);value.catalog=plants_;controller_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
+			 {if(!agricultureController_)return;auto value=Management6AQtDataAdapter::farm(v);value.catalog=plants_;agricultureController_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalUpdatePasture, this, [this]( const GuiPastureInfo& v )
-			 {if(!controller_)return;auto value=Management6AQtDataAdapter::pasture(v);value.catalog=animals_;controller_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
+			 {if(!agricultureController_)return;auto value=Management6AQtDataAdapter::pasture(v);value.catalog=animals_;agricultureController_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalUpdateGrove, this, [this]( const GuiGroveInfo& v )
-			 {if(!controller_)return;auto value=Management6AQtDataAdapter::grove(v);value.catalog=trees_;controller_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
+			 {if(!agricultureController_)return;auto value=Management6AQtDataAdapter::grove(v);value.catalog=trees_;agricultureController_->showAgriculture(std::move(value),Revision{++agricultureRevision_.value},selectedPosition_); }, Qt::QueuedConnection );
 }
 void Management6AIntegration::loadSelfTestFixture()
 {

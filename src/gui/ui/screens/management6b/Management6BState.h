@@ -13,6 +13,7 @@ namespace ingnomia::ui::management6b
 enum class View : std::uint8_t
 {
 	Citizens,
+	Skills,
 	Professions,
 	Schedules,
 	Inventory,
@@ -22,6 +23,10 @@ enum class Sort : std::uint8_t
 {
 	Name,
 	Profession,
+	Category,
+	Group,
+	Item,
+	Material,
 	Total,
 	Stock
 };
@@ -41,6 +46,12 @@ struct SkillRow
 	float experience {};
 	bool active {};
 	bool operator==( const SkillRow& ) const = default;
+};
+struct SkillCatalogRow
+{
+	CatalogId id;
+	std::string name, group;
+	bool operator==( const SkillCatalogRow& ) const = default;
 };
 
 struct PopulationRow
@@ -68,6 +79,26 @@ struct ScheduleRow
 	bool operator==( const ScheduleRow& ) const = default;
 };
 
+struct ItemIngredient
+{
+	std::string itemID, name, allowedMaterial, allowedMaterialType;
+	int amount {};
+	bool operator==( const ItemIngredient& ) const = default;
+};
+struct ItemRecipe
+{
+	std::string id, outputItemID, outputName, workshop, skill;
+	int amount { 1 };
+	std::vector<ItemIngredient> ingredients;
+	bool operator==( const ItemRecipe& ) const = default;
+};
+struct ItemStockpile
+{
+	std::uint32_t id {};
+	std::string name;
+	int count {};
+	bool operator==( const ItemStockpile& ) const = default;
+};
 struct InventoryRow
 {
 	InventoryRowId id;
@@ -81,6 +112,8 @@ struct InventoryRow
 	int spriteSheetWidth {};
 	int spriteSheetHeight {};
 	bool watched {};
+	std::vector<ItemRecipe> madeBy, usedIn;
+	std::vector<ItemStockpile> locations;
 	bool operator==( const InventoryRow& ) const = default;
 };
 
@@ -129,10 +162,14 @@ struct Management6BState
 	bool acceptsWorldActions {}, open {}, populationOpen {}, inventoryOpen {}, loadingPopulation {}, loadingInventory {}, stalePopulation {}, staleInventory {};
 	View view { View::Citizens };
 	View populationView { View::Citizens };
-	Sort populationSort { Sort::Name }, inventorySort { Sort::Name };
+	Sort populationSort { Sort::Name }, inventorySort { Sort::Category };
 	std::string populationFilter, inventoryFilter, inventoryCategory, status;
+	std::array<std::string, 6> inventoryColumnFilters;
+	std::array<std::vector<std::string>, 6> inventoryColumnSelections;
 	bool inventoryOwnedOnly {};
+	bool inventorySortDescending {};
 	std::vector<PopulationRow> population;
+	std::vector<SkillCatalogRow> skillCatalog;
 	std::vector<ProfessionRow> professions;
 	std::vector<ScheduleRow> schedules;
 	std::vector<InventoryRow> inventory;
@@ -143,8 +180,17 @@ struct Management6BState
 	std::optional<CreatureDetail> creature;
 	std::optional<CreatureId> selectedCreature;
 	std::optional<InventoryRowId> selectedInventory;
+	std::optional<InventoryRowId> inventoryDetail;
+	std::vector<InventoryRowId> inventoryDetailBack;
 	std::optional<ScheduleCellId> selectedScheduleCell;
 	std::optional<ProfessionId> selectedProfession;
+	std::optional<CatalogId> selectedSkill;
+	std::optional<CatalogId> selectedProfessionSkill;
+	std::optional<CatalogId> selectedAvailableSkill;
+	std::string professionDraftName;
+	std::vector<CatalogId> professionDraftSkills;
+	bool professionDraftDirty {};
+	ManagedScheduleActivity scheduleActivity { ManagedScheduleActivity::None };
 	std::size_t populationPage {}, inventoryPage {};
 	static constexpr std::size_t pageSize = 64;
 	std::optional<RequestId> pendingAction;

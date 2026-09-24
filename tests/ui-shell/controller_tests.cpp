@@ -70,9 +70,14 @@ void testNavigationAndContinue()
 	check( commands.actions.back().id.value == "app.start_new_game", "default New game dispatches immediately" );
 	controller.activate( ShellControl::ContinueLastGame );
 	check( commands.actions.size() == 1, "unavailable Continue does not dispatch" );
-	controller.setContinueAvailability( true );
+	controller.setContinueAvailability( true, std::nullopt, "Copperdeep", "2026-09-22 2:35 PM" );
+	check( controller.state().continueSaveName == "Copperdeep" &&
+		controller.state().continueSavedAt == "2026-09-22 2:35 PM", "Continue exposes the selected save details" );
 	controller.activate( ShellControl::ContinueLastGame );
 	check( commands.actions.back().id.value == "app.continue_last_game", "Continue uses exact ActionId" );
+	controller.setContinueAvailability( false );
+	check( controller.state().continueSaveName.empty() && controller.state().continueSavedAt.empty(),
+		"Continue clears stale save details when no save remains" );
 	controller.activate( ShellControl::OpenLoadGame );
 	check( commands.actions.back().id.value == "nav.open", "route opening uses nav.open" );
 	check( std::get<RoutePayload>( commands.actions.back().payload ).route.value == "shell.load_game",
@@ -136,8 +141,8 @@ void testEmptyLoadState()
 
 void testSettingsProjectionAndDispatch()
 {
-	const auto settings = ShellDataAdapter::settings( { true, true, 144, 1.25f, 240, -3, true } );
-	check( settings.rows.size() == 7, "seven verified settings are projected" );
+	const auto settings = ShellDataAdapter::settings( { true, true, 144, 1.25f, 240, -3, true, 75, 5, true } );
+	check( settings.rows.size() == 10, "display, camera, audio and saving settings are projected" );
 	check( settings.rows[0].id.value == "display.fullscreen", "fullscreen SettingId is exact" );
 	check( settings.rows[1].id.value == "display.follow_monitor_refresh", "monitor refresh SettingId is exact" );
 	check( settings.rows[2].id.value == "display.frame_rate_limit" && std::get<std::int32_t>( settings.rows[2].authoritative ) == 144,
@@ -145,9 +150,12 @@ void testSettingsProjectionAndDispatch()
 	check( settings.rows[3].id.value == "interface.ui_scale", "UI scale SettingId is exact" );
 	check( std::get<std::int32_t>( settings.rows[4].authoritative ) == 200, "keyboard speed is bounded" );
 	check( std::get<std::int32_t>( settings.rows[5].authoritative ) == 0, "minimum light is bounded" );
-	for( const auto& row : settings.rows )
-		check( row.id.value != "audio.master_volume" && row.id.value != "interface.language",
-			"blocked settings are omitted" );
+	check( settings.rows[7].id.value == "audio.master_volume" && std::get<std::int32_t>( settings.rows[7].authoritative ) == 75,
+		"master volume is projected as percent" );
+	check( settings.rows[8].id.value == "game.autosave_interval" && std::get<std::int32_t>( settings.rows[8].authoritative ) == 5,
+		"autosave interval is projected in days" );
+	check( settings.rows[9].id.value == "game.autosave_continue" && std::get<bool>( settings.rows[9].authoritative ),
+		"autosave resume toggle is projected" );
 
 	Commands commands;
 	View view;
@@ -158,12 +166,15 @@ void testSettingsProjectionAndDispatch()
 	check( std::get<SetSettingDraftPayload>( commands.actions.back().payload ).setting.value == "display.fullscreen",
 		"settings preserve typed SettingId" );
 	const auto count = commands.actions.size();
+	controller.setSettingDraft( SettingId{ "audio.master_volume" }, std::int32_t{ 50 } );
+	check( commands.actions.size() == count + 1, "master volume dispatches through typed setting action" );
+	const auto updatedCount = commands.actions.size();
 	controller.setSettingDraft( SettingId{ "audio.master_volume" }, 50.0f );
-	check( commands.actions.size() == count, "unsupported settings cannot dispatch" );
+	check( commands.actions.size() == updatedCount, "wrong volume value type cannot dispatch" );
 	controller.setSettingDraft( SettingId{ "camera.keyboard_pan_speed" }, std::int32_t{ 201 } );
-	check( commands.actions.size() == count, "out-of-range setting cannot dispatch" );
+	check( commands.actions.size() == updatedCount, "out-of-range setting cannot dispatch" );
 	controller.setSettingDraft( SettingId{ "camera.keyboard_pan_speed" }, 20.0f );
-	check( commands.actions.size() == count, "wrong setting value type cannot dispatch" );
+	check( commands.actions.size() == updatedCount, "wrong setting value type cannot dispatch" );
 }
 
 void testConfirmationAndFocus()

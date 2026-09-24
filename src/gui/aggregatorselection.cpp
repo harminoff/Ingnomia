@@ -1,4 +1,4 @@
-/*	
+/*
 	This file is part of Ingnomia https://github.com/rschurade/Ingnomia
     Copyright (C) 2017-2020  Ralph Schurade, Ingnomia Team
 
@@ -32,9 +32,12 @@
 #include "../game/world.h"
 #include "../gfx/spritefactory.h"
 #include "eventconnector.h"
+#include "aggregatortileinfo.h"
 #include "isometricplacement.h"
 
 #include <QDebug>
+
+static bool hasVisibleWallTop( const Position& pos );
 
 /// @brief Constructs the AggregatorSelection and registers SelectionData as a metatype.
 /// @param parent Qt parent object.
@@ -53,6 +56,7 @@ AggregatorSelection::~AggregatorSelection()
 /// @param action New action string.
 void AggregatorSelection::onActionChanged( const QString action )
 {
+	if ( !action.isEmpty() && m_inspectionActive ) onSetInspection( false );
 	emit signalAction( action );
 
 	// Selection::setAction() clears the current tile list before publishing the
@@ -127,11 +131,44 @@ void AggregatorSelection::onMouse( int mouseX, int mouseY, bool shift, bool ctrl
 	if ( Global::sel )
 	{
 		m_cursorPos = calcCursor( mouseX, mouseY, Global::sel->isFloor(), shift );
+		onUpdateCursorPos( m_cursorPos.toString() );
+		if ( m_inspectionActive ) return;
 		Global::sel->updateSelection( m_cursorPos, shift, ctrl );
 		Global::sel->setControlActive( ctrl );
-
-		onUpdateCursorPos( m_cursorPos.toString() );
 		updateSelection();
+	}
+}
+
+void AggregatorSelection::onSetInspection( bool active )
+{
+	if ( m_inspectionActive == active ) return;
+	if ( active && Global::sel ) Global::sel->clear();
+	m_inspectionActive = active;
+	if ( Global::eventConnector ) Global::eventConnector->aggregatorTileInfo()->setLiveInspection( active );
+	m_inspectedTile = 0;
+	m_selectionData.clear();
+	if ( !active && Global::eventConnector ) Global::eventConnector->aggregatorTileInfo()->clearSelection();
+	emit signalUpdateSelection( m_selectionData, false );
+	emit signalInspectionChanged( active );
+}
+
+void AggregatorSelection::updateInspection()
+{
+	auto* game = Global::eventConnector ? Global::eventConnector->game() : nullptr;
+	if ( !game || !m_inspectionActive ) return;
+	const bool wallTop = hasVisibleWallTop( m_cursorPos );
+	SelectionData cell;
+	cell.pos = m_cursorPos;
+	cell.spriteID = game->sf()->createSprite( wallTop ? "SelectionWallTop" : "SelectionFloorTop", { "None" } )->uID;
+	cell.isFloor = !wallTop;
+	cell.valid = true;
+	m_selectionData.clear();
+	m_selectionData.insert( posToInt( cell.pos, m_rotation ), cell );
+	emit signalUpdateSelection( m_selectionData, false );
+	if ( m_inspectedTile != m_cursorPos.toInt() )
+	{
+		m_inspectedTile = m_cursorPos.toInt();
+		emit signalInspectTile( m_inspectedTile );
 	}
 }
 
@@ -141,6 +178,7 @@ void AggregatorSelection::onMouse( int mouseX, int mouseY, bool shift, bool ctrl
 /// @param ctrl  True if Ctrl is held.
 void AggregatorSelection::onLeftClick( bool shift, bool ctrl )
 {
+	if ( m_inspectionActive ) { updateInspection(); return; }
 	if ( Global::sel )
 	{
 		if ( Global::sel->hasAction() )
@@ -179,6 +217,7 @@ void AggregatorSelection::onLeftClick( bool shift, bool ctrl )
 /// @brief Handles right-click: cancels the active Selection or removes the last anchor.
 void AggregatorSelection::onRightClick()
 {
+	if ( m_inspectionActive ) { onSetInspection( false ); return; }
 	if ( Global::sel )
 	{
 		Global::sel->rightClick( m_cursorPos );

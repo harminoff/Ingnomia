@@ -175,7 +175,7 @@ foreach(NEEDLE "width: 400dp;" "height: 720dp;" "min-height: 420dp;" "flex: 0 0 
     message(FATAL_ERROR "HUD build panel safe-area contract missing ${NEEDLE}")
   endif()
 endforeach()
-foreach(NEEDLE "data-build-action='FillHole'" "data-build-action='Replace'" "data-build-action='Build'" "hud_build_action_FillHole_" "hud_build_action_Replace_" "hud_build_action_Build_" "disabled='disabled'" "hud.build.action_build" "hud.build.action_place_blueprint" "hud.build.awaiting_resources" "canPlace = row.available || row.kind == BuildKind::Workshop" "can-place-blueprint" "pointer-events: auto" "chooseBuildAction" "updatingBuildCatalog_" "renderedBuildCatalog_" "renderedBuildTypes_ != buildTypes" "renderedBuildTypes_ = buildTypes" "hud.build.available" "hud.build.cannot_build" "c-hud-build-availability" "c-hud-build-card.is-unavailable .c-hud-build-action")
+foreach(NEEDLE "data-build-action='FillHole'" "data-build-action='Replace'" "data-build-action='Build'" "hud_build_action_FillHole_" "hud_build_action_Replace_" "hud_build_action_Build_" "disabled='disabled'" "hud.build.action_build" "hud.build.action_place_blueprint" "hud.build.awaiting_resources" "const bool canPlace = true" "const auto blueprint = !row.available" "can-place-blueprint" "pointer-events: auto" "chooseBuildAction" "updatingBuildCatalog_" "renderedBuildCatalog_" "renderedBuildTypes_ != buildTypes" "renderedBuildTypes_ = buildTypes" "hud.build.available" "c-hud-build-availability" "c-hud-build-card.is-unavailable .c-hud-build-action")
   if(NOT RML MATCHES "${NEEDLE}" AND NOT BINDING MATCHES "${NEEDLE}" AND NOT STYLE MATCHES "${NEEDLE}")
     message(FATAL_ERROR "HUD Build action parity missing ${NEEDLE}")
   endif()

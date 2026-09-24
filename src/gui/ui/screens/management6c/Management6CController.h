@@ -57,6 +57,7 @@ public:
 
 	void beginWorld( WorldEpoch );
 	void endWorld();
+    void activateViewForInput(View view);
 	void open( View );
 	void close();
 	void closeMilitary();

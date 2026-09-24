@@ -56,7 +56,10 @@ WorkshopProperties::WorkshopProperties( QVariantMap& in )
 	posOut   = Position( in.value( "PosOut" ) );
 
 	owner           = in.value( "Owner" ).toUInt();
-	linkedStockpile = in.value( "LinkedStockpile" ).toUInt();
+	if (in.contains("LinkedStockpiles")) {
+        for (const auto& value : in.value("LinkedStockpiles").toList())
+            if (auto id=value.toUInt(); id && !linkedStockpiles.contains(id)) linkedStockpiles.append(id);
+    } else if (auto id=in.value("LinkedStockpile").toUInt()) linkedStockpiles.append(id);
 
 	toDestroy = in.value( "ToDestroy" ).toBool();
 	canDelete = in.value( "CanDelete" ).toBool();
@@ -96,7 +99,10 @@ void WorkshopProperties::serialize( QVariantMap& out )
 	out.insert( "PosOut", posOut.toString() );
 
 	out.insert( "Owner", owner );
-	out.insert( "LinkedStockpile", linkedStockpile );
+	QVariantList links;
+    for (auto id : linkedStockpiles) links.append(id);
+    out.insert("LinkedStockpiles", links);
+    out.insert("LinkedStockpile", linkedStockpiles.value(0));
 
 	out.insert( "ToDestroy", toDestroy );
 	out.insert( "CanDelete", canDelete );
@@ -1270,15 +1276,23 @@ bool Workshop::canDelete()
 
 void Workshop::setLinkedStockpile( bool link )
 {
-	if ( link )
-	{
-		m_properties.linkedStockpile = getPossibleStockpile();
-	}
-	else
-	{
-		m_properties.linkedStockpile = 0;
-	}
-	qDebug() << "linked stockpile:" << m_properties.linkedStockpile;
+    if (!link) m_properties.linkedStockpiles.clear();
+    else if (linkedStockpiles().isEmpty()) setLinkedStockpiles({getPossibleStockpile()});
+}
+
+QList<unsigned int> Workshop::linkedStockpiles() const
+{
+    QList<unsigned int> out;
+    for (auto id : m_properties.linkedStockpiles)
+        if (g->spm()->getStockpile(id) && !out.contains(id)) out.append(id);
+    return out;
+}
+
+void Workshop::setLinkedStockpiles(const QList<unsigned int>& ids)
+{
+    m_properties.linkedStockpiles.clear();
+    for (auto id : ids)
+        if (id && g->spm()->getStockpile(id) && !m_properties.linkedStockpiles.contains(id)) m_properties.linkedStockpiles.append(id);
 }
 
 unsigned int Workshop::getPossibleStockpile()
@@ -1331,7 +1345,7 @@ unsigned int Workshop::getPossibleStockpile()
 
 unsigned int Workshop::linkedStockpile()
 {
-	return m_properties.linkedStockpile;
+	return linkedStockpiles().value(0);
 }
 
 bool Workshop::outputTileFree()
@@ -1445,19 +1459,6 @@ bool Workshop::noAutoGenerate()
 
 void Workshop::checkLinkedStockpile()
 {
-	if ( linkedStockpile() )
-	{
-		Stockpile* sp = g->spm()->getStockpile( linkedStockpile() );
-		if ( sp )
-		{
-			if ( sp->countFields() > 9 )
-			{
-				setLinkedStockpile( 0 );
-			}
-		}
-		else
-		{
-			setLinkedStockpile( 0 );
-		}
-	}
+    // Explicit links can be any size or distance. Retire only deleted stockpiles.
+    m_properties.linkedStockpiles = linkedStockpiles();
 }

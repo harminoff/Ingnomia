@@ -88,6 +88,10 @@ Config::Config()
 	{
 		m_settings.insert( "AutoSaveInterval", 3 );
 	}
+	if ( !m_settings.contains( "AudioMasterVolume" ) )
+	{
+		m_settings.insert( "AudioMasterVolume", 0.5 );
+	}
 	if ( !m_settings.contains( "uiscale" ) )
 	{
 		m_settings.insert( "uiscale", 1.0 );

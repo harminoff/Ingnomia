@@ -1,12 +1,56 @@
+@spritesheet inventory-window-icons {
+    src: /tilesheet/build_Bag.tga;
+    resolution: 1x;
+    inventory-window-bag: 0px 0px 32px 36px;
+}
+
 .l-m6b-root { position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 0; overflow: visible; background-color: transparent; pointer-events: none; }
 .l-m6b-window { position: absolute; right: 12dp; top: 76dp; width: 760dp; height: 80%; min-height: 320dp; max-height: 80%; margin: 0; display: flex; flex-direction: column; pointer-events: auto; }
 #population_workbench { right: 92dp; top: 96dp; }
 #inventory_workbench { right: 12dp; top: 76dp; height: auto; min-height: 0; max-height: none; }
+#inventory_workbench .l-m6b-title-icon { flex: 0 0 16dp; width: 16dp; height: 18dp; background-color: transparent; decorator: image(inventory-window-bag contain); }
 #inventory_workbench .l-m6b-body { flex: 0 0 auto; height: auto; min-height: 0; overflow: visible; }
 .l-m6b-body { flex: 1; width: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6dp; overflow: hidden; }
 #inventory_workbench .l-m6b-body { display: block; width: 760dp; overflow-x: hidden; overflow-y: auto; }
 #inventory_workbench .l-m6b-body > * { width: 760dp; box-sizing: border-box; }
 #inventory_workbench .l-m6b-inventory { height: 220dp; }
+#inventory_workbench .l-m6b-item-detail { display: block; width: 760dp; max-height: none; padding: 8dp; overflow: hidden; box-sizing: border-box; color: #000000; background-color: #c0c0c0; }
+#inventory_workbench .l-m6b-item-detail.is-hidden, #inventory_workbench .l-m6b-inventory-layout.is-hidden { display: none; }
+#inventory_workbench .l-m6b-item-detail__toolbar { display: flex; align-items: center; gap: 12dp; margin-bottom: 8dp; }
+#inventory_workbench .l-m6b-item-detail__toolbar .c-button { width: 170dp; min-width: 170dp; }
+#inventory_workbench .l-m6b-item-detail__toolbar h2 { width: 530dp; min-width: 530dp; margin: 0; font-size: 18dp; }
+#inventory_workbench .l-m6b-item-detail__summary { display: flex; align-items: center; gap: 12dp; min-height: 52dp; margin-bottom: 8dp; padding: 0 5dp; background-color: transparent; border-width: 0; }
+#inventory_workbench .l-m6b-item-detail__summary .l-m6b-row__sprite { flex: 0 0 40dp; margin: 0; }
+#inventory_workbench .l-m6b-item-detail__metrics { display: flex; flex: 1 1 auto; align-items: center; width: auto; min-width: 0; }
+#inventory_workbench .l-m6b-item-detail__metrics span { flex: 1 1 0; width: auto; min-width: 0; white-space: nowrap; }
+#inventory_workbench .l-m6b-item-detail__grid { display: block; width: 696dp; min-width: 696dp; }
+#inventory_workbench .l-m6b-item-detail__row { display: flex; flex-direction: row; width: 696dp; min-width: 696dp; gap: 8dp; margin-bottom: 8dp; }
+#inventory_workbench .l-m6b-item-detail__card { display: block; flex: 0 0 344dp; width: 344dp; min-width: 344dp; height: 245dp; padding: 7dp; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical { width: 16dp; background-color: #c0c0c0; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical slidertrack { background-color: #dfdfdf; border-left: 2dp #808080; border-right: 1dp #ffffff; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderbar { width: 14dp; min-height: 24dp; margin-left: 2dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderbar:hover { background-color: #d6d6d6; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderarrowdec,
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderarrowinc { width: 16dp; height: 16dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderarrowdec { color: #000000; decorator: text("^"); }
+#inventory_workbench .l-m6b-item-detail__card scrollbarvertical sliderarrowinc { color: #000000; decorator: text("v"); }
+#inventory_workbench .l-m6b-item-detail__card > h3, #inventory_workbench .l-m6b-item-detail__card > div { display: block; width: 304dp; min-width: 304dp; }
+#inventory_workbench .l-m6b-item-detail__card h3 { margin: 0 0 7dp; padding-bottom: 4dp; border-bottom: 1dp #808080; font-size: 14dp; }
+#inventory_workbench .l-m6b-item-detail__card p { margin: 4dp 0; color: #505050; }
+#inventory_workbench .l-m6b-item-detail__recipe { width: 300dp; min-width: 300dp; margin-bottom: 7dp; padding-bottom: 6dp; border-bottom: 1dp #dddddd; }
+#inventory_workbench .l-m6b-item-detail__group { width: 300dp; min-width: 300dp; margin-bottom: 9dp; }
+#inventory_workbench .l-m6b-item-detail__group h4 { margin: 0 0 4dp; padding: 2dp 4dp; color: #263c51; background-color: #dfdfdf; border-bottom: 1dp #808080; font-size: 12dp; }
+#inventory_workbench .l-m6b-item-detail__meta { display: block; margin-top: 2dp; color: #555555; font-size: 11dp; }
+#inventory_workbench .l-m6b-item-detail__ingredients { margin-top: 4dp; }
+#inventory_workbench .l-m6b-item-detail__link, #inventory_workbench .l-m6b-item-detail__current { display: block; width: 292dp; min-width: 292dp; margin: 1dp 0; padding: 3dp 5dp; background-color: #f2f2f2; border: 1dp #c0c0c0; text-align: left; white-space: normal; }
+#inventory_workbench .l-m6b-item-detail__link { color: #000080; cursor: pointer; }
+#inventory_workbench .l-m6b-item-detail__current { color: #404040; }
+#inventory_workbench .l-m6b-item-detail__link:hover, #inventory_workbench .l-m6b-item-detail__link:focus { color: #ffffff; background-color: #000080; }
+#inventory_workbench .l-m6b-item-detail__history-row { display: flex; align-items: center; gap: 6dp; height: 17dp; font-size: 10dp; }
+#inventory_workbench .l-m6b-item-detail__history-row > span { width: 43dp; }
+#inventory_workbench .l-m6b-item-detail__history-row > strong { width: 30dp; text-align: right; }
+#inventory_workbench .l-m6b-item-detail__history-track { flex: 0 0 202dp; width: 202dp; height: 8dp; background-color: #e5e5e5; }
+#inventory_workbench .l-m6b-item-detail__history-track > div { height: 8dp; background-color: #235b37; }
 .l-m6b-toolbar { flex: 0 0 auto; width: 100%; min-width: 0; box-sizing: border-box; }
 .l-m6b-search { width: 200dp; }
 .l-m6b-filter-owned { min-width: 118dp; }
@@ -24,7 +68,7 @@
 .l-m6b-section h3 { margin: 7dp 0 4dp 0; color: #173d59; font-size: 13dp; }
 .l-m6b-roster { height: 100%; min-height: 180dp; padding: 0; }
 .l-m6b-inventory { flex: 1 1 auto; width: 100%; min-width: 0; height: auto; min-height: 220dp; padding: 0; overflow-y: scroll; overflow-x: hidden; }
-.l-m6b-inventory scrollbarvertical { width: 18dp; margin-right: 0; background-color: #c0c0c0; }
+.l-m6b-inventory scrollbarvertical { width: 16dp; margin-right: 0; background-color: #c0c0c0; }
 .l-m6b-inventory scrollbarvertical slidertrack { background-color: #dfdfdf; border-left: 2dp #808080; border-right: 1dp #ffffff; }
 .l-m6b-inventory scrollbarvertical sliderbar { min-height: 48dp; margin-left: 2dp; width: 14dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
 .l-m6b-inventory scrollbarvertical sliderbar:hover { background-color: #d6d6d6; }
@@ -172,16 +216,17 @@
 .l-m6b-footer span, .l-m6b-status span { min-width: 120dp; }
 .l-m6b-window .c-window__resize-grip { position: absolute; right: 2dp; bottom: 2dp; }
 /* Windows 98 inventory workbench: property tabs, raised controls, and an inset list pane. */
+#inventory_workbench { color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; border-radius: 0; box-shadow: none; font-size: 13dp; line-height: 18dp; }
 #inventory_workbench .l-m6b-body { gap: 4dp; padding: 6dp; background-color: #c0c0c0; }
 #inventory_workbench .l-m6b-toolbar { flex: 0 0 auto; gap: 4dp; padding: 5dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #808080; border-bottom-color: #808080; }
-#inventory_workbench .l-m6b-search-field > span { color: #000000; font-weight: normal; }
-#inventory_workbench .l-m6b-search { min-height: 25dp; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#inventory_workbench .l-m6b-search-field > span { color: #000000; font-size: 13dp; font-weight: normal; }
+#inventory_workbench .l-m6b-search { min-height: 27dp; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; border-radius: 0; }
 #inventory_workbench .l-m6b-filter-owned,
-#inventory_workbench .l-m6b-sort-button { min-width: 82dp; min-height: 27dp; padding: 3dp 8dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; border-radius: 0; }
+#inventory_workbench .l-m6b-sort-button { min-width: 0; min-height: 27dp; padding: 4dp 5dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; border-radius: 0; font-size: 13dp; line-height: 18dp; }
 #inventory_workbench .l-m6b-filter-owned.is-checked,
-#inventory_workbench .l-m6b-sort-button.is-selected { padding: 4dp 7dp 2dp 9dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-#inventory_workbench .l-m6b-column-head { min-height: 28dp; padding: 4dp 8dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
-#inventory_workbench .l-m6b-column-head > span { color: #000000; }
+#inventory_workbench .l-m6b-sort-button.is-selected { padding: 5dp 4dp 3dp 6dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#inventory_workbench .l-m6b-column-head { min-height: 31dp; padding: 5dp; color: #000000; background-color: #c0c0c0; border-width: 1dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #808080; border-bottom-color: #808080; }
+#inventory_workbench .l-m6b-column-head > span { color: #000000; font-size: 13dp; }
 #inventory_workbench .l-m6b-inventory { min-height: 0; padding: 0; box-sizing: border-box; overflow-x: hidden; overflow-y: scroll; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
 #inventory_workbench .l-m6b-inventory-row { color: #000000; background-color: #ffffff; border-bottom: 1dp #c0c0c0; }
 #inventory_workbench .l-m6b-inventory-row:nth-child(even) { background-color: #dfdfdf; }
@@ -193,7 +238,7 @@
 #inventory_workbench .l-m6b-inventory-row.is-selected .l-m6b-disclosure,
 #inventory_workbench .l-m6b-inventory-row:focus-visible .l-m6b-disclosure { color: #ffffff; }
 
-/* Compact inventory: sidebar-like filters/categories and an Item | Stock | Total table. */
+/* Inventory uses an Excel-style filter/sort control in every column header. */
 #inventory_workbench .l-m6b-body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .l-m6b-inventory-layout { display: flex; flex-direction: row; flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0; gap: 4dp; overflow: hidden; }
 .l-m6b-inventory-main { display: flex; flex-direction: column; flex: 1 1 auto; width: auto; min-width: 0; min-height: 0; gap: 4dp; overflow: hidden; }
@@ -202,10 +247,10 @@
 .l-m6b-rail-section--categories { display: flex; flex-direction: column; flex: 1 1 auto; margin-bottom: 0; overflow: hidden; }
 .l-m6b-rail-heading { display: block; flex: 0 0 20dp; height: 20dp; margin: 1dp 1dp 4dp; padding-bottom: 3dp; color: #000000; border-bottom-width: 1dp; border-bottom-color: #808080; font-size: 10dp; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5dp; }
 .l-m6b-rail-button,
-.l-m6b-inventory-tabs .l-m6b-tab { display: block; flex: 0 0 28dp; width: 100%; min-width: 0; max-width: none; height: 28dp; min-height: 28dp; margin: 0 0 2dp; padding: 4dp 6dp; text-align: left; }
+.l-m6b-inventory-tabs .l-m6b-tab { display: block; flex: 0 0 27dp; width: 100%; min-width: 0; max-width: none; height: 27dp; min-height: 27dp; margin: 0 0 3dp; padding: 4dp 5dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; border-radius: 0; font-size: 13dp; line-height: 18dp; text-align: left; }
 .l-m6b-rail-button.is-checked,
 .l-m6b-sort-button.is-selected,
-.l-m6b-inventory-tabs .l-m6b-tab.is-selected { width: 100%; min-width: 0; height: 28dp; min-height: 28dp; padding: 5dp 5dp 3dp 7dp; color: #000000; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+.l-m6b-inventory-tabs .l-m6b-tab.is-selected { width: 100%; min-width: 0; height: 27dp; min-height: 27dp; padding: 5dp 4dp 3dp 6dp; color: #000000; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
 .l-m6b-inventory-tabs { display: flex; flex-direction: column; align-items: stretch; flex: 1 1 auto; width: 100%; min-width: 0; max-width: none; height: auto; min-height: 0; max-height: none; padding: 0; overflow-x: hidden; overflow-y: auto; white-space: normal; background-color: transparent; border: 0; }
 #inventory_workbench .l-m6b-toolbar { width: 100%; min-height: 48dp; padding: 4dp; }
 #inventory_workbench .l-m6b-search-field { flex: 1 1 100%; width: 100%; min-width: 0; }
@@ -217,6 +262,8 @@
 #inventory_workbench .l-m6b-inventory__name-head { padding-left: 6dp; text-align: left; }
 #inventory_workbench .l-m6b-inventory__metric-head,
 #inventory_workbench .l-m6b-inventory__metric { flex: 0 0 50dp; width: 50dp; min-width: 50dp; }
+#inventory_workbench .l-m6b-inventory__metric,
+#inventory_workbench .l-m6b-disclosure { color: #000000; }
 
 #inventory_workbench .l-m6b-inventory__name .l-m6b-row__sprite { position: relative; flex: 0 0 40dp; width: 40dp; min-width: 40dp; height: 40dp; left: 0; margin: 0 5dp 0 0; }
 #inventory_workbench .l-m6b-inventory__content { position: static; left: auto; display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -224,8 +271,124 @@
 #inventory_workbench .l-m6b-depth-group { padding-left: 8dp; }
 #inventory_workbench .l-m6b-depth-item { padding-left: 16dp; }
 #inventory_workbench .l-m6b-depth-material { padding-left: 24dp; }
+
+/* Shared flat catalog table: Category > Group > Item > Material is projected
+   as columns, never as nested disclosure rows. */
+#inventory_workbench .l-inventory-flat-header,
+#inventory_workbench .l-inventory-flat-row { display: flex; align-items: center; gap: 5dp; min-width: 580dp; }
+#inventory_workbench .l-inventory-flat-row { min-height: 48dp; padding: 3dp 4dp; box-sizing: border-box; }
+#inventory_workbench .l-inventory-virtual-spacer { display: block; width: 100%; flex-shrink: 0; }
+#inventory_workbench .l-inventory-flat__category { flex: 0 0 78dp; width: 78dp; min-width: 78dp; }
+#inventory_workbench .l-inventory-flat__group { flex: 0 0 86dp; width: 86dp; min-width: 86dp; }
+#inventory_workbench .l-inventory-flat__item { flex: 1 1 150dp; min-width: 150dp; overflow: hidden; }
+#inventory_workbench .l-inventory-flat-row .l-inventory-flat__item { display: flex; align-items: center; }
+#inventory_workbench .l-inventory-flat__material { flex: 0 0 92dp; width: 92dp; min-width: 92dp; overflow: hidden; text-overflow: ellipsis; }
+#inventory_workbench .l-inventory-flat__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#inventory_workbench .l-inventory-flat__item .l-m6b-row__sprite { position: relative; flex: 0 0 40dp; width: 40dp; min-width: 40dp; height: 40dp; left: 0; margin: 0 5dp 0 0; }
+#inventory_workbench .l-inventory-flat-row > span { color: #000000; white-space: nowrap; }
+#inventory_workbench .l-inventory-flat-row.is-selected > span,
+#inventory_workbench .l-inventory-flat-row:focus-visible > span { color: #ffffff; }
 #inventory_workbench .l-m6b-depth-material .l-m6b-disclosure { display: none; width: 0; min-width: 0; }
 #inventory_workbench.is-filtered .l-m6b-depth-category { padding-left: 2dp; }
 #inventory_workbench.is-filtered .l-m6b-depth-group { padding-left: 8dp; }
 #inventory_workbench.is-filtered .l-m6b-depth-item { padding-left: 16dp; }
 #inventory_workbench.is-filtered .l-m6b-depth-material { padding-left: 24dp; }
+
+#inventory_workbench .l-m6b-inventory-main--full { width: 100%; }
+#inventory_workbench .c-excel-header { position: relative; min-height: 56dp; height: 56dp; padding: 3dp 4dp; align-items: stretch; overflow: visible; box-sizing: border-box; z-index: 50; }
+#inventory_workbench .c-excel-header__cell { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 2dp; min-height: 0; overflow: visible; }
+#inventory_workbench .c-excel-header__sort { display: flex; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; min-height: 23dp; align-items: center; justify-content: space-between; gap: 2dp; margin: 0; padding: 2dp 4dp; overflow: hidden; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; font-family: LatoLatin; font-size: 10dp; line-height: 14dp; text-align: left; white-space: nowrap; box-sizing: border-box; }
+#inventory_workbench .c-excel-header__sort.is-selected,
+#inventory_workbench .c-excel-header__sort:active { padding: 3dp 3dp 1dp 5dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#inventory_workbench .c-excel-header__filter { display: block; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; min-height: 23dp; margin: 0; padding: 2dp 4dp; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; font-family: LatoLatin; font-size: 10dp; line-height: 14dp; box-sizing: border-box; }
+#inventory_workbench .c-excel-filter-combo { position: relative; display: flex; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; overflow: visible; z-index: 40; }
+#inventory_workbench .c-excel-filter-combo .c-excel-header__filter { flex: 1 1 auto; width: auto; min-width: 0; }
+#inventory_workbench .c-excel-filter-combo__toggle { flex: 0 0 23dp; width: 23dp; min-width: 23dp; height: 23dp; min-height: 23dp; margin-left: -2dp; padding: 2dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; font-family: LatoLatin; font-size: 10dp; text-align: center; box-sizing: border-box; }
+#inventory_workbench .c-excel-filter-combo__toggle.is-selected,
+#inventory_workbench .c-excel-filter-combo__toggle:active { padding: 3dp 1dp 1dp 3dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#inventory_workbench .c-excel-filter-combo__options { position: absolute; display: block; left: 0; top: 22dp; width: 100%; min-width: 100%; max-height: 196dp; overflow-x: hidden; overflow-y: auto; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #404040; border-bottom-color: #404040; box-sizing: border-box; pointer-events: auto; z-index: 80; }
+#inventory_workbench .c-excel-filter-combo__options.is-hidden { display: none; }
+#inventory_workbench .c-excel-filter-combo__option { display: block; width: 100%; min-width: 100%; max-width: none; min-height: 23dp; margin: 0; padding: 3dp 5dp; overflow: hidden; color: #000000; background-color: #ffffff; border-width: 0 0 1dp 0; border-bottom-color: #c0c0c0; font-family: LatoLatin; font-size: 10dp; text-align: left; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; pointer-events: auto; }
+#inventory_workbench .c-excel-filter-combo__option:hover,
+#inventory_workbench .c-excel-filter-combo__option.is-selected { color: #ffffff; background-color: #000080; }
+#inventory_workbench .l-inventory-flat__category .c-excel-filter-combo__options { width: 128dp; min-width: 128dp; }
+#inventory_workbench .l-inventory-flat__category .c-excel-filter-combo__option { width: 100%; min-width: 0; }
+#inventory_workbench .l-inventory-flat__group .c-excel-filter-combo__options { width: 148dp; min-width: 148dp; }
+#inventory_workbench .l-inventory-flat__group .c-excel-filter-combo__option { width: 100%; min-width: 0; }
+#inventory_workbench .l-inventory-flat__item .c-excel-filter-combo__options { width: 272dp; min-width: 272dp; }
+#inventory_workbench .l-inventory-flat__item .c-excel-filter-combo__option { width: 100%; min-width: 0; }
+#inventory_workbench .l-inventory-flat__material .c-excel-filter-combo__options { width: 178dp; min-width: 178dp; }
+#inventory_workbench .l-inventory-flat__material .c-excel-filter-combo__option { width: 100%; min-width: 0; }
+#inventory_workbench .l-m6b-inventory__metric-head .c-excel-filter-combo__options { left: auto; right: 0; width: 108dp; min-width: 108dp; }
+#inventory_workbench .l-m6b-inventory__metric-head .c-excel-filter-combo__option { width: 100%; min-width: 0; }
+#inventory_workbench .c-excel-filter-combo__empty { padding: 4dp 5dp; color: #404040; font-size: 10dp; }
+#inventory_workbench .l-m6b-inventory__metric-head,
+#inventory_workbench .l-m6b-inventory__metric { flex: 0 0 62dp; width: 62dp; min-width: 62dp; }
+
+/* Scrollbars are anonymous RmlUi elements and need explicit dimensions. */
+.c-excel-filter-combo__options scrollbarvertical { width: 16dp; background-color: #c0c0c0; }
+.c-excel-filter-combo__options scrollbarvertical slidertrack { background-color: #dfdfdf; }
+.c-excel-filter-combo__options scrollbarvertical sliderbar { width: 16dp; min-height: 24dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; box-sizing: border-box; }
+.c-excel-filter-combo__options scrollbarvertical sliderarrowdec,
+.c-excel-filter-combo__options scrollbarvertical sliderarrowinc { width: 16dp; height: 16dp; }
+
+/* Population adopts the shared detached management frame. Inventory stays scoped above. */
+#population_workbench { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; min-height: 0; max-height: none; box-sizing: border-box; }
+#population_workbench .l-m6b-body { display: flex; flex: 1 1 0dp; min-width: 0; min-height: 0; padding: 0; gap: 0; overflow: hidden; }
+#population_workbench .c-management-shell { width: 100%; }
+#population_workbench .l-population-main { gap: 5dp; }
+.l-population-navigation { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 6dp; }
+#population_workbench .l-population-navigation .c-button { flex: 0 0 auto; }
+#population_workbench .l-population-skill-citizen { display: flex; align-items: center; gap: 8dp; }
+#population_workbench .l-population-skill-citizen .c-list__meta { margin-left: auto; }
+#population_workbench .l-population-skill-citizen > span:last-child { min-width: 30dp; text-align: right; }
+#population_workbench .m6b-skill-row { flex-wrap: wrap; white-space: normal; }
+#population_workbench .m6b-skill-name { min-width: 110dp; color: #000000; }
+#population_workbench .m6b-skill-group { color: #505050; font-size: 10dp; }
+#population_workbench .m6b-skill-level { flex: 0 1 auto; width: auto; min-width: 105dp; color: #303030; }
+#population_workbench .c-button.is-disabled,
+#population_workbench .c-check-button.is-disabled { color: #606060; background-color: #d4d0c8; border-color: #808080; }
+#population_workbench .l-population-create-label { display: block; flex: 1 1 100%; color: #000000; font-size: 12dp; }
+#population_workbench .l-m6b-schedule scrollbarhorizontal { height: 18dp; background-color: #c0c0c0; }
+#population_workbench .l-m6b-schedule scrollbarhorizontal slidertrack { background-color: #dfdfdf; }
+#population_workbench .l-m6b-schedule scrollbarhorizontal sliderbar { height: 18dp; min-width: 28dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; box-sizing: border-box; }
+#population_workbench .l-m6b-schedule scrollbarhorizontal sliderarrowdec,
+#population_workbench .l-m6b-schedule scrollbarhorizontal sliderarrowinc { width: 18dp; height: 18dp; }
+#population_workbench .l-m6b-toolbar { flex-wrap: wrap; }
+#population_workbench .l-m6b-section { display: flex; flex-direction: column; flex: 1 1 0dp; min-width: 0; min-height: 0; overflow: hidden; }
+#population_workbench .l-m6b-section.is-hidden { display: none; }
+#population_workbench .l-m6b-roster { flex: 1 1 0dp; height: auto; min-height: 0; overflow-y: auto; }
+#population_workbench .l-population-split { flex-direction: row; gap: 8dp; }
+.l-population-list-pane, .l-population-detail-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 5dp; overflow: hidden; }
+.l-population-list-pane { flex: 0 0 220dp; }
+.l-population-detail-pane { flex: 1 1 0dp; overflow-y: auto; }
+.l-population-list-pane > .c-list, .l-population-detail-pane > .c-list { flex: 1 1 0dp; min-height: 0; overflow-y: auto; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+.l-population-detail-pane > .c-toolbar { flex: 0 0 auto; flex-wrap: wrap; }
+.l-population-detail-pane input.text, .l-population-list-pane input.text { min-height: 28dp; min-width: 0; }
+.l-population-detail-pane label { color: #000000; font-size: 12dp; }
+.l-profession-skill-columns { display: flex; flex: 1 1 0dp; min-height: 120dp; gap: 6dp; }
+.l-profession-skill-columns > section { display: flex; flex: 1 1 0dp; flex-direction: column; min-width: 0; min-height: 0; }
+.l-profession-skill-columns .c-list { flex: 1 1 0dp; min-height: 0; overflow-y: auto; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+#population_workbench .l-m6b-schedule { flex: 1 1 0dp; width: 100%; min-height: 0; box-sizing: border-box; }
+#population_workbench #creature_detail, #population_workbench .m6b-creature-scroll { width: 100%; min-width: 0; }
+#population_workbench .m6b-creature-scroll { flex: 1 1 0dp; min-height: 0; overflow-y: auto; }
+#population_workbench #creature_detail .m6b-creature-scroll > * { max-width: 100%; box-sizing: border-box; }
+#population_workbench .l-m6b-skill-list { width: 100%; min-width: 0; }
+#population_workbench .l-m6b-footer, #population_workbench .l-m6b-status { flex: 0 0 auto; }
+@media (max-width: 760dp) {
+    #population_workbench .l-population-split { flex-direction: column; }
+    #population_workbench .l-population-list-pane { flex: 0 0 110dp; }
+    #population_workbench .l-profession-skill-columns { flex-direction: column; min-height: 220dp; }
+    #population_workbench .l-population-detail-pane { overflow-y: auto; }
+}
+@media (max-height: 420dp) {
+    #population_workbench #population_schedules > p { display: none; }
+    #population_workbench #population_schedules > .c-toolbar { flex: 0 0 30dp; height: 30dp; min-height: 30dp; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+    #population_workbench #population_schedules > .c-toolbar > * { flex: 0 0 auto; }
+    #population_workbench #population_schedules > .c-toolbar > .c-button,
+    #population_workbench #population_schedules > .c-toolbar > .c-check-button { min-height: 28dp; height: 28dp; padding-top: 2dp; padding-bottom: 2dp; box-sizing: border-box; }
+    #population_workbench #schedule_rows { min-height: 54dp; }
+}
+@media (max-height: 240dp) {
+    #population_workbench #population_schedules > h2 { display: none; }
+}

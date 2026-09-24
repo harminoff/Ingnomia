@@ -52,6 +52,8 @@
 #include "../game/soundmanager.h"
 #include "../game/plant.h"
 #include "../game/world.h"
+#include "../game/stockpilemanager.h"
+#include "../game/stockpile.h"
 
 #include <QDebug>
 
@@ -80,11 +82,11 @@ EventConnector::EventConnector( GameManager* parent ) :
 	m_selectionAggregator	 = new AggregatorSelection( this );
 	m_soundAggregator	 = new AggregatorSound( this );
 
-	connect( m_selectionAggregator, &AggregatorSelection::signalSelectTile, m_tiAggregator, &AggregatorTileInfo::onShowTileInfo );
+	connect( m_selectionAggregator, &AggregatorSelection::signalSelectTile, this, &EventConnector::onSelectTile );
+	connect( m_selectionAggregator, &AggregatorSelection::signalInspectTile, m_tiAggregator, &AggregatorTileInfo::onShowTileInfo );
 	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, m_creatureInfoAggregator, &AggregatorCreatureInfo::onRequestCreatureUpdate );
 	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, m_creatureInfoAggregator, &AggregatorCreatureInfo::onRequestProfessionList );
 	connect( m_selectionAggregator, &AggregatorSelection::signalSelectCreature, this, [this]( unsigned int ) { onTutorialFact( static_cast<unsigned int>( TutorialFact::SelectGnome ) ); } );
-	connect( m_creatureInfoAggregator, &AggregatorCreatureInfo::signalCreatureUpdate, this, [this]( const GuiCreatureInfo& info ) { if( info.id != 0 ) onTutorialFact( static_cast<unsigned int>( TutorialFact::InspectGnome ) ); } );
 }
 
 /// @brief Updates the stored Game pointer; called on new game / load game.
@@ -97,6 +99,12 @@ void EventConnector::setGamePtr( Game* game )
 /// @brief Destructor.
 EventConnector::~EventConnector()
 {
+}
+
+void EventConnector::shutdownAudio()
+{
+	delete m_soundAggregator;
+	m_soundAggregator = nullptr;
 }
 
 /// @brief Emits signalExit to ask the GUI shell to quit the application.
@@ -215,7 +223,20 @@ void EventConnector::onBuild()
 /// @param cmd    Command keyword.
 void EventConnector::onTerrainCommand( unsigned int tileID, QString cmd )
 {
-	if ( cmd == "Mine" )
+	if ( !g || !g->w() ) return;
+	if ( cmd == "DeleteStockpile" )
+	{
+		Position position( tileID );
+		if ( auto* stockpile = g->spm()->getStockpileAtPos( position ) )
+		{
+			// Use normal designation removal to release items, cancel hauling,
+			// clear tile flags, and retire the stockpile once outstanding jobs end.
+			const auto tiles = stockpile->getFields().keys();
+			for ( const auto id : tiles ) g->w()->removeDesignation( Position( id ) );
+		}
+		m_tiAggregator->onUpdateTileInfo( tileID );
+	}
+	else if ( cmd == "Mine" )
 		g->jm()->addJob( "Mine", Position( tileID ), 0 );
 	else if ( cmd == "Remove" )
 		g->jm()->addJob( "RemoveFloor", Position( tileID ), 0 );
@@ -260,6 +281,15 @@ void EventConnector::onTerrainCommand( unsigned int tileID, QString cmd )
 /// @brief Opens the appropriate management window for a tile's designation (workshop,
 ///        stockpile, farm/pasture/grove, or room) based on its tile flags.
 /// @param tileID Target tile UID.
+void EventConnector::onSelectTile(unsigned int tileID)
+{
+    if (!gm->game() || !gm->game()->world()) return;
+    const auto flags = gm->game()->world()->getTile(tileID).flags;
+    const auto designation = flags - ~(TileFlag::TF_WORKSHOP + TileFlag::TF_STOCKPILE + TileFlag::TF_GROVE + TileFlag::TF_FARM + TileFlag::TF_PASTURE);
+    if (designation != TileFlag::TF_NONE) { m_tiAggregator->clearSelection(); onManageCommand(tileID); return; }
+    m_tiAggregator->onShowTileInfo(tileID);
+}
+
 void EventConnector::onManageCommand( unsigned int tileID )
 {
 	if ( gm->game() && gm->game()->world() )
@@ -271,6 +301,7 @@ void EventConnector::onManageCommand( unsigned int tileID )
 		{
 			case TileFlag::TF_WORKSHOP:
 				m_wsAggregator->onOpenWorkshopInfoOnTile( tileID );
+				onTutorialFact( static_cast<unsigned int>( TutorialFact::OpenWorkshop ) );
 				break;
 			case TileFlag::TF_STOCKPILE:
 			{

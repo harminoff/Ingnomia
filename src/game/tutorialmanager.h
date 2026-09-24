@@ -53,11 +53,15 @@ public:
 	[[nodiscard]] bool tutorialMode() const noexcept { return progress_.mode == TutorialMode::Interactive; }
 	[[nodiscard]] bool incompatible() const noexcept { return incompatible_; }
 
-	void start( const char* scenarioId = "scenario_v1", std::uint32_t version = 1 );
+	void start( const char* scenarioId = "scenario_v2", std::uint32_t version = 2 );
 	void tick();
 	void onPauseChanged( bool paused );
 	void observeFact( TutorialFact fact );
+	void observeProfession( unsigned int gnomeId, const QString& profession );
+	void observeWorkshopStockpileLink( unsigned int workshopId );
+	void observeStockpileAllowRule( unsigned int stockpileId );
 	void observeFacts( std::uint32_t facts );
+	void observeCompletedJob( const QString& type );
 	void advance();
 	void skip();
 	void restart();
@@ -73,6 +77,9 @@ signals:
 
 private:
 	void evaluateCurrentStep();
+	void repairMissingStarterBeds();
+	bool hasAllowedRawWoodStockpile() const;
+	bool hasLinkedAllowedRawWoodStockpile() const;
 	void emitIfChanged();
 	QString titleFor( TutorialStepId step ) const;
 	QString explanationFor( TutorialStepId step ) const;
@@ -84,6 +91,9 @@ private:
 	Game* game_{};
 	TutorialProgress progress_;
 	std::uint32_t facts_{};
+	bool workshopStockpileLinked_{};
+	bool stockpileAllowsRawWood_{};
+	bool starterBedRepairApplied_{};
 	bool pausedForLesson_{};
 	bool migrationQueued_{};
 	bool incompatible_{};

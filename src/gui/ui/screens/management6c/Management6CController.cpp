@@ -125,7 +125,7 @@ void Management6CController::endWorld()
 	notify();
 }
 
-void Management6CController::open( View view )
+void Management6CController::activateViewForInput( View view )
 {
     const bool wasMilitary = state_.view == View::Squads || state_.view == View::Roles || state_.view == View::Priorities;
     const auto previous = static_cast<std::size_t>( state_.view );
@@ -142,10 +142,14 @@ void Management6CController::open( View view )
         state_.diplomacyFilter = filtersByView_[next];
         state_.diplomacySort = sortsByView_[next];
     }
-	state_.open = true;
-	state_.view = view;
-	state_.militaryOpen = view == View::Squads || view == View::Roles || view == View::Priorities;
-	state_.diplomacyOpen = view == View::Neighbors || view == View::Missions;
+    state_.view = view;
+}
+void Management6CController::open(View view)
+{
+    activateViewForInput(view);
+    state_.open = true;
+    if(view == View::Squads || view == View::Roles || view == View::Priorities) { state_.militaryOpen = true; state_.militaryView = view; }
+    else { state_.diplomacyOpen = true; state_.diplomacyView = view; }
 	state_.status.clear();
 	updateHiddenSelectionFlags();
 	notify();
@@ -318,20 +322,20 @@ std::vector<MissionRow> Management6CController::visibleMissions() const
 void Management6CController::updateHiddenSelectionFlags()
 {
 	state_.militarySelectionHidden = false;
-	if( state_.view == View::Squads || state_.view == View::Priorities )
+	if( state_.militaryView == View::Squads || state_.militaryView == View::Priorities )
 	{
 		const auto visible = visibleSquads();
 		state_.militarySelectionHidden = state_.selectedSquad
 			&& std::ranges::none_of( visible, [&]( const SquadRow& row ) { return row.id == *state_.selectedSquad; } );
 	}
-	else if( state_.view == View::Roles )
+	else if( state_.militaryView == View::Roles )
 	{
 		const auto visible = visibleRoles();
 		state_.militarySelectionHidden = state_.selectedRole
 			&& std::ranges::none_of( visible, [&]( const MilitaryRoleRow& row ) { return row.id == *state_.selectedRole; } );
 	}
 	state_.diplomacySelectionHidden = false;
-	if( state_.view == View::Neighbors )
+	if( state_.diplomacyView == View::Neighbors )
 	{
 		const auto visible = visibleNeighbors();
 		state_.diplomacySelectionHidden = state_.selectedNeighbor

@@ -248,3 +248,66 @@
 .l-new-game-content, .l-new-game-panel { min-height: 0; min-width: 0; }
 .l-new-game-footer { flex-wrap: wrap; }
 .l-new-game-footer__status { min-width: 220dp; }
+
+/* Main menu and settings share the raised title and inset content treatment
+   used by the management windows. */
+.l-main-menu-screen, .l-settings-screen { padding: 20dp; overflow-x: hidden; }
+.l-main-menu-chamber { width: 790dp; max-width: 100%; padding: 0; overflow: hidden; }
+.l-main-menu-banner { display: block; width: 100%; min-height: 138dp; padding: 18dp 24dp 14dp; background-color: #356c9d; border-bottom: 2dp #214665; }
+.l-main-menu-eyebrow { display: block; color: #d7e8ef; font-size: 11dp; font-weight: bold; letter-spacing: 1dp; }
+.l-main-menu-banner .c-shell-wordmark { color: #ffffff; font-size: 36dp; line-height: 42dp; text-align: left; }
+.l-main-menu-banner p { max-width: 610dp; margin: 3dp 0 0; color: #ecf5f7; font-size: 13dp; line-height: 18dp; }
+.l-main-menu-banner .c-shell-version { display: block; margin: 4dp 0 0; text-align: right; }
+.l-main-menu-body { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10dp; padding: 12dp; }
+.l-main-menu-feature, .l-main-menu-options { display: flex; flex-direction: column; flex: 1 1 270dp; min-width: 230dp; padding: 12dp; color: #142333; background-color: #f3f5ef; border-width: 2dp; border-top-color: #4d6476; border-left-color: #4d6476; border-right-color: #f7faf8; border-bottom-color: #f7faf8; }
+.l-main-menu-feature h2, .l-main-menu-options h2 { margin-bottom: 6dp; color: #24415a; font-size: 18dp; line-height: 24dp; }
+.l-main-menu-feature p { min-height: 52dp; color: #506875; font-size: 12dp; line-height: 16dp; }
+.l-main-menu-feature button, .l-main-menu-options button { width: 100%; min-height: 36dp; margin-top: 5dp; text-align: left; }
+.l-main-menu-feature .c-field__help, .l-main-menu-options .c-field__help { min-height: 16dp; padding: 2dp 2dp 4dp; color: #506875; }
+.l-main-menu-options h2 { margin-bottom: 11dp; }
+.l-main-menu-footer { display: flex; flex-direction: row; justify-content: flex-end; gap: 6dp; padding: 8dp 12dp 12dp; border-top: 1dp #9cadb3; }
+.l-main-menu-footer button { min-width: 110dp; min-height: 34dp; }
+
+.l-settings-chamber { width: 950dp; max-width: 100%; padding: 0; overflow: hidden; }
+.l-settings-titlebar { display: flex; flex-direction: row; align-items: center; gap: 12dp; min-height: 65dp; padding: 9dp 12dp; background-color: #356c9d; border-bottom: 2dp #214665; }
+.l-settings-titlebar > div { flex: 1; min-width: 0; }
+.l-settings-titlebar span { display: block; color: #d7e8ef; font-size: 10dp; font-weight: bold; letter-spacing: 1dp; }
+.l-settings-titlebar h1 { color: #ffffff; font-size: 22dp; line-height: 28dp; }
+.l-settings-titlebar button { min-width: 90dp; min-height: 32dp; }
+.l-settings-intro { margin: 0; padding: 8dp 12dp 0; color: #506875; font-size: 11dp; line-height: 15dp; }
+.l-settings-grid { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 8dp; padding: 10dp 12dp; }
+.l-settings-card { flex: 1 1 390dp; min-width: 280dp; padding: 8dp 10dp; color: #142333; background-color: #f3f5ef; border-width: 2dp; border-top-color: #4d6476; border-left-color: #4d6476; border-right-color: #f7faf8; border-bottom-color: #f7faf8; }
+.l-settings-card h2 { margin-bottom: 5dp; padding: 2dp 5dp; color: #ffffff; background-color: #356c9d; font-size: 14dp; line-height: 20dp; }
+.l-settings-card .c-shell-setting-row { gap: 8dp; min-height: 40dp; padding: 4dp 1dp; border-bottom-color: #c0cdd1; }
+.l-settings-card .c-shell-setting-row:last-child { border-bottom-width: 0; }
+.l-settings-card .c-shell-setting-copy { min-width: 155dp; }
+.l-settings-card .c-shell-setting-control { flex: 0 0 155dp; width: 155dp; }
+.l-settings-note { display: flex; flex-direction: column; gap: 2dp; margin-top: 9dp; padding: 7dp; background-color: #dce4e6; border: 1dp #a9b8be; }
+.l-settings-note strong { color: #24415a; font-size: 12dp; }
+.l-settings-note span { color: #506875; font-size: 11dp; line-height: 15dp; }
+.l-settings-footer { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 12dp; padding: 8dp 12dp 12dp; border-top: 1dp #9cadb3; }
+.l-settings-footer span { flex: 1; min-width: 0; color: #506875; font-size: 11dp; }
+.l-settings-footer button { min-height: 34dp; }
+
+/* Kingdom Setup uses the same raised window and inset property sheet as the
+   main menu, with square Windows 98 style slider controls. */
+.l-new-game-screen { padding: 14dp; }
+.l-new-game-chamber { width: 100%; max-width: 1120dp; margin: 0 auto; padding: 0; background-color: #dce4e6; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #4d6476; border-bottom-color: #4d6476; border-radius: 0; box-shadow: 5dp 5dp 0 #45627b; }
+.l-new-game-titlebar { align-items: center; min-height: 70dp; margin: 0; padding: 9dp 12dp; background-color: #356c9d; border-bottom-width: 2dp; border-bottom-color: #214665; }
+.l-new-game-eyebrow { color: #d7e8ef; }
+.l-new-game-titlebar h1 { color: #ffffff; font-size: 22dp; line-height: 28dp; }
+.l-new-game-titlebar p { color: #ecf5f7; }
+.l-new-game-titlebar button { min-width: 90dp; min-height: 32dp; }
+.l-new-game-layout { padding: 10dp 12dp; min-height: 405dp; }
+.l-new-game-panel { background-color: #dce4e6; }
+.l-new-game-panel__header { background-color: #dce4e6; border-bottom-color: #9cadb3; }
+.l-new-game-step { color: #506875; }
+.l-new-game-panel__header h2 { color: #24415a; }
+.l-new-game-panel__header p { color: #506875; }
+.l-new-game-card, .l-new-game-review-card { background-color: #f3f5ef; border-width: 2dp; border-top-color: #718591; border-left-color: #718591; border-right-color: #ffffff; border-bottom-color: #ffffff; }
+.l-new-game-range-value { color: #245d87; }
+.l-new-game-footer { min-height: 54dp; margin: 0; padding: 8dp 12dp 10dp; background-color: #dce4e6; border-top-width: 1dp; border-top-color: #9cadb3; }
+.l-new-game-range-card input.range.c-slider slidertrack { height: 9dp; margin-top: 13dp; background-color: #ffffff; border-width: 2dp; border-top-color: #718591; border-left-color: #718591; border-right-color: #f7faf8; border-bottom-color: #f7faf8; border-radius: 0; }
+.l-new-game-range-card input.range.c-slider sliderprogress { height: 5dp; margin-top: 15dp; background-color: #6b9bc0; }
+.l-new-game-range-card input.range.c-slider sliderbar { width: 18dp; height: 23dp; margin-top: 6dp; margin-left: -9dp; margin-right: -9dp; background-color: #dce4e6; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #607784; border-bottom-color: #607784; border-radius: 0; }
+.l-new-game-range-card input.range.c-slider:focus-visible sliderbar { border-color: #d47a20; }

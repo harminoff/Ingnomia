@@ -22,15 +22,19 @@
  */
 #include "aggregatorinventory.h"
 
+#include "../base/config.h"
 #include "../base/db.h"
 #include "../base/dbhelper.h"
 #include "../base/gamestate.h"
 #include "../base/global.h"
 #include "../base/util.h"
 #include "../game/game.h"
+#include "../game/tutorialmanager.h"
 #include "../game/inventory.h"
 #include "../game/itemhistory.h"
+#include "../game/stockpilemanager.h"
 #include "../gui/strings.h"
+#include <QFileInfo>
 
 
 namespace
@@ -247,7 +251,13 @@ AggregatorInventory::~AggregatorInventory()
 /// @param game Game to bind to.
 void AggregatorInventory::init( Game* game )
 {
+	QObject::disconnect( stockpileContentConnection_ );
+	QObject::disconnect( stockpileDeletedConnection_ );
 	g = game;
+	stockpileContentConnection_ = QObject::connect( g->spm(), &StockpileManager::signalStockpileContentChanged,
+		this, [this]( unsigned int ) { emit signalInventoryChanged(); } );
+	stockpileDeletedConnection_ = QObject::connect( g->spm(), &StockpileManager::signalStockpileDeleted,
+		this, [this]( unsigned int ) { emit signalInventoryChanged(); } );
 
 	for ( const auto& cat : g->inv()->categories() )
 	{
@@ -293,6 +303,56 @@ void AggregatorInventory::init( Game* game )
 void AggregatorInventory::onRequestCategories()
 {
 	if( !g ) return;
+	QHash<QString, QList<GuiItemIngredient>> ingredientsByCraft;
+	for ( const auto& row : DB::selectRows( "Crafts_Components" ) )
+	{
+		const auto item = row.value( "ItemID" ).toString();
+		if ( item.isEmpty() ) continue;
+		ingredientsByCraft[row.value( "ID" ).toString()].append( {
+			item, S::s( "$ItemName_" + item ), row.value( "AllowedMaterial" ).toString(),
+			row.value( "AllowedMaterialType" ).toString(), row.value( "Amount" ).toInt() } );
+	}
+	QHash<QString, QString> workshopByCraft;
+	for ( const auto& row : DB::selectRows( "Workshops" ) )
+		for ( const auto& craft : row.value( "Crafts" ).toString().split( '|', Qt::SkipEmptyParts ) )
+			workshopByCraft.insert( craft, row.value( "ID" ).toString() );
+	QHash<QString, QList<GuiItemRecipe>> madeBy, usedIn;
+	for ( const auto& row : DB::selectRows( "Crafts" ) )
+	{
+		const auto id = row.value( "ID" ).toString();
+		const auto item = row.value( "ItemID" ).toString();
+		if ( item.isEmpty() ) continue;
+		GuiItemRecipe recipe { id, item, S::s( "$ItemName_" + item ), workshopByCraft.value( id ),
+			row.value( "SkillID" ).toString(), row.value( "ResultMaterial" ).toString(), row.value( "ResultMaterialTypes" ).toString(),
+			row.value( "ConversionMaterial" ).toString(), qMax( 1, row.value( "Amount" ).toInt() ), ingredientsByCraft.value( id ) };
+		madeBy[item].append( recipe );
+		QSet<QString> usedItems;
+		for ( const auto& ingredient : recipe.ingredients )
+			if ( !usedItems.contains( ingredient.itemID ) )
+			{
+				usedIn[ingredient.itemID].append( recipe );
+				usedItems.insert( ingredient.itemID );
+			}
+	}
+	const auto locationKey = []( const QString& item, const QString& material ) { return item + QChar( 0x1f ) + material; };
+	QHash<QString, QList<GuiItemStockpile>> locations;
+	for ( const auto stockpileID : g->spm()->allStockpiles() )
+	{
+		auto* stockpile = g->spm()->getStockpile( stockpileID );
+		if ( !stockpile ) continue;
+		QHash<QString, int> counts;
+		for ( const auto* field : stockpile->getFields() )
+			if ( field ) for ( const auto itemID : field->items )
+				if ( g->inv()->itemExists( itemID ) )
+				{
+					const auto item = g->inv()->itemSID( itemID );
+					++counts[locationKey( item, {} )];
+					const auto material = g->inv()->materialSID( itemID );
+					if ( !material.isEmpty() ) ++counts[locationKey( item, material )];
+				}
+		for ( auto it = counts.cbegin(); it != counts.cend(); ++it )
+			locations[it.key()].append( { stockpileID, stockpile->name(), it.value() } );
+	}
 	m_categories.clear();
 	for ( const auto& cat : g->inv()->categories() )
 	{
@@ -317,6 +377,9 @@ void AggregatorInventory::onRequestCategories()
 				gii.cat = cat;
 				gii.group = group;
 				gii.watched = m_watchedItems.contains( cat + group + item );
+				gii.madeBy = madeBy.value( item );
+				gii.usedIn = usedIn.value( item );
+				gii.locations = locations.value( locationKey( item, {} ) );
 				setInventoryItemSprite( gii );
 
 				for ( const auto& mat : g->inv()->materials( cat, group, item ) )
@@ -331,6 +394,21 @@ void AggregatorInventory::onRequestCategories()
 						gim.group = group;
 						gim.item = item;
 						gim.watched = m_watchedItems.contains( cat + group + item + mat );
+						const auto materialType = DB::select( "Type", "Materials", mat ).toString();
+						const auto allowsType = [&]( const QString& types )
+							{ return types.isEmpty() || materialType.isEmpty() || types.split( '|', Qt::SkipEmptyParts ).contains( materialType ); };
+						for ( const auto& recipe : gii.madeBy )
+						{
+							if ( !recipe.resultMaterial.isEmpty() && recipe.resultMaterial != mat && !recipe.resultMaterial.startsWith( '$' ) && recipe.resultMaterial != "RandomMetal" ) continue;
+							if ( !recipe.conversionMaterial.isEmpty() && recipe.conversionMaterial != mat && !recipe.conversionMaterial.startsWith( '$' ) ) continue;
+							if ( !allowsType( recipe.resultMaterialTypes ) ) continue;
+							gim.madeBy.append( recipe );
+						}
+						for ( const auto& recipe : gii.usedIn )
+							for ( const auto& ingredient : recipe.ingredients )
+								if ( ingredient.itemID == item && ( ingredient.allowedMaterial.isEmpty() || ingredient.allowedMaterial == mat ) && allowsType( ingredient.allowedMaterialType ) )
+								{ gim.usedIn.append( recipe ); break; }
+						gim.locations = locations.value( locationKey( item, mat ) );
 						gim.countTotal = result.total;
 						gim.countInJob = result.inJob;
 						gim.countInStockpiles = result.inStockpile;
@@ -378,6 +456,8 @@ void AggregatorInventory::onRequestHistory( QString itemSID, QString materialSID
 {
 	if ( !g || itemSID.isEmpty() )
 		return;
+	if ( itemSID == QStringLiteral( "RawWood" ) && g->tutorial() )
+		g->tutorial()->observeFact( TutorialFact::OpenInventory );
 
 	const auto history = g->ih()->getHistory( itemSID );
 	QString key = materialSID.isEmpty() ? QStringLiteral( "all" ) : materialSID;
@@ -398,11 +478,25 @@ void AggregatorInventory::onRequestHistory( QString itemSID, QString materialSID
 void AggregatorInventory::setInventoryItemSprite( GuiInventoryItem& item )
 {
 	assignInventorySprite( item.spriteSheet, item.spriteX, item.spriteY, item.spriteWidth, item.spriteHeight, item.spriteSheetWidth, item.spriteSheetHeight, findBaseSprite( DBH::spriteID( item.id ) ) );
+	item.spriteSheet = inventoryIcon( item.id );
+	if ( !item.spriteSheet.isEmpty() ) item.spriteWidth = item.spriteHeight = item.spriteSheetWidth = item.spriteSheetHeight = 40;
 }
 
 void AggregatorInventory::setInventoryMaterialSprite( GuiInventoryMaterial& material, const QString& itemID )
 {
 	assignInventorySprite( material.spriteSheet, material.spriteX, material.spriteY, material.spriteWidth, material.spriteHeight, material.spriteSheetWidth, material.spriteSheetHeight, findMaterialBaseSprite( DBH::spriteID( itemID ), material.id ) );
+	material.spriteSheet = inventoryIcon( itemID, material.id );
+	if ( !material.spriteSheet.isEmpty() ) material.spriteWidth = material.spriteHeight = material.spriteSheetWidth = material.spriteSheetHeight = 40;
+}
+
+QString AggregatorInventory::inventoryIcon( const QString& itemID, const QString& materialID )
+{
+	const auto filename = "catalog_" + itemID + "__" + materialID + ".tga";
+	if ( QFileInfo::exists( Global::cfg->get( "dataPath" ).toString() + "/tilesheet/" + filename ) ) return filename;
+	const auto base = findMaterialBaseSprite( DBH::spriteID( itemID ), materialID );
+	GuiInventoryMaterial fallback;
+	assignInventorySprite( fallback.spriteSheet, fallback.spriteX, fallback.spriteY, fallback.spriteWidth, fallback.spriteHeight, fallback.spriteSheetWidth, fallback.spriteSheetHeight, base );
+	return fallback.spriteSheet;
 }
 /// @brief Collects the buildable entries for the given BuildSelection / category combination
 ///        (Constructions / Workshops / Containers / Items DB rows), produces preview icons
