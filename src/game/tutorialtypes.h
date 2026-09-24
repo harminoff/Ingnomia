@@ -21,12 +21,12 @@ enum class TutorialStepId : std::uint8_t
 {
 	Orientation,
 	InspectAndAssign,
-	ShelterAndStorage,
+	Gathering,
 	MiningAndLevels,
-	Farming,
+	Stockpile,
 	Crafting,
-	Cooking,
-	PopulationExpansion,
+	Farming,
+	Shelter,
 	Graduation
 };
 
@@ -58,14 +58,20 @@ enum class TutorialFact : std::uint8_t
 	Flour,
 	Bread,
 	Migration,
+	FellTree,
+	OpenWorkshop,
+	QueuePlank,
+	MineWall,
+	WheelLevel,
+	CropQueued,
 	Count
 };
 
 struct TutorialProgress
 {
 	TutorialMode mode{ TutorialMode::Off };
-	std::string scenarioId{ "scenario_v1" };
-	std::uint32_t scenarioVersion{ 1 };
+	std::string scenarioId{ "scenario_v2" };
+	std::uint32_t scenarioVersion{ 2 };
 	TutorialStepId step{ TutorialStepId::Orientation };
 	std::uint32_t completedMask{};
 	std::uint32_t skippedMask{};

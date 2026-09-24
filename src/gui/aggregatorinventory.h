@@ -42,6 +42,24 @@ struct GuiWatchedItem
 };
 Q_DECLARE_METATYPE( GuiWatchedItem )
 
+struct GuiItemIngredient
+{
+	QString itemID, name, allowedMaterial, allowedMaterialType;
+	int amount = 0;
+};
+struct GuiItemRecipe
+{
+	QString id, outputItemID, outputName, workshop, skill, resultMaterial, resultMaterialTypes, conversionMaterial;
+	int amount = 1;
+	QList<GuiItemIngredient> ingredients;
+};
+struct GuiItemStockpile
+{
+	unsigned int id = 0;
+	QString name;
+	int count = 0;
+};
+
 /// @brief Inventory totals for a single (item, material) pair.
 struct GuiInventoryMaterial
 {
@@ -58,6 +76,8 @@ struct GuiInventoryMaterial
 	unsigned int countLoose = 0;           ///< Items lying on the ground unclaimed.
 	unsigned int totalValue = 0;           ///< Sum of per-item values.
 	bool watched = false;                  ///< True if this entry is on the watch list.
+	QList<GuiItemRecipe> madeBy, usedIn;
+	QList<GuiItemStockpile> locations;
 	QString spriteSheet;
 	int spriteX = 0;
 	int spriteY = 0;
@@ -82,6 +102,7 @@ struct GuiInventoryHistoryPoint
 Q_DECLARE_METATYPE( GuiInventoryHistoryPoint )
 Q_DECLARE_METATYPE( QList<GuiInventoryHistoryPoint> )
 
+
 /// @brief Inventory totals for a single item, broken down per material.
 struct GuiInventoryItem
 {
@@ -105,6 +126,8 @@ struct GuiInventoryItem
     int spriteSheetWidth = 0;
     int spriteSheetHeight = 0;
     QList<GuiInventoryMaterial> materials; ///< Per-material breakdown.
+	QList<GuiItemRecipe> madeBy, usedIn;
+	QList<GuiItemStockpile> locations;
 };
 Q_DECLARE_METATYPE( GuiInventoryItem )
 
@@ -194,8 +217,13 @@ public:
     void init( Game* game );
     void update();
 
+    /// Shared material-aware thumbnail for Inventory, Stock, and Allow list.
+    static QString inventoryIcon( const QString& itemID, const QString& materialID = {} );
+
 private:
     QPointer<Game> g;                               ///< Game instance (weak ownership).
+	QMetaObject::Connection stockpileContentConnection_;
+	QMetaObject::Connection stockpileDeletedConnection_;
 
     QList<GuiInventoryCategory> m_categories;       ///< Cached inventory category tree.
 

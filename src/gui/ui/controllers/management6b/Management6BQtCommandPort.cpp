@@ -19,10 +19,21 @@ CommandResult Management6BQtCommandPort::reject(const char*e)const{return{Comman
 CommandResult Management6BQtCommandPort::queue(std::function<void()>fn)const{if(!connector_||!QMetaObject::invokeMethod(connector_,std::move(fn),Qt::QueuedConnection))return reject("ui.error.bridge_queue_failed");return{CommandStatus::Accepted,true,{}};}
 CommandResult Management6BQtCommandPort::dispatch(const UiActionEnvelope&a)
 {
-	if(!connector_)return reject("ui.error.bridge_unavailable");ActionValidationContext c;c.activeWorld=world_;c.acceptsWorldActions=accepts_;c.primaryRoute=RouteId{"game.hud"};const auto valid=UiActionRegistry{}.validate(a,c);if(!valid.valid())return reject(valid.code==ActionValidationCode::ConfirmationRequired?"ui.error.confirmation_required":"ui.error.invalid_or_stale_action");
+	return dispatchValidated( a, false );
+}
+CommandResult Management6BQtCommandPort::dispatchConfirmed(const UiActionEnvelope&a)
+{
+	if( a.id.value != "profession.delete" ) return reject("ui.error.invalid_or_stale_action");
+	return dispatchValidated( a, true );
+}
+CommandResult Management6BQtCommandPort::dispatchValidated(const UiActionEnvelope&a, bool confirmed)
+{
+	if(!connector_)return reject("ui.error.bridge_unavailable");ActionValidationContext c;c.activeWorld=world_;c.acceptsWorldActions=accepts_;c.primaryRoute=RouteId{"game.hud"};if(confirmed){c.topModal=ModalInstanceId{1};c.sourceModal=ModalInstanceId{1};c.topModalKind=ModalKind::DestructiveConfirmation;}const auto valid=UiActionRegistry{}.validate(a,c);if(!valid.valid())return reject(valid.code==ActionValidationCode::ConfirmationRequired?"ui.error.confirmation_required":"ui.error.invalid_or_stale_action");
 	auto pop=connector_->aggregatorPopulation();auto inv=connector_->aggregatorInventory();auto creature=connector_->aggregatorCreatureInfo();
 	if(a.id.value=="population.refresh")return queue([pop]{if(pop){pop->onRequestPopulationUpdate();pop->onRequestSchedules();pop->onRequestProfessions();}});
 	if(a.id.value=="profession.refresh")return queue([pop]{if(pop)pop->onRequestProfessions();});
+	if(a.id.value=="profession.request_skills"){const auto*p=std::get_if<ProfessionTargetPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");return queue([pop,v=*p]{if(pop)pop->onRequestSkills(QString::fromStdString(v.profession.value));});}
+	if(a.id.value=="profession.create"){const auto*p=std::get_if<CreateProfessionPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");return queue([pop,v=*p]{if(pop)pop->onCreateProfession(QString::fromStdString(v.name));});}
 	if(a.id.value=="inventory.refresh")return queue([inv]{if(inv)inv->onRequestCategories();});
 	if(a.id.value=="inventory.request_history"){const auto*p=std::get_if<InventoryHistoryPayload>(&a.payload);if(!p)return reject("ui.error.invalid_payload");int days=0;switch(p->range){case HistoryRange::Week:days=7;break;case HistoryRange::Month:days=30;break;case HistoryRange::Season:days=91;break;case HistoryRange::Year:days=365;break;case HistoryRange::All:days=0;break;}return queue([inv,v=*p,days]{if(inv)inv->onRequestHistory(QString::fromStdString(v.item.value),QString::fromStdString(v.material.value),days);});}
 	if(a.id.value=="inspect.select"){const auto*p=std::get_if<SelectPayload>(&a.payload);if(!p||p->target.kind!=EntityKind::Creature)return reject("ui.error.invalid_payload");return queue([creature,id=p->target.id]{if(creature)creature->onRequestCreatureUpdate(id);});}

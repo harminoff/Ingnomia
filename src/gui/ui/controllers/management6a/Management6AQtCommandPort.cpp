@@ -35,8 +35,8 @@ QStringList materials( const std::vector<CatalogId>& values )
 }
 } // namespace
 
-Management6AQtCommandPort::Management6AQtCommandPort( EventConnector* connector ) :
-	connector_( connector )
+Management6AQtCommandPort::Management6AQtCommandPort( EventConnector* connector, ManagementView view ) :
+	connector_( connector ), view_( view )
 {
 }
 CommandResult Management6AQtCommandPort::reject( const char* error ) const
@@ -85,8 +85,13 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 		return reject( "ui.error.invalid_or_stale_action" );
 
 	if ( action.id.value == "nav.close" )
-		return queue( [c = connector_]
-					  { if(!c)return; c->aggregatorWorkshop()->onCloseWindow(); c->aggregatorStockpile()->onCloseWindow(); c->aggregatorAgri()->onCloseWindow(); } );
+		return queue( [c = connector_, view = view_]
+		{
+			if ( !c ) return;
+			if ( view == ManagementView::Workshop ) c->aggregatorWorkshop()->onCloseWindow();
+			else if ( view == ManagementView::Stockpile ) c->aggregatorStockpile()->onCloseWindow();
+			else if ( view == ManagementView::Agriculture ) c->aggregatorAgri()->onCloseWindow();
+		} );
 	if ( action.id.value == "view.center_on" )
 	{
 		const auto* payload = std::get_if<CenterPayload>( &action.payload );
@@ -112,6 +117,11 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 		return queue( [c = connector_, id, trade = action.id.value == "trade.refresh"]
 					  {if(!c)return;if(trade)c->aggregatorWorkshop()->onRequestAllTradeItems(id);else c->aggregatorWorkshop()->onUpdateWorkshopInfo(id); } );
 	}
+    if (action.id.value == "workshop.set_stockpile_link") {
+        const auto* p=std::get_if<SetWorkshopStockpileLinkPayload>(&action.payload);
+        if(!p) return reject("ui.error.invalid_payload");
+        return queue([c=connector_,v=*p] { if(c) c->aggregatorWorkshop()->onSetStockpileLink(v.workshop.value,v.stockpile.value,v.linked); });
+    }
 	if ( action.id.value == "workshop.set_basics" )
 	{
 		const auto* p = std::get_if<SetWorkshopBasicsPayload>( &action.payload );
@@ -119,7 +129,7 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 			return reject( "ui.error.invalid_payload" );
 		const bool linked = p->linkStockpile.value_or( p->connectStockpile.has_value() || workshopLinks_.value( p->workshop.value, false ) );
 		return queue( [c = connector_, v = *p, linked]
-					  {if(!c)return;auto*a=c->aggregatorWorkshop();a->onSetBasicOptions(v.workshop.value,QString::fromStdString(v.name),v.priority,v.suspended,v.acceptGenerated,v.autoCraftMissing,linked);a->onUpdateWorkshopInfo(v.workshop.value); } );
+					  {if(!c)return;auto*a=c->aggregatorWorkshop();a->onSetBasicOptions(v.workshop.value,QString::fromStdString(v.name),v.priority,v.suspended,v.acceptGenerated,v.autoCraftMissing,linked,!v.linkStockpile.has_value() && !v.connectStockpile.has_value());a->onUpdateWorkshopInfo(v.workshop.value); } );
 	}
 	if ( action.id.value == "workshop.set_butcher_options" )
 	{
@@ -218,6 +228,26 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 		return queue( [c = connector_, v = *p]
 					  {if(c)c->aggregatorStockpile()->onSetActive(v.row.stockpile.value,v.active,QString::fromStdString(v.row.category.value),QString::fromStdString(v.row.group.value),QString::fromStdString(v.row.item.value),QString::fromStdString(v.row.material.value)); } );
 	}
+	if ( action.id.value == "stockpile.set_filters" )
+	{
+		const auto* p = std::get_if<SetStockpileFiltersPayload>( &action.payload );
+		if ( !p )
+			return reject( "ui.error.invalid_payload" );
+		QList<QStringList> paths;
+		paths.reserve( static_cast<qsizetype>( p->rows.size() ) );
+		for ( const auto& row : p->rows )
+			paths.push_back( { QString::fromStdString( row.category.value ), QString::fromStdString( row.group.value ), QString::fromStdString( row.item.value ), QString::fromStdString( row.material.value ) } );
+		return queue( [c = connector_, id = p->stockpile.value, active = p->active, paths = std::move( paths )]
+					  {if(c)c->aggregatorStockpile()->onSetActiveBatch(id,active,paths); } );
+	}
+	if ( action.id.value == "stockpile.save_template" || action.id.value == "stockpile.apply_template" )
+	{
+		const auto* p = std::get_if<StockpileTemplatePayload>( &action.payload );
+		if ( !p ) return reject( "ui.error.invalid_payload" );
+		const bool save = action.id.value == "stockpile.save_template";
+		return queue( [c = connector_, id = p->stockpile.value, name = QString::fromStdString( p->name ), save]
+			{ if ( !c ) return; if ( save ) c->aggregatorStockpile()->onSaveFilterTemplate( id, name ); else c->aggregatorStockpile()->onApplyFilterTemplate( id, name ); } );
+	}
 
 	if ( action.id.value == "agriculture.refresh" )
 	{
@@ -242,6 +272,40 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 			return reject( "ui.error.invalid_payload" );
 		return queue( [c = connector_, v = *p]
 					  {if(c)c->aggregatorAgri()->onSelectProduct(agriType(v.target.kind),v.target.designation.value,QString::fromStdString(v.product.value)); } );
+	}
+	if ( action.id.value == "agriculture.set_plot_crop" )
+	{
+		const auto* p = std::get_if<SetFarmPlotCropPayload>( &action.payload );
+		if ( !p ) return reject( "ui.error.invalid_payload" );
+		return queue( [c = connector_, v = *p] {
+			if ( !c ) return;
+			QList<Position> plots;
+			for ( const auto& plot : v.plots ) plots.append( Position( plot.x, plot.y, plot.z ) );
+			c->aggregatorAgri()->onSetFarmPlotCrop( v.farm.value, plots, QString::fromStdString( v.crop.value ) );
+		} );
+	}
+	if ( action.id.value == "agriculture.queue_plot_crop" )
+	{
+		const auto* p = std::get_if<QueueFarmPlotCropPayload>( &action.payload );
+		if ( !p ) return reject( "ui.error.invalid_payload" );
+		return queue( [c = connector_, v = *p] {
+			if ( !c ) return;
+			QList<Position> plots;
+			for ( const auto& plot : v.plots ) plots.append( Position( plot.x, plot.y, plot.z ) );
+			c->aggregatorAgri()->onQueueFarmPlotCrop( v.farm.value, plots, QString::fromStdString( v.crop.value ), static_cast<int>( v.count ), v.repeat );
+		} );
+	}
+	if ( action.id.value == "agriculture.cancel_plot_order" )
+	{
+		const auto* p = std::get_if<FarmPlotOrderPayload>( &action.payload );
+		if ( !p ) return reject( "ui.error.invalid_payload" );
+		return queue( [c = connector_, v = *p] { if ( c ) c->aggregatorAgri()->onRemoveFarmPlotOrder( v.farm.value, Position( v.plot.x, v.plot.y, v.plot.z ), v.order ); } );
+	}
+	if ( action.id.value == "agriculture.move_plot_order" )
+	{
+		const auto* p = std::get_if<MoveFarmPlotOrderPayload>( &action.payload );
+		if ( !p ) return reject( "ui.error.invalid_payload" );
+		return queue( [c = connector_, v = *p] { if ( c ) c->aggregatorAgri()->onMoveFarmPlotOrder( v.farm.value, Position( v.plot.x, v.plot.y, v.plot.z ), v.order, v.direction == MoveDirection::Up ); } );
 	}
 	if ( action.id.value == "agriculture.set_harvest_options" )
 	{

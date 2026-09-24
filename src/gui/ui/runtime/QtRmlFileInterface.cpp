@@ -25,12 +25,15 @@ QString fromRml( const Rml::String& value )
 }
 } // namespace
 
-QtRmlFileInterface::QtRmlFileInterface( QString assetRoot )
+QtRmlFileInterface::QtRmlFileInterface( QString assetRoot, QString fallbackAssetRoot )
 {
     const QFileInfo rootInfo( std::move( assetRoot ) );
     m_assetRoot = rootInfo.canonicalFilePath();
     if ( m_assetRoot.isEmpty() || !QFileInfo( m_assetRoot ).isDir() )
         qCritical() << "RmlUi asset root does not exist or is not a directory:" << rootInfo.absoluteFilePath();
+	const QFileInfo fallbackInfo( std::move( fallbackAssetRoot ) );
+	if ( fallbackInfo.exists() && fallbackInfo.isDir() )
+		m_fallbackAssetRoot = fallbackInfo.canonicalFilePath();
 }
 
 bool QtRmlFileInterface::valid() const noexcept { return !m_assetRoot.isEmpty(); }
@@ -41,23 +44,28 @@ QString QtRmlFileInterface::resolve( const Rml::String& logicalPath ) const
     if ( !valid() ) return {};
     QString logical = QDir::fromNativeSeparators( fromRml( logicalPath ) );
     while ( logical.startsWith( '/' ) ) logical.remove( 0, 1 );
-    const QFileInfo candidateInfo( QDir( m_assetRoot ).filePath( QDir::cleanPath( logical ) ) );
-    const QString candidate = candidateInfo.canonicalFilePath();
-    if ( candidate.isEmpty() ) return {};
-
-    const QString rootPrefix = QDir::cleanPath( m_assetRoot ) + '/';
+	const auto resolveUnder = [&]( const QString& root ) -> QString
+	{
+		if ( root.isEmpty() ) return {};
+		const QFileInfo candidateInfo( QDir( root ).filePath( QDir::cleanPath( logical ) ) );
+		const QString candidate = candidateInfo.canonicalFilePath();
+		if ( candidate.isEmpty() ) return {};
+		const QString rootPrefix = QDir::cleanPath( root ) + '/';
     const Qt::CaseSensitivity sensitivity =
 #ifdef Q_OS_WIN
         Qt::CaseInsensitive;
 #else
         Qt::CaseSensitive;
 #endif
-    if ( candidate.compare( m_assetRoot, sensitivity ) != 0 && !candidate.startsWith( rootPrefix, sensitivity ) )
+		if ( candidate.compare( root, sensitivity ) != 0 && !candidate.startsWith( rootPrefix, sensitivity ) )
     {
         qWarning() << "Rejected RmlUi resource outside asset root:" << logical << "resolved to" << candidate;
         return {};
     }
-    return candidate;
+		return candidate;
+	};
+	if ( const QString primary = resolveUnder( m_assetRoot ); !primary.isEmpty() ) return primary;
+	return resolveUnder( m_fallbackAssetRoot );
 }
 
 Rml::FileHandle QtRmlFileInterface::Open( const Rml::String& path )

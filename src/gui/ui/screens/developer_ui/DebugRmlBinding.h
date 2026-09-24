@@ -21,6 +21,7 @@ public:
 	explicit DebugRmlBinding( Rml::Context& );
 	~DebugRmlBinding() override;
 	bool initialize( DebugController& );
+	bool reloadDocument();
 	void shutdown();
 	void stateChanged( const DebugState& ) override;
 	std::size_t listenerCount() const

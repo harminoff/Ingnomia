@@ -1,20 +1,25 @@
 <rml>
 <head>
-  <title data-l10n="management.military.title">Military &amp; Diplomacy</title>
-  <link type="text/rcss" href="/styles/base.rcss" />
-  <link type="text/rcss" href="/styles/components.rcss" />
-  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <title data-l10n="management.diplomacy.window_title">Diplomacy</title>
+  <link type="text/template" href="/templates/management_window.rml" />
   <link type="text/rcss" href="/windows/management6c.rcss" />
 </head>
 <body id="diplomacy_root" class="m6c-root is-hidden">
+  <template src="management-window">
   <div id="diplomacy_workbench" class="c-window m6c-workbench">
     <div class="c-title-bar">
       <handle class="c-title-bar__drag-handle" move_target="diplomacy_workbench" edge_margin="64dp 12dp 52dp 12dp"><div class="c-title-bar__mark"></div>
-      <h1 class="c-title-bar__title" data-l10n="management.military.title">Military &amp; Diplomacy</h1></handle>
+      <h1 class="c-title-bar__title" data-l10n="management.diplomacy.window_title">Diplomacy</h1></handle>
       <button id="diplomacy_close" class="c-button" data-l10n="management.diplomacy.close">Close</button>
     </div>
     <div id="diplomacy_body" class="c-window__body m6c-body">
-      <div id="diplomacy_tabs" class="c-tabs m6c-tabs" role="tablist" aria-label="Management views"><button id="diplomacy_tab_squads" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.squads">Squads</button><button id="diplomacy_tab_roles" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.roles_uniforms">Roles &amp; Uniforms</button><button id="diplomacy_tab_priorities" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.target_priorities">Target priorities</button><button id="diplomacy_tab_neighbors" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.diplomacy.neighbors">Neighbors</button><button id="diplomacy_tab_missions" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.diplomacy.mission_activity">Missions</button></div>
+      <div id="diplomacy_shell" class="c-management-shell">
+        <aside id="diplomacy_rail" class="c-management-rail" aria-label="Diplomacy views" data-l10n-aria-label="management.diplomacy.views_label"><span class="c-management-rail__heading" data-l10n="management.navigation.views">Views</span>
+          <nav id="diplomacy_tabs" class="c-management-rail__nav" role="tablist" aria-label="Diplomacy views" aria-orientation="vertical">
+            <button id="diplomacy_tab_squads" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.squads">Squads</button><button id="diplomacy_tab_roles" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.roles_uniforms">Roles &amp; Uniforms</button><button id="diplomacy_tab_priorities" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.target_priorities">Target priorities</button><button id="diplomacy_tab_neighbors" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.diplomacy.neighbors" title="Review discovered neighbors and prepare a mission." data-l10n-title="management.diplomacy.neighbors_help">Neighbors</button><button id="diplomacy_tab_missions" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.diplomacy.mission_activity" title="Review active and completed mission details." data-l10n-title="management.diplomacy.missions_help">Missions</button>
+          </nav>
+        </aside>
+        <div class="c-management-main"><button id="diplomacy_views_toggle" class="c-button c-management-views-toggle" aria-expanded="false" title="Open the Diplomacy views menu" data-l10n-title="management.diplomacy.views_help">Views: Neighbors</button>
 
       <button id="diplomacy_back" class="c-button m6c-back" data-l10n="management.military.back">Back to list</button>
       <div id="diplomacy_loading" class="c-state-panel is-hidden"><h2 data-l10n="management.diplomacy.loading_title">Loading neighbors and missions</h2></div>
@@ -60,8 +65,12 @@
         </section>
       </div>
       <div id="diplomacy_footer" class="m6c-footer is-hidden"><span id="diplomacy_status"></span></div>
+        </div>
+      </div>
     </div>
     <span class="c-window__resize-grip" aria-hidden="true"></span>
   </div>
+  <div id="diplomacy_tooltip" class="c-tooltip c-management-tooltip" role="tooltip" aria-hidden="true"></div>
+  </template>
 </body>
 </rml>

@@ -20,6 +20,7 @@ class CommandPort
 public:
 	virtual ~CommandPort()                                    = default;
 	virtual CommandResult dispatch( const UiActionEnvelope& ) = 0;
+	virtual CommandResult dispatchConfirmed( const UiActionEnvelope& ) { return { CommandStatus::Rejected, false, "ui.error.confirmation_required" }; }
 };
 class ViewPort
 {
@@ -40,6 +41,7 @@ public:
 	}
 	void beginWorld( WorldEpoch );
 	void endWorld();
+    void activateViewForInput(View view) { state_.view = view; }
 	void open( View );
 	void openPopulation()
 	{
@@ -56,6 +58,8 @@ public:
 	void inventoryChanged();
 	void setPopulationFilter( std::string );
 	void setInventoryFilter( std::string );
+	void setInventoryColumnFilter( std::size_t column, std::string );
+	void toggleInventoryColumnSelection( std::size_t column, std::string );
 	void setInventoryOwnedOnly( bool );
 	void setInventoryCategory( std::string );
 	void toggleInventoryExpanded( InventoryRowId );
@@ -69,7 +73,23 @@ public:
 	void changePopulationPage( std::int32_t );
 	void changeInventoryPage( std::int32_t );
 	void selectCreature( CreatureId );
+	void selectSkill( CatalogId );
+	void selectProfession( ProfessionId );
+	void selectProfessionSkill( CatalogId );
+	void selectAvailableSkill( CatalogId );
+	void setProfessionDraftName( std::string );
+	void addProfessionSkill();
+	void removeProfessionSkill();
+	void moveProfessionSkill( std::int32_t );
+	void createProfession( std::string );
+	void saveProfession();
+	void deleteProfession();
+	void setScheduleActivity( ManagedScheduleActivity );
 	void selectInventory( InventoryRowId );
+	void openInventoryDetail( InventoryRowId );
+	void openRelatedInventoryItem( std::string itemID );
+	void backInventoryDetail();
+	void closeInventoryDetail();
 	void movePopulationSelection( std::int32_t );
 	void moveInventorySelection( std::int32_t );
 	void selectScheduleCell( ScheduleCellId );
@@ -77,6 +97,7 @@ public:
 	bool applyPopulation( Snapshot<std::vector<PopulationRow>> );
 	bool applyPopulationPatch( RowPatch<PopulationRow> );
 	bool applyProfessions( Snapshot<std::vector<ProfessionRow>> );
+	bool applySkillCatalog( WorldEpoch, std::vector<SkillCatalogRow> );
 	bool applyProfessionSkills( WorldEpoch, ProfessionId, std::vector<CatalogId> );
 	bool applySchedules( Snapshot<std::vector<ScheduleRow>> );
 	bool applySchedulePatch( RowPatch<ScheduleRow> );
@@ -99,7 +120,7 @@ public:
 	void onActionFinished( RequestId, CommandResult );
 
 private:
-	bool dispatch( std::string_view, UiActionPayload );
+	bool dispatch( std::string_view, UiActionPayload, bool confirmed = false );
 	bool accepts( WorldEpoch, Revision incoming, Revision current ) const;
 	void requestPopulationRefresh();
 	void requestInventoryRefresh();

@@ -6,28 +6,36 @@
     <link type="text/rcss" href="/styles/accessibility.rcss" />
     <link type="text/rcss" href="/screens/shell.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered">
-    <main class="c-shell-chamber c-shell-chamber--compact">
-        <header class="c-shell-masthead">
+<body class="l-shell-screen l-shell-screen--centered l-main-menu-screen">
+    <main class="c-shell-chamber l-main-menu-chamber">
+        <header class="l-main-menu-banner">
+            <span class="l-main-menu-eyebrow" data-l10n="shell.main_menu.settlement_simulation">A settlement simulation</span>
             <h1 class="c-shell-wordmark" data-l10n="shell.main_menu.ingnomia">INGNOMIA</h1>
+            <p id="shell-presentation" data-l10n="shell.main_menu.carve_a_home_beneath_the_mountain_and_guide_a_li">Carve a home beneath the mountain and guide a living settlement.</p>
             <span id="shell-version" class="c-shell-version" data-l10n="shell.main_menu.shell-version">Version unavailable</span>
         </header>
-        <section id="shell-presentation" class="c-shell-copy">
-            <p data-l10n="shell.main_menu.carve_a_home_beneath_the_mountain_and_guide_a_li">Carve a home beneath the mountain and guide a living settlement.</p>
-        </section>
-        <nav id="shell-main-actions" class="c-shell-actions">
-            <button id="shell-continue" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-continue">Continue</button>
-            <span id="shell-continue-reason" class="c-field__help" data-l10n="shell.main_menu.shell-continue-reason">Newest compatible save</span>
-            <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">Quick start</button>
-            <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start with the recommended settlement defaults.</span>
-            <button id="shell-tutorial" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-tutorial">Interactive tutorial</button>
-            <span class="c-field__help" data-l10n="shell.main_menu.shell-tutorial-help">Learn the settlement from five gnomes to a working civilization.</span>
-            <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Custom game</button>
-            <span class="c-field__help" data-l10n="shell.main_menu.choose_world_and_settlement_details_before_start">Choose world and settlement details before starting.</span>
-            <button id="shell-load" class="c-button" data-l10n="shell.main_menu.shell-load">Load game</button>
+        <div class="l-main-menu-body">
+            <section class="l-main-menu-feature">
+                <h2 data-l10n="shell.main_menu.pick_up_where_you_left_off">Your settlement</h2>
+                <p data-l10n="shell.main_menu.continue_your_latest_world">Return to your latest compatible world, or choose a saved game.</p>
+                <button id="shell-continue" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-continue" disabled="disabled" tab-index="-1">Continue</button>
+                <span id="shell-continue-reason" class="c-field__help">No compatible save found</span>
+                <button id="shell-load" class="c-button" data-l10n="shell.main_menu.shell-load">Load game</button>
+            </section>
+            <nav id="shell-main-actions" class="l-main-menu-options">
+                <h2 data-l10n="shell.main_menu.start_a_new_world">Start a new world</h2>
+                <button id="shell-tutorial" class="c-button" data-l10n="shell.main_menu.shell-tutorial">Interactive tutorial</button>
+                <span class="c-field__help" data-l10n="shell.main_menu.shell-tutorial-help">A guided first settlement: gather, dig, store, craft, farm, and build a dormitory.</span>
+                <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">Quick start</button>
+                <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start with the recommended settlement defaults.</span>
+                <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Custom game</button>
+                <span class="c-field__help" data-l10n="shell.main_menu.choose_world_and_settlement_details_before_start">Choose world and settlement details before starting.</span>
+            </nav>
+        </div>
+        <footer class="l-main-menu-footer">
             <button id="shell-settings" class="c-button" data-l10n="shell.main_menu.shell-settings">Settings</button>
             <button id="shell-exit" class="c-button c-button--danger" data-l10n="shell.main_menu.shell-exit">Exit</button>
-        </nav>
+        </footer>
         <section id="shell-action-error" class="c-alert-row c-alert-row--danger c-shell-status u-hidden">
             <span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.main_menu.action_could_not_be_completed">Action could not be completed</span><span id="shell-action-error-detail" class="c-alert-row__detail"></span></span>
         </section>

@@ -91,7 +91,7 @@ struct WorkshopProperties
 	Position posOut;
 
 	unsigned int owner           = 0;
-	unsigned int linkedStockpile = 0;
+	QList<unsigned int> linkedStockpiles;
 
 	bool toDestroy = false;
 	bool canDelete = false;
@@ -170,6 +170,8 @@ public:
 
 	void setLinkedStockpile( bool link );
 	unsigned int linkedStockpile();
+	QList<unsigned int> linkedStockpiles() const;
+	void setLinkedStockpiles(const QList<unsigned int>& ids);
 
 	Position inputPos()
 	{

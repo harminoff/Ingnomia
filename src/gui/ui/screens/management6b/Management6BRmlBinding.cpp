@@ -1,14 +1,21 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6BRmlBinding.h"
 
+#include "../ManagementTooltip.h"
+#include "../InventoryTableSchema.h"
 #include "../../localization/RmlText.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <iomanip>
+#include <map>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -24,6 +31,36 @@ namespace
 std::string esc( const std::string& v )
 {
 	return Rml::StringUtilities::EncodeRml( v );
+}
+std::string foldedLabel( std::string value )
+{
+	std::transform( value.begin(), value.end(), value.begin(), []( unsigned char c ) { return static_cast<char>( std::tolower( c ) ); } );
+	return value;
+}
+std::string readableCatalogId( std::string_view value )
+{
+	std::string out;
+	for ( const unsigned char c : value )
+	{
+		if ( c == '_' ) { out.push_back( ' ' ); continue; }
+		if ( !out.empty() && std::isupper( c ) && std::islower( static_cast<unsigned char>( out.back() ) ) ) out.push_back( ' ' );
+		out.push_back( static_cast<char>( c ) );
+	}
+	return out;
+}
+std::string filterOptionMarkup( std::vector<std::string> values, const std::vector<std::string>& selected, std::string_view idPrefix )
+{
+	std::ranges::stable_sort( values, []( const auto& left, const auto& right ) { return foldedLabel( left ) < foldedLabel( right ); } );
+	values.erase( std::unique( values.begin(), values.end(), []( const auto& left, const auto& right ) { return foldedLabel( left ) == foldedLabel( right ); } ), values.end() );
+	std::string out = "<button id='" + std::string( idPrefix ) + "_option_all' type='button' class='c-excel-filter-combo__option" + std::string( selected.empty() ? " is-selected" : "" ) + "' role='option' aria-selected='" + ( selected.empty() ? std::string( "true" ) : std::string( "false" ) ) + "' data-filter-value=''><span class='c-excel-filter-combo__check'>" + ( selected.empty() ? std::string( "[x]" ) : std::string( "[ ]" ) ) + "</span> All</button>";
+	std::size_t optionIndex = 0;
+	for ( const auto& value : values )
+	{
+		if ( value.empty() ) continue;
+		const bool active = std::ranges::any_of( selected, [&]( const auto& candidate ) { return foldedLabel( candidate ) == foldedLabel( value ); } );
+		out += "<button id='" + std::string( idPrefix ) + "_option_" + std::to_string( ++optionIndex ) + "' type='button' class='c-excel-filter-combo__option" + std::string( active ? " is-selected" : "" ) + "' role='option' aria-selected='" + ( active ? std::string( "true" ) : std::string( "false" ) ) + "' data-filter-value='" + esc( value ) + "'><span class='c-excel-filter-combo__check'>" + ( active ? std::string( "[x]" ) : std::string( "[ ]" ) ) + "</span> " + esc( value ) + "</button>";
+	}
+	return out;
 }
 std::string stableId( std::string_view prefix, std::string_view value )
 {
@@ -41,6 +78,62 @@ std::string inventoryKey( const InventoryRowId& i )
 {
 	return std::to_string( static_cast<unsigned>( i.depth ) ) + "\n" + i.category.value + "\n" + i.group.value + "\n" + i.item.value + "\n" + i.material.value;
 }
+std::string inventoryParentKey( InventoryRowId id )
+{
+	if ( id.depth == InventoryDepth::Material )
+	{
+		id.depth = InventoryDepth::Item;
+		id.material = {};
+	}
+	else if ( id.depth == InventoryDepth::Item )
+	{
+		id.depth = InventoryDepth::Group;
+		id.item = {};
+		id.material = {};
+	}
+	else if ( id.depth == InventoryDepth::Group )
+	{
+		id.depth = InventoryDepth::Category;
+		id.group = {};
+		id.item = {};
+		id.material = {};
+	}
+	return inventoryKey( id );
+}
+struct InventoryPathLabels
+{
+	std::string category, group, item, material;
+};
+class InventoryLabelLookup
+{
+	public:
+	explicit InventoryLabelLookup( const std::vector<InventoryRow>& rows )
+	{
+		for ( const auto& row : rows ) names_[static_cast<std::size_t>( row.id.depth )][key( row.id, row.id.depth )] = row.name;
+	}
+	[[nodiscard]] InventoryPathLabels labels( const InventoryRow& leaf ) const
+	{
+		InventoryPathLabels out;
+		std::array<std::string*, 4> destinations { &out.category, &out.group, &out.item, &out.material };
+		for ( std::size_t depth = 0; depth < destinations.size(); ++depth )
+		{
+			const auto found = names_[depth].find( key( leaf.id, static_cast<InventoryDepth>( depth ) ) );
+			if ( found != names_[depth].end() ) *destinations[depth] = found->second;
+		}
+		normalizeInventoryTableLabels( out.group, out.item, out.material, leaf.id.item.value );
+		return out;
+	}
+	private:
+	static std::string key( const InventoryRowId& id, InventoryDepth depth )
+	{
+		std::string out = id.category.value;
+		if ( depth >= InventoryDepth::Group ) out += '\x1f' + id.group.value;
+		if ( depth >= InventoryDepth::Item ) out += '\x1f' + id.item.value;
+		if ( depth >= InventoryDepth::Material ) out += '\x1f' + id.material.value;
+		return out;
+	}
+	std::array<std::unordered_map<std::string, std::string>, 4> names_;
+};
 const char* depth( InventoryDepth d )
 {
 	switch ( d )
@@ -140,38 +233,75 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 		  { closePopulation(); } );
 	bind( population_, "population_tab_citizens", [this]
 		  { controller_->open( View::Citizens ); } );
+	bind( population_, "population_tab_skills", [this]
+		  { controller_->open( View::Skills ); } );
 	bind( population_, "population_tab_professions", [this]
 		  { controller_->open( View::Professions ); } );
 	bind( population_, "population_tab_schedules", [this]
 		  { controller_->open( View::Schedules ); } );
+	bind( population_, "population_views_toggle", [this] {
+		if( auto* shell = population_->GetElementById( "population_shell" ) ) {
+			const bool open = !shell->IsClassSet( "is-rail-open" );
+			shell->SetClass( "is-rail-open", open );
+			if( auto* button = population_->GetElementById( "population_views_toggle" ) ) button->SetAttribute( "aria-expanded", open ? "true" : "false" );
+		}
+	} );
 	bind( population_, "population_refresh", [this]
 		  { controller_->refresh(); } );
+	bind( population_, "population_refresh_view", [this] { controller_->refresh(); } );
 	bind( population_, "population_sort_name", [this]
 		  { controller_->setPopulationSort( Sort::Name ); } );
 	bind( population_, "population_sort_profession", [this]
 		  { controller_->setPopulationSort( Sort::Profession ); } );
 	bind( population_, "creature_back", [this]
-		  { controller_->open( View::Citizens ); } );
+		  { controller_->open( View::Citizens ); focusPopulationRow(); } );
 	bind( population_, "population_page_previous", [this]
 		  { controller_->changePopulationPage( -1 ); } );
 	bind( population_, "population_page_next", [this]
 		  { controller_->changePopulationPage( 1 ); } );
-	bind( population_, "schedule_set_none", [this]
-		  { controller_->activateScheduleCell( ScheduleActivity::None ); } );
-	bind( population_, "schedule_set_eat", [this]
-		  { controller_->activateScheduleCell( ScheduleActivity::Eat ); } );
-	bind( population_, "schedule_set_sleep", [this]
-		  { controller_->activateScheduleCell( ScheduleActivity::Sleep ); } );
-	bind( population_, "schedule_set_training", [this]
-		  { controller_->activateScheduleCell( ScheduleActivity::Training ); } );
+	bind( population_, "schedule_set_none", [this]{ controller_->setScheduleActivity( ManagedScheduleActivity::None ); } );
+	bind( population_, "schedule_set_eat", [this]{ controller_->setScheduleActivity( ManagedScheduleActivity::Eat ); } );
+	bind( population_, "schedule_set_sleep", [this]{ controller_->setScheduleActivity( ManagedScheduleActivity::Sleep ); } );
+	bind( population_, "schedule_set_training", [this]{ controller_->setScheduleActivity( ManagedScheduleActivity::Training ); } );
+	const auto selectedActivity = [this] {
+		switch( controller_->state().scheduleActivity ) {
+		case ManagedScheduleActivity::Eat: return ScheduleActivity::Eat;
+		case ManagedScheduleActivity::Sleep: return ScheduleActivity::Sleep;
+		case ManagedScheduleActivity::Training: return ScheduleActivity::Training;
+		default: return ScheduleActivity::None;
+		}
+	};
+	bind( population_, "schedule_apply_cell", [this, selectedActivity]{ controller_->activateScheduleCell( selectedActivity() ); } );
+	bind( population_, "schedule_apply_row", [this, selectedActivity]{ if( controller_->state().selectedScheduleCell ) controller_->setScheduleRow( controller_->state().selectedScheduleCell->creature, selectedActivity() ); } );
+	bind( population_, "schedule_apply_column", [this, selectedActivity]{ if( controller_->state().selectedScheduleCell ) controller_->setScheduleColumn( controller_->state().selectedScheduleCell->hour, selectedActivity() ); } );
+	bind( population_, "skill_enable_all", [this]{ if( controller_->state().selectedSkill ) controller_->setSkillForAll( *controller_->state().selectedSkill, true ); } );
+	bind( population_, "skill_disable_all", [this]{ if( controller_->state().selectedSkill ) controller_->setSkillForAll( *controller_->state().selectedSkill, false ); } );
+	bind( population_, "creature_skills_enable_all", [this]{ if( controller_->state().selectedCreature ) controller_->setAllSkills( *controller_->state().selectedCreature, true ); } );
+	bind( population_, "creature_skills_disable_all", [this]{ if( controller_->state().selectedCreature ) controller_->setAllSkills( *controller_->state().selectedCreature, false ); } );
+	bindEvent( population_, "skills_catalog_rows", "click", [this]( Rml::Event& e ) { for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){ auto id=x->GetAttribute<Rml::String>("data-skill",""); if(!id.empty()){controller_->selectSkill(CatalogId{id});break;} } } );
+	bindEvent( population_, "skill_citizen_rows", "click", [this]( Rml::Event& e ) { for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){ auto id=x->GetAttribute<Rml::String>("data-creature",""); if(id.empty()||!controller_->state().selectedSkill)continue; try{controller_->setSkill(CreatureId{static_cast<std::uint32_t>(std::stoul(id))},*controller_->state().selectedSkill,x->GetAttribute<Rml::String>("data-active","")!="true");}catch(...){} break;} } );
+	bindEvent( population_, "profession_rows", "click", [this]( Rml::Event& e ) { for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){ auto id=x->GetAttribute<Rml::String>("data-profession",""); if(!id.empty()){controller_->selectProfession(ProfessionId{id});break;} } } );
+	bindEvent( population_, "profession_selected_skills", "click", [this]( Rml::Event& e ) { for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){ auto id=x->GetAttribute<Rml::String>("data-skill",""); if(!id.empty()){controller_->selectProfessionSkill(CatalogId{id});break;} } } );
+	bindEvent( population_, "profession_available_skills", "click", [this]( Rml::Event& e ) { for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){ auto id=x->GetAttribute<Rml::String>("data-skill",""); if(!id.empty()){controller_->selectAvailableSkill(CatalogId{id});break;} } } );
+	bind( population_, "profession_skill_add", [this]{ controller_->addProfessionSkill(); } );
+	bind( population_, "profession_skill_remove", [this]{ controller_->removeProfessionSkill(); } );
+	bind( population_, "profession_skill_up", [this]{ controller_->moveProfessionSkill(-1); } );
+	bind( population_, "profession_skill_down", [this]{ controller_->moveProfessionSkill(1); } );
+	bind( population_, "profession_create", [this]{ if(auto* e=rmlui_dynamic_cast<Rml::ElementFormControl*>(population_->GetElementById("profession_create_name"))){ const auto name=e->GetValue(); controller_->createProfession(name); if(controller_->state().selectedProfession && controller_->state().selectedProfession->value==name)e->SetValue(""); } } );
+	bindEvent( population_, "profession_name", "input", [this]( Rml::Event& event ) { if ( auto* name = rmlui_dynamic_cast<Rml::ElementFormControl*>( event.GetCurrentElement() ) ) controller_->setProfessionDraftName( name->GetValue() ); } );
+	bind( population_, "profession_save", [this]{ if(auto* e=rmlui_dynamic_cast<Rml::ElementFormControl*>(population_->GetElementById("profession_name")))controller_->setProfessionDraftName(e->GetValue()); controller_->saveProfession(); } );
+	bind( population_, "profession_delete", [this]{ if(controller_->state().selectedProfession && controller_->state().selectedProfession->value!="Gnomad"){ text(population_,"population_delete_name",controller_->state().selectedProfession->value); visible(population_,"population_delete_confirm",true); if(auto* e=population_->GetElementById("population_delete_cancel"))e->Focus(); } } );
+	bind( population_, "population_delete_cancel", [this]{ visible(population_,"population_delete_confirm",false); if(auto* e=population_->GetElementById("profession_delete"))e->Focus(); } );
+	bind( population_, "population_delete_accept", [this]{ controller_->deleteProfession(); visible(population_,"population_delete_confirm",false); if(auto* e=population_->GetElementById("profession_create_name"))e->Focus(); } );
+	bindEvent( population_, "population_delete_confirm", "keydown", [this]( Rml::Event& event ) { if ( static_cast<Rml::Input::KeyIdentifier>( event.GetParameter<int>( "key_identifier", 0 ) ) == Rml::Input::KI_ESCAPE ) { visible( population_, "population_delete_confirm", false ); if ( auto* button = population_->GetElementById( "profession_delete" ) ) button->Focus(); event.StopPropagation(); } } );
 	bindEvent( population_, "creature_skills", "click", [this]( Rml::Event& e )
 			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto skill=x->GetAttribute<Rml::String>("data-skill","");if(skill.empty()||!controller_->state().selectedCreature)continue;controller_->setSkill(*controller_->state().selectedCreature,CatalogId{skill},x->GetAttribute<Rml::String>("data-active","")!="true");break;} } );
 	bindEvent( population_, "creature_professions", "click", [this]( Rml::Event& e )
 			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto profession=x->GetAttribute<Rml::String>("data-profession","");if(profession.empty()||!controller_->state().selectedCreature)continue;controller_->setProfession(*controller_->state().selectedCreature,ProfessionId{profession});break;} } );
 	bindEvent( population_, "population_rows", "click", [this]( Rml::Event& e )
-			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto raw=x->GetAttribute<Rml::String>("data-creature","");if(raw.empty())continue;try{controller_->selectCreature(CreatureId{static_cast<std::uint32_t>(std::stoul(raw))});}catch(...){}break;} } );
+			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto raw=x->GetAttribute<Rml::String>("data-creature","");if(raw.empty())continue;try{controller_->selectCreature(CreatureId{static_cast<std::uint32_t>(std::stoul(raw))});if(citizenSelectedHandler_)citizenSelectedHandler_();}catch(...){}break;} } );
 	bindEvent( population_, "population_rows", "keydown", [this]( Rml::Event& e )
-			   {const auto key=static_cast<Rml::Input::KeyIdentifier>(e.GetParameter<int>("key_identifier",0));if(key==Rml::Input::KI_UP){controller_->movePopulationSelection(-1);focusPopulationRow();}else if(key==Rml::Input::KI_DOWN){controller_->movePopulationSelection(1);focusPopulationRow();}else if(key==Rml::Input::KI_RETURN&&controller_->state().selectedCreature)controller_->selectCreature(*controller_->state().selectedCreature);else return;e.StopPropagation(); } );
+			   {const auto key=static_cast<Rml::Input::KeyIdentifier>(e.GetParameter<int>("key_identifier",0));if(key==Rml::Input::KI_UP){controller_->movePopulationSelection(-1);focusPopulationRow();}else if(key==Rml::Input::KI_DOWN){controller_->movePopulationSelection(1);focusPopulationRow();}else if(key==Rml::Input::KI_RETURN&&controller_->state().selectedCreature){controller_->selectCreature(*controller_->state().selectedCreature);if(citizenSelectedHandler_)citizenSelectedHandler_();}else return;e.StopPropagation(); } );
 	auto populationSearchChanged = [this]( Rml::Event& e )
 	{
 		if ( auto* x = e.GetCurrentElement() )
@@ -190,16 +320,103 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 			   {const auto key=static_cast<Rml::Input::KeyIdentifier>(e.GetParameter<int>("key_identifier",0));if(key==Rml::Input::KI_LEFT)controller_->moveScheduleFocus(-1,0);else if(key==Rml::Input::KI_RIGHT)controller_->moveScheduleFocus(1,0);else if(key==Rml::Input::KI_UP)controller_->moveScheduleFocus(0,-1);else if(key==Rml::Input::KI_DOWN)controller_->moveScheduleFocus(0,1);else if(key==Rml::Input::KI_HOME)controller_->moveScheduleFocus(-24,0);else if(key==Rml::Input::KI_END)controller_->moveScheduleFocus(24,0);else if(key==Rml::Input::KI_PRIOR)controller_->moveScheduleFocus(0,-1);else if(key==Rml::Input::KI_NEXT)controller_->moveScheduleFocus(0,1);else if((key==Rml::Input::KI_RETURN||key==Rml::Input::KI_SPACE)&&controller_->state().selectedScheduleCell){const auto cell=*controller_->state().selectedScheduleCell;const auto row=std::ranges::find_if(controller_->state().schedules,[&](const auto&r){return r.creature==cell.creature;});if(row!=controller_->state().schedules.end())controller_->activateScheduleCell(next(row->hours[cell.hour]));}else return;e.StopPropagation();focusScheduleCell(); } );
 	bind( inventory_, "inventory_close", [this]
 		  { closeInventory(); } );
-	bind( inventory_, "inventory_filter_owned", [this]
-		  { controller_->setInventoryOwnedOnly( !controller_->state().inventoryOwnedOnly ); } );
-	bind( inventory_, "inventory_sort_name", [this]
-		  { controller_->setInventorySort( Sort::Name ); } );
+	bind( inventory_, "inventory_sort_category", [this]
+		  { controller_->setInventorySort( Sort::Category ); } );
+	bind( inventory_, "inventory_sort_group", [this]
+		  { controller_->setInventorySort( Sort::Group ); } );
+	bind( inventory_, "inventory_sort_item", [this]
+		  { controller_->setInventorySort( Sort::Item ); } );
+	bind( inventory_, "inventory_sort_material", [this]
+		  { controller_->setInventorySort( Sort::Material ); } );
 	bind( inventory_, "inventory_sort_total", [this]
 		  { controller_->setInventorySort( Sort::Total ); } );
 	bind( inventory_, "inventory_sort_stock", [this]
 		  { controller_->setInventorySort( Sort::Stock ); } );
+	const std::array inventoryFilters {
+		"inventory_filter_category", "inventory_filter_group", "inventory_filter_item",
+		"inventory_filter_material", "inventory_filter_stock", "inventory_filter_total"
+	};
+	const std::array inventoryFilterToggles {
+		"inventory_filter_category_toggle", "inventory_filter_group_toggle", "inventory_filter_item_toggle",
+		"inventory_filter_material_toggle", "inventory_filter_stock_toggle", "inventory_filter_total_toggle"
+	};
+	const std::array inventoryFilterOptions {
+		"inventory_filter_category_options", "inventory_filter_group_options", "inventory_filter_item_options",
+		"inventory_filter_material_options", "inventory_filter_stock_options", "inventory_filter_total_options"
+	};
+	for ( std::size_t column = 0; column < inventoryFilters.size(); ++column )
+	{
+		const auto* id = inventoryFilters[column];
+		auto changed = [this, id, column]( Rml::Event& event, bool restoreFocus )
+		{
+			if ( column >= 4 ) return;
+			auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( event.GetCurrentElement() );
+			handlingInventoryFilterInput_ = restoreFocus;
+			controller_->setInventoryColumnFilter( column, control ? control->GetValue() : std::string {} );
+			handlingInventoryFilterInput_ = false;
+			if ( restoreFocus )
+				if ( auto* input = inventory_->GetElementById( id ); input && context_.GetFocusElement() != input ) input->Focus();
+		};
+		bindEvent( inventory_, id, "input", [changed]( Rml::Event& event ) { changed( event, true ); } );
+		bindEvent( inventory_, id, "change", [changed]( Rml::Event& event ) { changed( event, false ); } );
+		bind( inventory_, inventoryFilterToggles[column], [this, column]
+		{
+			suppressNextInventoryFilterClick_ = false;
+			inventoryFilterMenuColumn_ = inventoryFilterMenuColumn_ && *inventoryFilterMenuColumn_ == column ? std::nullopt : std::optional<std::size_t> { column };
+			stateChanged( controller_->state() );
+		} );
+		auto toggleOption = [this, column]( Rml::Event& event )
+		{
+			for ( auto* option = event.GetTargetElement(); option && option != event.GetCurrentElement(); option = option->GetParentNode() )
+			{
+				if ( !option->HasAttribute( "data-filter-value" ) ) continue;
+				const auto value = option->GetAttribute<Rml::String>( "data-filter-value", "" );
+				handlingInventoryFilterOption_ = true;
+				controller_->toggleInventoryColumnSelection( column, value );
+				handlingInventoryFilterOption_ = false;
+				const auto& selected = controller_->state().inventoryColumnSelections[column];
+				for ( auto* candidate = event.GetCurrentElement()->GetFirstChild(); candidate; candidate = candidate->GetNextSibling() )
+				{
+					if ( !candidate->HasAttribute( "data-filter-value" ) ) continue;
+					const auto candidateValue = candidate->GetAttribute<Rml::String>( "data-filter-value", "" );
+					const bool active = candidateValue.empty() ? selected.empty() : std::ranges::any_of( selected, [&]( const auto& item ) { return foldedLabel( item ) == foldedLabel( candidateValue ); } );
+					candidate->SetClass( "is-selected", active );
+					candidate->SetAttribute( "aria-selected", active ? "true" : "false" );
+					if ( auto* check = candidate->GetFirstChild() ) check->SetInnerRML( active ? "[x]" : "[ ]" );
+				}
+				event.StopPropagation();
+				break;
+			}
+		};
+		// Toggle on press so a list re-render cannot invalidate RmlUi's later
+		// mouse-up/click target. This is also noticeably more responsive on long lists.
+		bindEvent( inventory_, inventoryFilterOptions[column], "mousedown", [this, toggleOption]( Rml::Event& event )
+		{
+			suppressNextInventoryFilterClick_ = true;
+			toggleOption( event );
+		} );
+		bindEvent( inventory_, inventoryFilterOptions[column], "click", [this, toggleOption]( Rml::Event& event )
+		{
+			if ( suppressNextInventoryFilterClick_ )
+			{
+				suppressNextInventoryFilterClick_ = false;
+				event.StopPropagation();
+				return;
+			}
+			toggleOption( event );
+		} );
+		bindEvent( inventory_, inventoryFilterOptions[column], "keydown", [this, toggleOption]( Rml::Event& event )
+		{
+			const auto key = static_cast<Rml::Input::KeyIdentifier>( event.GetParameter<int>( "key_identifier", 0 ) );
+			if ( key == Rml::Input::KI_RETURN || key == Rml::Input::KI_SPACE )
+			{
+				suppressNextInventoryFilterClick_ = true;
+				toggleOption( event );
+			}
+		} );
+	}
 	bindEvent( inventory_, "inventory_rows", "click", [this]( Rml::Event& e )
-			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto d=x->GetAttribute<Rml::String>("data-depth","");if(d.empty())continue;const InventoryRowId id{CatalogId{x->GetAttribute<Rml::String>("data-category","")},CatalogId{x->GetAttribute<Rml::String>("data-group","")},CatalogId{x->GetAttribute<Rml::String>("data-item","")},CatalogId{x->GetAttribute<Rml::String>("data-material","")},d=="category"?InventoryDepth::Category:d=="group"?InventoryDepth::Group:d=="material"?InventoryDepth::Material:InventoryDepth::Item};if(id.depth==InventoryDepth::Category||id.depth==InventoryDepth::Group||id.depth==InventoryDepth::Item)controller_->toggleInventoryExpanded(id);else{controller_->selectInventory(id);focusInventoryRow();}break;} } );
+			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto d=x->GetAttribute<Rml::String>("data-depth","");if(d.empty())continue;const InventoryRowId id{CatalogId{x->GetAttribute<Rml::String>("data-category","")},CatalogId{x->GetAttribute<Rml::String>("data-group","")},CatalogId{x->GetAttribute<Rml::String>("data-item","")},CatalogId{x->GetAttribute<Rml::String>("data-material","")},d=="category"?InventoryDepth::Category:d=="group"?InventoryDepth::Group:d=="material"?InventoryDepth::Material:InventoryDepth::Item};controller_->selectInventory(id);controller_->openInventoryDetail(id);if(auto* back=inventory_->GetElementById("inventory_detail_back"))back->Focus();break;} } );
 	bindEvent( inventory_, "inventory_rows", "keydown", [this]( Rml::Event& e )
 	{
 		const auto key = static_cast<Rml::Input::KeyIdentifier>( e.GetParameter<int>( "key_identifier", 0 ) );
@@ -225,48 +442,54 @@ bool Management6BRmlBinding::initialize( Management6BController& c )
 		}
 		else if ( key == Rml::Input::KI_RETURN || key == Rml::Input::KI_SPACE )
 		{
-			bool section = false;
-			for ( auto* x = e.GetTargetElement(); x && x != e.GetCurrentElement(); x = x->GetParentNode() )
-			{
-				const auto d = x->GetAttribute<Rml::String>( "data-depth", "" );
-				if ( d.empty() )
-					continue;
-				section = d == "category" || d == "group" || d == "item";
-				if ( section )
-				{
-					const InventoryRowId id { CatalogId { x->GetAttribute<Rml::String>( "data-category", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-group", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-item", "" ) }, CatalogId { x->GetAttribute<Rml::String>( "data-material", "" ) }, d == "category" ? InventoryDepth::Category : d == "group" ? InventoryDepth::Group : InventoryDepth::Item };
-					controller_->toggleInventoryExpanded( id );
-				}
-				break;
-			}
-			if ( !section && key == Rml::Input::KI_SPACE )
-				controller_->toggleSelectedWatch();
+			if ( key == Rml::Input::KI_SPACE ) controller_->toggleSelectedWatch();
+			else if ( controller_->state().selectedInventory ) controller_->openInventoryDetail( *controller_->state().selectedInventory );
 		}
 		else
 			return;
 		e.StopPropagation();
 	} );
-	auto inventorySearchChanged = [this]( Rml::Event& e )
-	{
-		if ( auto* x = e.GetCurrentElement() )
+	bindEvent( inventory_, "inventory_rows", "scroll", [this]( Rml::Event& ) { renderInventoryViewport(); } );
+	bind( inventory_, "inventory_detail_back", [this] { controller_->backInventoryDetail(); if ( !controller_->state().inventoryDetail ) focusInventoryRow(); } );
+	for ( const char* container : { "inventory_detail_made_by", "inventory_detail_used_in", "inventory_detail_locations" } )
+		bindEvent( inventory_, container, "click", [this]( Rml::Event& event )
 		{
-			auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( x );
-			controller_->setInventoryFilter( control ? control->GetValue() : x->GetAttribute<Rml::String>( "value", "" ) );
-			// Updating the filter synchronously rebuilds the result rows and tabs.
-			// RmlUi may clear focus during that DOM work, so restore the existing
-			// native input after the controller notification has completed.
-			if ( auto* search = inventory_->GetElementById( "inventory_search" ); search && context_.GetFocusElement() != search )
-				search->Focus();
-		}
-	};
-	bindEvent( inventory_, "inventory_search", "input", inventorySearchChanged );
-	bindEvent( inventory_, "inventory_search", "change", inventorySearchChanged );
-	bindEvent( inventory_, "inventory_category_tabs", "click", [this]( Rml::Event& e )
-			   {for(auto*x=e.GetTargetElement();x&&x!=e.GetCurrentElement();x=x->GetParentNode()){const auto category=x->GetAttribute<Rml::String>("data-category","");if(category.empty()&&!x->HasAttribute("data-category"))continue;controller_->setInventoryCategory(std::string(category));e.StopPropagation();break;} } );
+			for ( auto* node = event.GetTargetElement(); node && node != event.GetCurrentElement(); node = node->GetParentNode() )
+			{
+				const auto item = node->GetAttribute<Rml::String>( "data-item-link", "" );
+				if ( !item.empty() ) { controller_->openRelatedInventoryItem( item ); event.StopPropagation(); return; }
+				const auto stockpile = node->GetAttribute<Rml::String>( "data-stockpile-link", "" );
+				if ( !stockpile.empty() && stockpileOpenHandler_ )
+				{
+					stockpileOpenHandler_( static_cast<unsigned int>( std::stoul( stockpile ) ) );
+					event.StopPropagation(); return;
+				}
+			}
+		} );
+	for ( const char* id : { "population_views_toggle", "population_tab_citizens", "population_tab_skills",
+		"population_tab_professions", "population_tab_schedules", "skill_enable_all", "skill_disable_all",
+		"creature_skills_enable_all", "creature_skills_disable_all", "schedule_apply_cell",
+		"schedule_apply_row", "schedule_apply_column" } )
+	{
+		if ( auto* target = population_->GetElementById( id ) ) target->SetAttribute( "aria-describedby", "population_tooltip" );
+		for ( const char* event : { "mouseover", "focus" } )
+			bindEvent( population_, id, event, [this]( Rml::Event& e ) {
+				showManagementTooltip( population_, context_, "population_tooltip", e.GetCurrentElement() );
+			} );
+		for ( const char* event : { "mouseout", "blur" } )
+			bindEvent( population_, id, event, [this]( Rml::Event& ) { hideManagementTooltip( population_, "population_tooltip" ); } );
+	}
 	population_->Show();
 	inventory_->Show();
 	stateChanged( c.state() );
 	return true;
+}
+bool Management6BRmlBinding::reloadDocuments()
+{
+	auto* controller = controller_;
+	if ( !controller ) return false;
+	shutdown();
+	return initialize( *controller );
 }
 void Management6BRmlBinding::shutdown()
 {
@@ -274,6 +497,7 @@ void Management6BRmlBinding::shutdown()
 		if ( l.target )
 			l.target->RemoveEventListener( l.event, l.callback.get() );
 	listeners_.clear();
+	inventoryFilterMenuColumn_.reset();
 	if ( population_ )
 	{
 		context_.UnloadDocument( population_ );
@@ -284,6 +508,13 @@ void Management6BRmlBinding::shutdown()
 		context_.UnloadDocument( inventory_ );
 		inventory_ = nullptr;
 	}
+	renderedInventoryRows_.reset();
+	renderedInventoryDetailMarkup_.clear();
+	renderedInventoryBackLabel_.clear();
+	inventoryRowMarkup_.clear();
+	inventoryViewportFirst_ = static_cast<std::size_t>( -1 );
+	renderingInventoryViewport_ = false;
+	inventoryFilterMenuColumn_.reset();
 	controller_ = nullptr;
 }
 bool Management6BRmlBinding::openPopulation( FocusToken focus )
@@ -349,7 +580,10 @@ void Management6BRmlBinding::bindEvent( Rml::ElementDocument* d, const char* id,
 {
 	if ( auto* e = d->GetElementById( id ) )
 	{
-		auto cb = std::make_unique<Callback>( std::move( fn ) );
+		auto cb = std::make_unique<Callback>([this, d, fn=std::move(fn)](Rml::Event& event) {
+            controller_->activateViewForInput(d == inventory_ ? View::Inventory : controller_->state().populationView);
+            fn(event);
+        });
 		e->AddEventListener( event, cb.get() );
 		listeners_.push_back( { e, event, std::move( cb ) } );
 	}
@@ -365,8 +599,22 @@ void Management6BRmlBinding::focusInventoryRow()
 {
 	if ( !inventory_ || !controller_->state().selectedInventory )
 		return;
-	if ( auto* e = inventory_->GetElementById( stableId( "inventory_row_", inventoryKey( *controller_->state().selectedInventory ) ) ) )
-		e->Focus();
+	const auto id = stableId( "inventory_row_", inventoryKey( *controller_->state().selectedInventory ) );
+	auto* target = inventory_->GetElementById( id );
+	if ( !target )
+	{
+		const auto rows = controller_->inventoryPage();
+		const auto selected = std::ranges::find_if( rows, [&]( const auto& row ) { return row.id == *controller_->state().selectedInventory; } );
+		if ( selected != rows.end() )
+			if ( auto* list = inventory_->GetElementById( "inventory_rows" ) )
+			{
+				list->SetScrollTop( static_cast<float>( std::distance( rows.begin(), selected ) ) * 48.f );
+				inventoryViewportFirst_ = static_cast<std::size_t>( -1 );
+				renderInventoryViewport();
+				target = inventory_->GetElementById( id );
+			}
+	}
+	if ( target ) target->Focus();
 }
 void Management6BRmlBinding::focusScheduleCell()
 {
@@ -386,15 +634,29 @@ void Management6BRmlBinding::rml( Rml::ElementDocument* d, const char* id, const
 {
 	if ( d )
 		if ( auto* e = d->GetElementById( id ) )
+		{
+			const float scrollTop = e->GetScrollTop();
+			std::string focusId;
+			bool focusWithin = false;
+			for ( auto* focused = context_.GetFocusElement(); focused; focused = focused->GetParentNode() )
+			{
+				if ( focused == e ) { focusWithin = true; break; }
+				if ( focusId.empty() ) focusId = focused->GetId();
+			}
 			e->SetInnerRML( v );
+			e->SetScrollTop( scrollTop );
+			if ( focusWithin && !focusId.empty() ) if ( auto* replacement = d->GetElementById( focusId ) ) replacement->Focus();
+		}
 }
 void Management6BRmlBinding::visible( Rml::ElementDocument* d, const char* id, bool v )
 {
 	if ( d )
 		if ( auto* e = d->GetElementById( id ) )
 		{
+			if ( e->IsClassSet( "is-hidden" ) == !v ) return;
 			e->SetClass( "is-hidden", !v );
-			e->SetProperty( "display", v ? "block" : "none" );
+				if( v ) e->RemoveProperty( "display" );
+				else e->SetProperty( "display", "none" );
 		}
 }
 bool Management6BRmlBinding::activateElement( std::string_view id )
@@ -448,75 +710,121 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 	}
 	auto tr = [this]( const char* key, std::initializer_list<localization::TextArgument> args = {} )
 	{ return textCatalog_.format( LocalizationKey { key }, args ); };
-	const bool pop = s.populationOpen;
-	const bool inv = s.inventoryOpen;
-	if ( pop )
-		population_->Show();
-	else
-		population_->Hide();
-	if ( inv )
-		inventory_->Show();
-	else
-		inventory_->Hide();
+	const bool pop = s.populationOpen && (!secondarySurface_ || !*secondarySurface_);
+	const bool inv = s.inventoryOpen && (!secondarySurface_ || *secondarySurface_);
+	if ( !pop ) hideManagementTooltip( population_, "population_tooltip" );
+	if ( pop != population_->IsVisible() )
+		pop ? population_->Show() : population_->Hide();
+	if ( inv != inventory_->IsVisible() )
+		inv ? inventory_->Show() : inventory_->Hide();
 	visible( population_, "population_root", pop );
 	visible( inventory_, "inventory_root", inv );
 	visible( population_, "population_citizens", pop && ( s.populationView == View::Citizens ) );
+	visible( population_, "population_skills", pop && ( s.populationView == View::Skills ) );
 	visible( population_, "population_professions", pop && ( s.populationView == View::Professions ) );
 	visible( population_, "population_schedules", pop && ( s.populationView == View::Schedules ) );
 	visible( population_, "creature_detail", pop && ( s.populationView == View::Creature ) );
 	visible( population_, "population_loading", s.loadingPopulation );
+	visible( population_, "population_toolbar", pop && s.populationView == View::Citizens );
+	visible( population_, "population_refresh_view", pop && s.populationView != View::Citizens );
 	visible( inventory_, "inventory_loading", s.loadingInventory );
-	// Owned-only still presents the full category/group/item hierarchy.  Only
-	// text and category searches use the compact filtered-row alignment.
-	const bool filteredInventory = !s.inventoryCategory.empty() || !s.inventoryFilter.empty();
+	if ( inv )
+	{
+	const bool filteredInventory = std::ranges::any_of( s.inventoryColumnFilters, []( const auto& value ) { return !value.empty(); } )
+		|| std::ranges::any_of( s.inventoryColumnSelections, []( const auto& values ) { return !values.empty(); } );
 	if ( auto* e = inventory_->GetElementById( "inventory_workbench" ) )
 	{
 		e->SetClass( "is-filtered", filteredInventory );
 	}
-	// Keep the native form value synchronized with the pointer-free controller
-	// state.  Inventory snapshots can arrive while the user is typing; without
-	// this restore, the DOM may retain an old value (or clear it) and the next
-	// input event appears to require a second click/focus.
-	if ( auto* search = inventory_->GetElementById( "inventory_search" ) )
+	const std::array inventoryFilters {
+		"inventory_filter_category", "inventory_filter_group", "inventory_filter_item",
+		"inventory_filter_material", "inventory_filter_stock", "inventory_filter_total"
+	};
+	const std::array inventoryFilterToggles {
+		"inventory_filter_category_toggle", "inventory_filter_group_toggle", "inventory_filter_item_toggle",
+		"inventory_filter_material_toggle", "inventory_filter_stock_toggle", "inventory_filter_total_toggle"
+	};
+	const std::array inventoryFilterOptions {
+		"inventory_filter_category_options", "inventory_filter_group_options", "inventory_filter_item_options",
+		"inventory_filter_material_options", "inventory_filter_stock_options", "inventory_filter_total_options"
+	};
+	const InventoryLabelLookup inventoryLabels( s.inventory );
+	for ( std::size_t column = 0; column < inventoryFilters.size(); ++column )
+		if ( auto* input = rmlui_dynamic_cast<Rml::ElementFormControl*>( inventory_->GetElementById( inventoryFilters[column] ) ) )
+			{
+				const auto value = column >= 4 && !s.inventoryColumnSelections[column].empty() ? ( s.inventoryColumnSelections[column].front() == "Has (>0)" ? std::string( ">0" ) : std::string( "0" ) ) : s.inventoryColumnFilters[column];
+				if ( input->GetValue() != value ) input->SetValue( value );
+			}
+	for ( std::size_t column = 0; column < inventoryFilters.size(); ++column )
 	{
-		if ( auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( search ) )
-			if ( control->GetValue() != s.inventoryFilter ) control->SetValue( s.inventoryFilter );
+		const bool open = inventoryFilterMenuColumn_ && *inventoryFilterMenuColumn_ == column;
+			if ( open && !handlingInventoryFilterOption_ )
+		{
+			std::unordered_set<std::string> parents;
+			for ( const auto& row : s.inventory )
+				if ( row.id.depth != InventoryDepth::Category ) parents.insert( inventoryParentKey( row.id ) );
+			std::vector<std::string> values;
+			values.reserve( s.inventory.size() );
+			for ( const auto& row : s.inventory )
+			{
+				if ( parents.contains( inventoryKey( row.id ) ) ) continue;
+					const auto labels = inventoryLabels.labels( row );
+				if ( column == 0 ) values.push_back( labels.category );
+				else if ( column == 1 ) values.push_back( labels.group );
+				else if ( column == 2 ) values.push_back( labels.item );
+				else if ( column == 3 ) values.push_back( labels.material );
+				else if ( column == 4 ) values.push_back( inventoryQuantityLabel( row.stockpiled ) );
+				else values.push_back( inventoryQuantityLabel( row.total ) );
+			}
+			if ( column >= 4 ) values = { "Has (>0)", "None (0)" };
+			rml( inventory_, inventoryFilterOptions[column], filterOptionMarkup( std::move( values ), s.inventoryColumnSelections[column], inventoryFilterOptions[column] ) );
+		}
+		visible( inventory_, inventoryFilterOptions[column], open );
+		if ( auto* input = inventory_->GetElementById( inventoryFilters[column] ) ) input->SetAttribute( "aria-expanded", open ? "true" : "false" );
+		if ( auto* toggle = inventory_->GetElementById( inventoryFilterToggles[column] ) )
+		{
+			toggle->SetAttribute( "aria-expanded", open ? "true" : "false" );
+			toggle->SetClass( "is-selected", open );
+			toggle->SetClass( "has-selection", !s.inventoryColumnSelections[column].empty() );
+		}
 	}
 	if ( auto* e = inventory_->GetElementById( "inventory_column_head" ) )
 		e->SetProperty( "display", "flex" );
-	std::string categoryTabs = "<button id='inventory_category_all' class='c-tabs__tab l-m6b-tab" + ( s.inventoryCategory.empty() ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory.empty() ? std::string( "true" ) : std::string( "false" ) ) + "' data-category=''>" + esc( tr( "management.inventory.tab_all" ) ) + "</button>";
-	std::vector<std::pair<std::string, std::string>> categories;
-	for ( const auto& r : s.inventory )
+	const auto tableColumns = inventoryTableColumns( "" );
+	text( inventory_, "inventory_column_category", tableColumns.category );
+	text( inventory_, "inventory_column_group", tableColumns.group );
+	text( inventory_, "inventory_column_item", tableColumns.item );
+	text( inventory_, "inventory_column_material", tableColumns.material );
+	const auto updateSort = [this, &s]( const char* id, const char* directionId, Sort key, bool selected = false )
 	{
-		const auto& id = r.id.category.value;
-		if ( id.empty() || std::ranges::any_of( categories, [&]( const auto& c ) { return c.first == id; } ) )
-			continue;
-		categories.emplace_back( id, r.id.depth == InventoryDepth::Category ? r.name : id );
+		selected = selected || s.inventorySort == key;
+		if ( auto* e = inventory_->GetElementById( id ) )
+		{
+			e->SetClass( "is-selected", selected );
+			e->SetAttribute( "aria-pressed", selected ? "true" : "false" );
+		}
+		text( inventory_, directionId, selected ? ( s.inventorySortDescending ? "v" : "^" ) : "" );
+	};
+	updateSort( "inventory_sort_category", "inventory_sort_category_direction", Sort::Category );
+	updateSort( "inventory_sort_group", "inventory_sort_group_direction", Sort::Group );
+	updateSort( "inventory_sort_item", "inventory_sort_item_direction", Sort::Item, s.inventorySort == Sort::Name );
+	updateSort( "inventory_sort_material", "inventory_sort_material_direction", Sort::Material );
+	updateSort( "inventory_sort_stock", "inventory_sort_stock_direction", Sort::Stock );
+	updateSort( "inventory_sort_total", "inventory_sort_total_direction", Sort::Total );
 	}
-	for ( const auto& [id, name] : categories )
-		categoryTabs += "<button id='" + stableId( "inventory_category_", id ) + "' class='c-tabs__tab l-m6b-tab" + ( s.inventoryCategory == id ? std::string( " is-selected" ) : std::string {} ) + "' role='tab' aria-selected='" + ( s.inventoryCategory == id ? std::string( "true" ) : std::string( "false" ) ) + "' data-category='" + esc( id ) + "'>" + esc( name ) + "</button>";
-	rml( inventory_, "inventory_category_tabs", categoryTabs );
-	if ( auto* e = inventory_->GetElementById( "inventory_sort_name" ) )
+	if ( pop )
 	{
-		e->SetClass( "is-selected", s.inventorySort == Sort::Name );
-		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Name ? "true" : "false" );
-	}
-	if ( auto* e = inventory_->GetElementById( "inventory_sort_total" ) )
+	if ( renderedPopulationView_ != s.populationView )
 	{
-		e->SetClass( "is-selected", s.inventorySort == Sort::Total );
-		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Total ? "true" : "false" );
+		hideManagementTooltip( population_, "population_tooltip" );
+		bool railWasOpen = false;
+		if ( auto* shell = population_->GetElementById( "population_shell" ) ) { railWasOpen = shell->IsClassSet( "is-rail-open" ); shell->SetClass( "is-rail-open", false ); }
+		if ( auto* button = population_->GetElementById( "population_views_toggle" ) ) button->SetAttribute( "aria-expanded", "false" );
+		if ( railWasOpen ) if ( auto* button = population_->GetElementById( "population_views_toggle" ) ) button->Focus();
+		renderedPopulationView_ = s.populationView;
 	}
-	if ( auto* e = inventory_->GetElementById( "inventory_sort_stock" ) )
-	{
-		e->SetClass( "is-selected", s.inventorySort == Sort::Stock );
-		e->SetAttribute( "aria-pressed", s.inventorySort == Sort::Stock ? "true" : "false" );
-	}
-	if ( auto* e = inventory_->GetElementById( "inventory_filter_owned" ) )
-	{
-		e->SetClass( "is-checked", s.inventoryOwnedOnly );
-		e->SetClass( "is-unchecked", !s.inventoryOwnedOnly );
-		e->SetAttribute( "aria-pressed", s.inventoryOwnedOnly ? "true" : "false" );
-	}
+	const char* viewKey = s.populationView == View::Skills ? "management.population.skills" : s.populationView == View::Professions ? "management.population.professions" : s.populationView == View::Schedules ? "management.population.schedules" : "management.population.citizens";
+	text( population_, "population_views_toggle", tr( "management.navigation.views" ) + ": " + tr( viewKey ) );
 	const auto populationTab = [this]( const char* id, bool selected )
 	{
 		if ( auto* e = population_->GetElementById( id ) )
@@ -526,6 +834,7 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 		}
 	};
 	populationTab( "population_tab_citizens", s.populationView == View::Citizens || s.populationView == View::Creature );
+	populationTab( "population_tab_skills", s.populationView == View::Skills );
 	populationTab( "population_tab_professions", s.populationView == View::Professions );
 	populationTab( "population_tab_schedules", s.populationView == View::Schedules );
 	std::string rows;
@@ -539,8 +848,59 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 	rml( population_, "population_rows", rows.empty() ? esc( tr( "management.population.no_citizens" ) ) : rows );
 	std::string professions;
 	for ( const auto& r : s.professions )
-		professions += "<div id='" + stableId( "population_profession_", r.id.value ) + "' class='c-list__row' data-profession='" + esc( r.id.value ) + "'><span class='c-list__primary'>" + esc( r.name ) + "</span><span class='c-list__meta'>" + esc( tr( "management.population.profession_skill_count", { { "count", std::to_string( r.skills.size() ) } } ) ) + "</span></div>";
+		professions += "<button id='" + stableId( "population_profession_", r.id.value ) + "' class='c-list__row" + ( s.selectedProfession == r.id ? " is-selected" : "" ) + "' role='option' aria-selected='" + ( s.selectedProfession == r.id ? "true" : "false" ) + "' data-profession='" + esc( r.id.value ) + "'><span class='c-list__primary'>" + esc( r.name ) + "</span></button>";
 	rml( population_, "profession_rows", professions.empty() ? esc( tr( "management.population.no_professions" ) ) : professions );
+	std::string catalog;
+	for ( const auto& skill : s.skillCatalog )
+		catalog += "<button id='" + stableId( "skill_catalog_", skill.id.value ) + "' class='c-list__row" + std::string( s.selectedSkill == skill.id ? " is-selected" : "" ) + "' role='option' aria-selected='" + ( s.selectedSkill == skill.id ? "true" : "false" ) + "' data-skill='" + esc( skill.id.value ) + "'><span class='c-list__primary'>" + esc( skill.name ) + "</span><span class='c-list__meta'>" + esc( skill.group ) + "</span></button>";
+	rml( population_, "skills_catalog_rows", catalog.empty() ? esc( tr( "management.population.no_skill_catalog" ) ) : catalog );
+	const auto selectedSkill = std::ranges::find_if( s.skillCatalog, [&]( const SkillCatalogRow& row ){ return s.selectedSkill == row.id; } );
+	text( population_, "skill_focus_title", selectedSkill == s.skillCatalog.end() ? tr( "management.population.choose_skill" ) : selectedSkill->name );
+	text( population_, "skill_focus_group", selectedSkill == s.skillCatalog.end() ? tr( "management.population.choose_skill_help" ) : selectedSkill->group );
+	std::string skillCitizens;
+	if ( s.selectedSkill ) for ( const auto& citizen : s.population )
+	{
+		const auto skill = std::ranges::find_if( citizen.skills, [&]( const SkillRow& row ){ return row.id == *s.selectedSkill; } );
+		if ( skill == citizen.skills.end() ) continue;
+		std::ostringstream xp;
+		xp << skill->experience;
+		const auto detail = tr( "management.population.skill_level_xp", { { "level", std::to_string( skill->level ) }, { "xp", xp.str() } } );
+		skillCitizens += "<button id='skill_citizen_" + std::to_string( citizen.id.value ) + "' class='c-list__row l-population-skill-citizen' data-creature='" + std::to_string( citizen.id.value ) + "' data-active='" + ( skill->active ? "true" : "false" ) + "' aria-pressed='" + ( skill->active ? "true" : "false" ) + "' title='" + esc( tr( "management.population.skill_toggle_help" ) ) + "'><span class='c-list__primary'>" + esc( citizen.name ) + "</span><span class='c-list__meta'>" + esc( detail ) + "</span><span>" + esc( tr( skill->active ? "common.on" : "common.off" ) ) + "</span></button>";
+	}
+	rml( population_, "skill_citizen_rows", skillCitizens.empty() ? esc( tr( "management.population.no_skill_citizens" ) ) : skillCitizens );
+	for ( const char* id : { "skill_enable_all", "skill_disable_all" } )
+		if ( auto* button = population_->GetElementById( id ) )
+		{
+			button->SetClass( "is-disabled", skillCitizens.empty() );
+			if ( skillCitizens.empty() ) button->SetAttribute( "disabled", "disabled" );
+			else button->RemoveAttribute( "disabled" );
+		}
+	const bool professionEditable = s.selectedProfession && s.selectedProfession->value != "Gnomad";
+	const auto selectedProfession = std::ranges::find_if( s.professions, [&]( const ProfessionRow& row ){ return s.selectedProfession == row.id; } );
+	text( population_, "profession_editor_title", selectedProfession == s.professions.end() ? tr( "management.population.choose_profession" ) : selectedProfession->name );
+	text( population_, "profession_editor_help", professionEditable ? tr( "management.population.profession_editor_help" ) : s.selectedProfession ? tr( "management.population.gnomad_protected" ) : tr( "management.population.choose_profession_help" ) );
+	if ( auto* name = rmlui_dynamic_cast<Rml::ElementFormControl*>( population_->GetElementById( "profession_name" ) ) )
+	{
+		if ( context_.GetFocusElement() != name && name->GetValue() != s.professionDraftName ) name->SetValue( s.professionDraftName );
+		if ( professionEditable ) name->RemoveAttribute( "disabled" ); else name->SetAttribute( "disabled", "disabled" );
+	}
+	std::string selectedSkills;
+	for ( const auto& id : s.professionDraftSkills )
+	{
+		const auto skill = std::ranges::find_if( s.skillCatalog, [&]( const SkillCatalogRow& row ){ return row.id == id; } );
+		const auto label = skill == s.skillCatalog.end() ? id.value : skill->name;
+		selectedSkills += "<button id='" + stableId( "profession_selected_skill_", id.value ) + "' class='c-list__row" + std::string( s.selectedProfessionSkill == id ? " is-selected" : "" ) + "' data-skill='" + esc( id.value ) + "'><span class='c-list__primary'>" + esc( label ) + "</span></button>";
+	}
+	rml( population_, "profession_selected_skills", selectedSkills.empty() ? esc( tr( "management.population.no_profession_skills" ) ) : selectedSkills );
+	std::string availableSkills;
+	for ( const auto& skill : s.skillCatalog )
+	{
+		if ( std::ranges::find( s.professionDraftSkills, skill.id ) != s.professionDraftSkills.end() ) continue;
+		availableSkills += "<button id='" + stableId( "profession_available_skill_", skill.id.value ) + "' class='c-list__row" + std::string( s.selectedAvailableSkill == skill.id ? " is-selected" : "" ) + "' data-skill='" + esc( skill.id.value ) + "'><span class='c-list__primary'>" + esc( skill.name ) + "</span></button>";
+	}
+	rml( population_, "profession_available_skills", availableSkills.empty() ? esc( tr( "management.population.no_available_skills" ) ) : availableSkills );
+	for ( const char* id : { "profession_save", "profession_delete", "profession_skill_up", "profession_skill_down", "profession_skill_remove", "profession_skill_add" } )
+		if ( auto* button = population_->GetElementById( id ) ) { button->SetClass( "is-disabled", !professionEditable ); if ( professionEditable ) button->RemoveAttribute( "disabled" ); else button->SetAttribute( "disabled", "disabled" ); }
 	std::string schedules;
 	for ( const auto& r : s.schedules )
 	{
@@ -557,6 +917,18 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 		schedules += "</div>";
 	}
 	rml( population_, "schedule_rows", schedules.empty() ? esc( tr( "management.population.no_schedules" ) ) : schedules );
+	for ( const auto& [id, activity] : { std::pair { "schedule_set_none", ManagedScheduleActivity::None }, { "schedule_set_eat", ManagedScheduleActivity::Eat }, { "schedule_set_sleep", ManagedScheduleActivity::Sleep }, { "schedule_set_training", ManagedScheduleActivity::Training } } )
+		if ( auto* button = population_->GetElementById( id ) ) { button->SetClass( "is-selected", s.scheduleActivity == activity ); button->SetAttribute( "aria-pressed", s.scheduleActivity == activity ? "true" : "false" ); }
+	const auto scheduleSelected = s.selectedScheduleCell && std::ranges::any_of( s.schedules, [&]( const ScheduleRow& row ) { return row.creature == s.selectedScheduleCell->creature; } );
+	std::string scheduleLabel = tr( "management.population.choose_cell" );
+	if ( scheduleSelected )
+	{
+		const auto row = std::ranges::find_if( s.schedules, [&]( const ScheduleRow& item ) { return item.creature == s.selectedScheduleCell->creature; } );
+		scheduleLabel = tr( "management.population.selected_cell", { { "citizen", row->name }, { "hour", std::to_string( s.selectedScheduleCell->hour ) } } );
+	}
+	text( population_, "schedule_scope_label", scheduleLabel );
+	for ( const char* id : { "schedule_apply_cell", "schedule_apply_row", "schedule_apply_column" } )
+		if ( auto* button = population_->GetElementById( id ) ) { button->SetClass( "is-disabled", !scheduleSelected ); if ( scheduleSelected ) button->RemoveAttribute( "disabled" ); else button->SetAttribute( "disabled", "disabled" ); }
 	if ( s.creature )
 	{
 		const auto& c = *s.creature;
@@ -577,7 +949,10 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 			{
 				const std::string skillId = stableId( "population_skill_", skill.id.value );
 				const std::string active  = skill.active ? "true" : "false";
-				skills += "<div id='" + skillId + "' class='m6b-skill-row" + ( skill.active ? " is-active" : "" ) + "' data-skill='" + esc( skill.id.value ) + "' data-active='" + active + "' role='checkbox' tab-index='0' aria-checked='" + active + "'><input type='checkbox' class='checkbox m6b-skill-checkbox' data-skill='" + esc( skill.id.value ) + "' data-active='" + active + "'" + ( skill.active ? " checked='checked'" : "" ) + "/><span class='m6b-skill-name'>" + esc( skill.name ) + "</span><span class='m6b-skill-level'>Level " + std::to_string( skill.level ) + "</span><span class='m6b-skill-state'>" + esc( tr( skill.active ? "common.on" : "common.off" ) ) + "</span></div>";
+				std::ostringstream xp;
+				xp << skill.experience;
+				const auto levelXp = tr( "management.population.skill_level_xp", { { "level", std::to_string( skill.level ) }, { "xp", xp.str() } } );
+				skills += "<div id='" + skillId + "' class='m6b-skill-row" + ( skill.active ? " is-active" : "" ) + "' data-skill='" + esc( skill.id.value ) + "' data-active='" + active + "' role='checkbox' tab-index='0' aria-checked='" + active + "'><input type='checkbox' class='checkbox m6b-skill-checkbox' data-skill='" + esc( skill.id.value ) + "' data-active='" + active + "'" + ( skill.active ? " checked='checked'" : "" ) + "/><span class='m6b-skill-name'>" + esc( skill.name ) + " <span class='m6b-skill-group'>" + esc( skill.group ) + "</span></span><span class='m6b-skill-level'>" + esc( levelXp ) + "</span><span class='m6b-skill-state'>" + esc( tr( skill.active ? "common.on" : "common.off" ) ) + "</span></div>";
 			}
 		rml( population_, "creature_skills", skills.empty() ? esc( tr( "management.population.no_skills" ) ) : skills );
 		std::string choices;
@@ -585,22 +960,182 @@ void Management6BRmlBinding::stateChanged( const Management6BState& s )
 			choices += "<button id='" + stableId( "population_profession_choice_", p.id.value ) + "' class='c-dropdown-button' data-profession='" + esc( p.id.value ) + "'>" + esc( p.name ) + " v</button>";
 		rml( population_, "creature_professions", choices.empty() ? esc( tr( "management.population.no_profession_choices" ) ) : choices );
 	}
-	std::string inventory;
-	for ( const auto& r : controller_->inventoryPage() )
-	{
-		const bool selected = s.selectedInventory && *s.selectedInventory == r.id;
-		const bool section = r.id.depth == InventoryDepth::Category || r.id.depth == InventoryDepth::Group || r.id.depth == InventoryDepth::Item;
-		const std::string disclosure = section ? ( controller_->inventoryExpanded( r.id ) ? "[-]" : "[+]" ) : std::string {};
-		inventory += "<button id='" + stableId( "inventory_row_", inventoryKey( r.id ) ) + "' class='c-list__row l-m6b-row l-m6b-inventory-row" + ( selected ? " is-selected" : "" ) + "' role='treeitem' aria-expanded='" + ( section ? ( controller_->inventoryExpanded( r.id ) ? "true" : "false" ) : "false" ) + "' aria-selected='" + ( selected ? std::string( "true" ) : std::string( "false" ) ) + "' data-depth='" + depth( r.id.depth ) + "' data-category='" + esc( r.id.category.value ) + "' data-group='" + esc( r.id.group.value ) + "' data-item='" + esc( r.id.item.value ) + "' data-material='" + esc( r.id.material.value ) + "'><span class='l-m6b-inventory__name l-m6b-depth-" + depth( r.id.depth ) + "'>" + inventorySprite( r ) + "<span class='l-m6b-inventory__content'><span class='l-m6b-disclosure' aria-hidden='true'>" + disclosure + "</span>" + esc( r.name ) + "</span></span><span class='l-m6b-inventory__metric'>" + std::to_string( r.stockpiled ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.total ) + "</span></button>";
 	}
-	rml( inventory_, "inventory_rows", inventory.empty() ? esc( tr( "management.inventory.no_rows" ) ) : inventory );
+	const InventoryRowsKey inventoryRowsKey { s.inventoryRevision, s.inventoryColumnFilters, s.inventoryColumnSelections, s.inventoryFilter, s.inventoryCategory, s.inventorySort, s.inventoryOwnedOnly, s.inventorySortDescending, s.selectedInventory };
+	if ( inv && ( !renderedInventoryRows_ || *renderedInventoryRows_ != inventoryRowsKey ) )
+	{
+		if ( renderedInventoryRows_ && ( renderedInventoryRows_->filters != inventoryRowsKey.filters
+			|| renderedInventoryRows_->selections != inventoryRowsKey.selections
+			|| renderedInventoryRows_->legacyFilter != inventoryRowsKey.legacyFilter
+			|| renderedInventoryRows_->category != inventoryRowsKey.category ) )
+			if ( auto* rows = inventory_->GetElementById( "inventory_rows" ) ) rows->SetScrollTop( 0.f );
+		const InventoryLabelLookup inventoryLabels( s.inventory );
+		const auto visibleRows = controller_->inventoryPage();
+		inventoryRowMarkup_.clear();
+		inventoryRowMarkup_.reserve( visibleRows.size() );
+		for ( const auto& r : visibleRows )
+		{
+			const bool selected = s.selectedInventory && *s.selectedInventory == r.id;
+			const auto labels = inventoryLabels.labels( r );
+			const auto cell = []( const std::string& value ) { return value.empty() ? std::string( "-" ) : esc( value ); };
+			inventoryRowMarkup_.push_back( "<button id='" + stableId( "inventory_row_", inventoryKey( r.id ) ) + "' class='c-list__row l-m6b-row l-m6b-inventory-row l-inventory-flat-row" + ( selected ? " is-selected" : "" ) + "' role='row' aria-selected='" + ( selected ? std::string( "true" ) : std::string( "false" ) ) + "' data-depth='" + depth( r.id.depth ) + "' data-category='" + esc( r.id.category.value ) + "' data-group='" + esc( r.id.group.value ) + "' data-item='" + esc( r.id.item.value ) + "' data-material='" + esc( r.id.material.value ) + "' aria-label='" + cell( labels.category ) + ", " + cell( labels.group ) + ", " + cell( labels.item ) + ", " + cell( labels.material ) + "'><span class='l-inventory-flat__category'>" + cell( labels.category ) + "</span><span class='l-inventory-flat__group'>" + cell( labels.group ) + "</span><span class='l-inventory-flat__item'>" + inventorySprite( r ) + "<span class='l-inventory-flat__label'>" + cell( labels.item ) + "</span></span><span class='l-inventory-flat__material'>" + cell( labels.material ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.stockpiled ) + "</span><span class='l-m6b-inventory__metric'>" + std::to_string( r.total ) + "</span></button>" );
+		}
+		if ( inventoryRowMarkup_.empty() ) inventoryRowMarkup_.push_back( "<div class='c-empty-state'>" + esc( tr( "management.inventory.no_rows" ) ) + "</div>" );
+		inventoryViewportFirst_ = static_cast<std::size_t>( -1 );
+		renderInventoryViewport();
+		renderedInventoryRows_ = inventoryRowsKey;
+	}
+	if ( inv )
+	{
+		const auto detail = s.inventoryDetail ? std::ranges::find_if( s.inventory, [&]( const InventoryRow& row ) { return row.id == *s.inventoryDetail; } ) : s.inventory.end();
+		const bool showingDetail = detail != s.inventory.end();
+		visible( inventory_, "inventory_list", !showingDetail );
+		visible( inventory_, "inventory_detail", showingDetail );
+		if ( showingDetail )
+		{
+			const auto backLabel = tr( s.inventoryDetailBack.empty() ? "management.inventory.detail_back" : "management.inventory.detail_previous" );
+			if ( backLabel != renderedInventoryBackLabel_ )
+			{
+				text( inventory_, "inventory_detail_back", backLabel );
+				renderedInventoryBackLabel_ = backLabel;
+			}
+			const auto detailRml = [this]( const char* id, const std::string& markup )
+			{
+				auto& previous = renderedInventoryDetailMarkup_[id];
+				if ( previous == markup ) return;
+				rml( inventory_, id, markup );
+				previous = markup;
+			};
+			std::string name = detail->name;
+			if ( detail->id.depth == InventoryDepth::Material )
+			{
+				const auto parent = std::ranges::find_if( s.inventory, [&]( const InventoryRow& row ) { return row.id.depth == InventoryDepth::Item && row.id.item == detail->id.item; } );
+				if ( parent != s.inventory.end() ) name += " " + parent->name;
+			}
+			text( inventory_, "inventory_detail_name", name );
+			const auto metric = [&]( const char* key, std::uint32_t count )
+				{ return "<span>" + esc( tr( key, { { "count", std::to_string( count ) } } ) ) + "</span>"; };
+			detailRml( "inventory_detail_summary", inventorySprite( *detail ) + "<div class='l-m6b-item-detail__metrics'>" +
+				metric( "management.inventory.detail_total", detail->total ) + metric( "management.inventory.detail_stock", detail->stockpiled ) +
+				metric( "management.inventory.detail_loose", detail->loose ) + metric( "management.inventory.detail_equipped", detail->equipped ) +
+				metric( "management.inventory.detail_jobs", detail->inJobs ) + "</div>" );
+			std::unordered_map<std::string, const InventoryRow*> catalogItems;
+			for ( const auto& row : s.inventory )
+				if ( row.id.depth == InventoryDepth::Item ) catalogItems.try_emplace( row.id.item.value, &row );
+			const auto recipeMarkup = [&]( const std::vector<ItemRecipe>& recipes )
+			{
+				std::string markup;
+				for ( const auto& recipe : recipes )
+				{
+					markup += "<div class='l-m6b-item-detail__recipe'>";
+					markup += "<strong>" + esc( recipe.id == recipe.outputItemID ? recipe.outputName : readableCatalogId( recipe.id ) ) + "</strong>";
+					markup += "<span class='l-m6b-item-detail__meta'>" + esc( tr( "management.inventory.recipe_makes", { { "count", std::to_string( recipe.amount ) } } ) );
+					if ( !recipe.workshop.empty() ) markup += " " + esc( tr( "management.inventory.recipe_at", { { "workshop", recipe.workshop } } ) );
+					if ( !recipe.skill.empty() ) markup += " · " + esc( recipe.skill );
+					markup += "</span><div class='l-m6b-item-detail__ingredients'>";
+					for ( const auto& ingredient : recipe.ingredients )
+					{
+						const bool linkable = catalogItems.contains( ingredient.itemID ) && ( detail->id.depth != InventoryDepth::Item || ingredient.itemID != detail->id.item.value );
+						markup += linkable ? "<button class='l-m6b-item-detail__link' data-item-link='" + esc( ingredient.itemID ) + "'>" : "<span class='l-m6b-item-detail__current'>";
+						markup +=
+							std::to_string( ingredient.amount ) + " × " + esc( ingredient.name );
+						if ( !ingredient.allowedMaterial.empty() ) markup += " (" + esc( ingredient.allowedMaterial ) + ")";
+						else if ( !ingredient.allowedMaterialType.empty() ) markup += " (" + esc( ingredient.allowedMaterialType ) + ")";
+						markup += linkable ? "</button>" : "</span>";
+					}
+					markup += "</div></div>";
+				}
+				return markup.empty() ? "<p>" + esc( tr( "management.inventory.recipe_none" ) ) + "</p>" : markup;
+			};
+			detailRml( "inventory_detail_made_by", recipeMarkup( detail->madeBy ) );
+			const InventoryLabelLookup outputLabels( s.inventory );
+			std::map<std::string, std::vector<std::pair<std::string, std::string>>> productsByCategory;
+			std::unordered_set<std::string> seenProducts;
+			for ( const auto& recipe : detail->usedIn )
+			{
+				if ( !seenProducts.insert( recipe.outputItemID ).second ) continue;
+				const auto product = catalogItems.find( recipe.outputItemID );
+				if ( product == catalogItems.end() ) continue;
+				std::string category = tr( "management.inventory.category_other" );
+				const auto labels = outputLabels.labels( *product->second );
+				if ( !labels.category.empty() ) category = labels.category;
+				if ( !labels.group.empty() && labels.group != category ) category += " / " + labels.group;
+				productsByCategory[category].emplace_back( recipe.outputItemID, product->second->name );
+			}
+			std::string productsMarkup;
+			for ( auto& [category, products] : productsByCategory )
+			{
+				std::ranges::sort( products, {}, []( const auto& product ) { return foldedLabel( product.second ); } );
+				productsMarkup += "<div class='l-m6b-item-detail__group'><h4>" + esc( category ) + "</h4>";
+				for ( const auto& [id, productName] : products )
+				{
+					if ( detail->id.depth == InventoryDepth::Item && id == detail->id.item.value )
+						productsMarkup += "<span class='l-m6b-item-detail__current'>" + esc( productName ) + "</span>";
+					else productsMarkup += "<button class='l-m6b-item-detail__link' data-item-link='" + esc( id ) + "' data-product-link='" + esc( id ) + "'>" + esc( productName ) + "</button>";
+				}
+				productsMarkup += "</div>";
+			}
+			detailRml( "inventory_detail_used_in", productsMarkup.empty() ? "<p>" + esc( tr( "management.inventory.used_in_none" ) ) + "</p>" : productsMarkup );
+			std::string locations;
+			for ( const auto& location : detail->locations )
+				locations += "<button id='inventory_stockpile_" + std::to_string( location.id ) + "' class='l-m6b-item-detail__link' data-stockpile-link='" + std::to_string( location.id ) + "'>" + esc( location.name ) + " <strong>" + std::to_string( location.count ) + "</strong></button>";
+			detailRml( "inventory_detail_locations", locations.empty() ? "<p>" + esc( tr( "management.inventory.locations_none" ) ) + "</p>" : locations );
+			std::string history;
+			if ( s.inventoryHistoryLoading ) history = "<p>" + esc( tr( "management.inventory.history_loading" ) ) + "</p>";
+			else if ( s.inventoryHistory.empty() ) history = "<p>" + esc( tr( "management.inventory.history_empty" ) ) + "</p>";
+			else
+			{
+				int maximum = 1;
+				for ( const auto& point : s.inventoryHistory ) maximum = std::max( maximum, point.total );
+				for ( const auto& point : s.inventoryHistory )
+				{
+					const auto day = std::to_string( point.dayIndex + 1 );
+					const auto label = tr( "management.inventory.history_point", { { "day", day }, { "total", std::to_string( point.total ) },
+						{ "created", std::to_string( point.created ) }, { "destroyed", std::to_string( point.destroyed ) } } );
+					history += "<div class='l-m6b-item-detail__history-row' title='" + esc( label ) + "'><span>" +
+						esc( tr( "management.inventory.history_day", { { "day", day } } ) ) +
+						"</span><div class='l-m6b-item-detail__history-track'><div style='display:block; width:" + std::to_string( std::clamp( point.total * 202 / maximum, 0, 202 ) ) +
+						"dp; height:8dp; background-color:#235b37;'></div></div><strong>" + std::to_string( point.total ) + "</strong></div>";
+				}
+			}
+			detailRml( "inventory_detail_history", history );
+		}
+	}
+	if ( pop )
+	{
 	const auto populationTotal = controller_->visiblePopulation().size();
 	const auto pageText = [&]( const char* key, std::size_t page, std::size_t total )
 	{const auto first=total?std::min(page*Management6BState::pageSize+1,total):0;const auto last=std::min((page+1)*Management6BState::pageSize,total);return tr(key,{{"first",std::to_string(first)}, {"last",std::to_string(last)}, {"total",std::to_string(total)}}); };
 	text( population_, "population_page_status", pageText( "management.population.page", s.populationPage, populationTotal ) );
 	text( population_, "population_revision", tr( "management.population.revision" ) );
-	const auto status = s.pendingAction ? tr( "status.updating" ) : s.status;
-	text( population_, "population_status", status );
-	text( inventory_, "inventory_status", status );
+	}
+	const auto status = s.pendingAction ? tr( "status.updating" ) : textCatalog_.contains( LocalizationKey { s.status } ) ? tr( s.status.c_str() ) : s.status;
+	if ( pop ) text( population_, "population_status", status );
+	if ( inv ) text( inventory_, "inventory_status", status );
+}
+void Management6BRmlBinding::renderInventoryViewport()
+{
+	if ( renderingInventoryViewport_ || !inventory_ ) return;
+	auto* rows = inventory_->GetElementById( "inventory_rows" );
+	if ( !rows ) return;
+	constexpr float rowHeight = 48.f;
+	constexpr std::size_t overscan = 6;
+	const float scrollTop = std::clamp( rows->GetScrollTop(), 0.f,
+		std::max( 0.f, static_cast<float>( inventoryRowMarkup_.size() ) * rowHeight - rows->GetClientHeight() ) );
+	const std::size_t anchor = static_cast<std::size_t>( scrollTop / rowHeight );
+	const std::size_t first = anchor > overscan ? anchor - overscan : 0;
+	if ( first == inventoryViewportFirst_ ) return;
+	const std::size_t viewportRows = std::max<std::size_t>( 20, static_cast<std::size_t>( std::ceil( std::max( rows->GetClientHeight(), 480.f ) / rowHeight ) ) + overscan * 2 );
+	const std::size_t last = std::min( first + viewportRows, inventoryRowMarkup_.size() );
+	std::string markup;
+	markup.reserve( ( last - first ) * 720 + 160 );
+	if ( first ) markup += "<div class='l-inventory-virtual-spacer' style='height:" + std::to_string( first * static_cast<std::size_t>( rowHeight ) ) + "dp;'></div>";
+	for ( std::size_t index = first; index < last; ++index ) markup += inventoryRowMarkup_[index];
+	if ( last < inventoryRowMarkup_.size() ) markup += "<div class='l-inventory-virtual-spacer' style='height:" + std::to_string( ( inventoryRowMarkup_.size() - last ) * static_cast<std::size_t>( rowHeight ) ) + "dp;'></div>";
+	renderingInventoryViewport_ = true;
+	rows->SetInnerRML( markup );
+	rows->SetScrollTop( scrollTop );
+	inventoryViewportFirst_ = first;
+	renderingInventoryViewport_ = false;
 }
 } // namespace ingnomia::ui::management6b

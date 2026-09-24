@@ -83,7 +83,7 @@ bool HudRmlBinding::initialize( HudController& controller )
 	bind("tutorial-continue",[this]{controller_->tutorialAdvance();}); bind("tutorial-skip",[this]{controller_->tutorialSkip();}); bind("tutorial-restart",[this]{controller_->tutorialRestart();}); bind("tutorial-hints",[this]{controller_->tutorialToggleHints();}); bind("tutorial-finish",[this]{controller_->tutorialFinish();});
 	bind("hud_level_down",[this]{controller_->changeLevel(controller_->state().camera.viewLevel-1);}); bind("hud_level_up",[this]{controller_->changeLevel(controller_->state().camera.viewLevel+1);});
 	bind("hud_overlay_designations",[this]{auto s=controller_->state().overlays;controller_->setOverlay(OverlayKind::Designations,!s.designations);}); bind("hud_overlay_jobs",[this]{auto s=controller_->state().overlays;controller_->setOverlay(OverlayKind::Jobs,!s.jobs);}); bind("hud_overlay_walls",[this]{auto s=controller_->state().overlays;controller_->setOverlay(OverlayKind::LoweredWalls,!s.loweredWalls);}); bind("hud_overlay_axles",[this]{auto s=controller_->state().overlays;controller_->setOverlay(OverlayKind::Axles,!s.axles);});
-	bind("hud_tool_inspect",[this]{mineMenuOpen_=false;agricultureMenuOpen_=false;designationMenuOpen_=false;jobsMenuOpen_=false;buildMenuOpen_=false;kingdomPanelOpen_=false;controller_->cancelTool();stateChanged(controller_->state());});
+	bind("hud_tool_inspect",[this]{mineMenuOpen_=false;agricultureMenuOpen_=false;designationMenuOpen_=false;jobsMenuOpen_=false;buildMenuOpen_=false;kingdomPanelOpen_=false;controller_->cancelTool();if(inspect_)inspect_();stateChanged(controller_->state());});
 	bind("hud_tool_mine",[this]{if(presentation_==Presentation::Full){toggleActionMenu("mine");return;}if(openOrdersTools_){openOrdersTools_("hud_tool_mine");return;}mineMenuOpen_=true;controller_->activateTool(ToolId{"mine"});stateChanged(controller_->state());});
 	bind("hud_tool_build",[this]{
 		if(openOrdersTools_){openOrdersTools_("hud_tool_build");return;}
@@ -98,7 +98,7 @@ bool HudRmlBinding::initialize( HudController& controller )
 	bind("hud_tool_fell_tree",[this]{controller_->activateTool(ToolId{"fell_tree"});stateChanged(controller_->state());}); bind("hud_tool_plant_tree",[this]{controller_->activateTool(ToolId{"plant_tree"});stateChanged(controller_->state());}); bind("hud_tool_harvest_tree",[this]{controller_->activateTool(ToolId{"harvest_tree"});stateChanged(controller_->state());}); bind("hud_tool_forage",[this]{controller_->activateTool(ToolId{"forage"});stateChanged(controller_->state());}); bind("hud_tool_remove_plant",[this]{controller_->activateTool(ToolId{"remove_plant"});stateChanged(controller_->state());});
 	bind("hud_tool_stockpile",[this]{controller_->activateTool(ToolId{"create_stockpile"});stateChanged(controller_->state());}); bind("hud_tool_farm",[this]{controller_->activateTool(ToolId{"create_farm"});stateChanged(controller_->state());}); bind("hud_tool_grove",[this]{controller_->activateTool(ToolId{"create_grove"});stateChanged(controller_->state());}); bind("hud_tool_pasture",[this]{controller_->activateTool(ToolId{"create_pasture"});stateChanged(controller_->state());}); bind("hud_tool_personal_room",[this]{controller_->activateTool(ToolId{"create_personal_room"});stateChanged(controller_->state());}); bind("hud_tool_dormitory",[this]{controller_->activateTool(ToolId{"create_dormitory"});stateChanged(controller_->state());}); bind("hud_tool_dining_hall",[this]{controller_->activateTool(ToolId{"create_dining_hall"});stateChanged(controller_->state());}); bind("hud_tool_hospital",[this]{controller_->activateTool(ToolId{"create_hospital"});stateChanged(controller_->state());}); bind("hud_tool_forbidden",[this]{controller_->activateTool(ToolId{"create_forbidden_area"});stateChanged(controller_->state());}); bind("hud_tool_remove_designation",[this]{controller_->activateTool(ToolId{"remove_designation"});stateChanged(controller_->state());});
 	bind("hud_tool_suspend_job",[this]{controller_->activateTool(ToolId{"suspend_job"});stateChanged(controller_->state());}); bind("hud_tool_resume_job",[this]{controller_->activateTool(ToolId{"resume_job"});stateChanged(controller_->state());}); bind("hud_tool_cancel_job",[this]{controller_->activateTool(ToolId{"cancel_job"});stateChanged(controller_->state());}); bind("hud_tool_lower_priority",[this]{controller_->activateTool(ToolId{"lower_job_priority"});stateChanged(controller_->state());}); bind("hud_tool_raise_priority",[this]{controller_->activateTool(ToolId{"raise_job_priority"});stateChanged(controller_->state());});
-	bind("hud_tool_cancel",[this]{mineMenuOpen_=false;agricultureMenuOpen_=false;designationMenuOpen_=false;jobsMenuOpen_=false;buildMenuOpen_=false;kingdomPanelOpen_=false;controller_->closeBuildMenu();controller_->cancelTool();stateChanged(controller_->state());}); bind("hud_tool_rotate",[this]{controller_->rotateTool();});
+	bind("hud_tool_cancel",[this]{mineMenuOpen_=false;agricultureMenuOpen_=false;designationMenuOpen_=false;jobsMenuOpen_=false;buildMenuOpen_=false;kingdomPanelOpen_=false;controller_->closeBuildMenu();controller_->cancelTool();if(inspect_)inspect_();stateChanged(controller_->state());}); bind("hud_tool_rotate",[this]{controller_->rotateTool();});
 	bind("hud_mine_walls",[this]{selectMineMode("mine");}); bind("hud_mine_explorative",[this]{selectMineMode("explorative_mine");}); bind("hud_mine_remove_floor",[this]{selectMineMode("remove_floor");}); bind("hud_mine_hole",[this]{selectMineMode("dig_hole");}); bind("hud_mine_stairs_down",[this]{selectMineMode("dig_stairs_down");}); bind("hud_mine_stairs_up",[this]{selectMineMode("mine_stairs_up");}); bind("hud_mine_ramp_down",[this]{selectMineMode("dig_ramp_down");}); bind("hud_mine_close",[this]{if(presentation_==Presentation::OrdersTools&&close_){close_();return;}mineMenuOpen_=false;stateChanged(controller_->state());});
 	bind("hud_agriculture_close",[this]{if(presentation_==Presentation::OrdersTools&&close_){close_();return;}agricultureMenuOpen_=false;stateChanged(controller_->state());}); bind("hud_designations_close",[this]{if(presentation_==Presentation::OrdersTools&&close_){close_();return;}designationMenuOpen_=false;stateChanged(controller_->state());}); bind("hud_jobs_close",[this]{if(presentation_==Presentation::OrdersTools&&close_){close_();return;}jobsMenuOpen_=false;stateChanged(controller_->state());});
 	bind("hud_mine_back",[this]{backToSidebar();}); bind("hud_agriculture_back",[this]{backToSidebar();}); bind("hud_designations_back",[this]{backToSidebar();}); bind("hud_jobs_back",[this]{backToSidebar();});
@@ -109,12 +109,47 @@ bool HudRmlBinding::initialize( HudController& controller )
 	bindSidebarTooltip("hud_open_inventory","hud.tip.inventory"); bindSidebarTooltip("hud_open_military","hud.tip.military"); bindSidebarTooltip("hud_open_population","hud.tip.population"); bindSidebarTooltip("hud_open_diplomacy","hud.tip.missions");
 	bindSidebarTooltip("hud_tool_build","hud.tip.build"); bindSidebarTooltip("hud_tool_deconstruct","hud.tip.deconstruct"); bindSidebarTooltip("hud_tool_mine","hud.tip.mine"); bindSidebarTooltip("hud_tool_agriculture","hud.tip.agriculture"); bindSidebarTooltip("hud_tool_designations","hud.tip.designations"); bindSidebarTooltip("hud_tool_jobs","hud.tip.jobs");
 	bindSidebarTooltip("hud_overlay_designations","hud.tip.overlay_designations"); bindSidebarTooltip("hud_overlay_jobs","hud.tip.overlay_jobs"); bindSidebarTooltip("hud_overlay_walls","hud.tip.overlay_walls"); bindSidebarTooltip("hud_overlay_axles","hud.tip.mechanics");
+	bindSidebarTooltip("hud_tool_inspect","hud.tip.inspect");
+	bindSidebarTooltip("hud_mine_walls","hud.tip.mine_walls");
+	bindSidebarTooltip("hud_mine_explorative","hud.tip.mine_explorative");
+	bindSidebarTooltip("hud_mine_remove_floor","hud.tip.mine_remove_floor");
+	bindSidebarTooltip("hud_mine_hole","hud.tip.mine_hole");
+	bindSidebarTooltip("hud_mine_stairs_down","hud.tip.mine_stairs_down");
+	bindSidebarTooltip("hud_mine_stairs_up","hud.tip.mine_stairs_up");
+	bindSidebarTooltip("hud_mine_ramp_down","hud.tip.mine_ramp_down");
+	bindSidebarTooltip("hud_tool_fell_tree","hud.tip.cut_tree");
+	bindSidebarTooltip("hud_tool_plant_tree","hud.tip.plant_tree");
+	bindSidebarTooltip("hud_tool_harvest_tree","hud.tip.harvest_tree");
+	bindSidebarTooltip("hud_tool_forage","hud.tip.forage");
+	bindSidebarTooltip("hud_tool_remove_plant","hud.tip.remove_plant");
+	bindSidebarTooltip("hud_tool_stockpile","hud.tip.stockpile");
+	bindSidebarTooltip("hud_tool_farm","hud.tip.farm");
+	bindSidebarTooltip("hud_tool_grove","hud.tip.grove");
+	bindSidebarTooltip("hud_tool_pasture","hud.tip.pasture");
+	bindSidebarTooltip("hud_tool_personal_room","hud.tip.personal_room");
+	bindSidebarTooltip("hud_tool_dormitory","hud.tip.dormitory");
+	bindSidebarTooltip("hud_tool_dining_hall","hud.tip.dining_hall");
+	bindSidebarTooltip("hud_tool_hospital","hud.tip.hospital");
+	bindSidebarTooltip("hud_tool_forbidden","hud.tip.forbidden");
+	bindSidebarTooltip("hud_tool_remove_designation","hud.tip.remove_designation");
+	bindSidebarTooltip("hud_tool_suspend_job","hud.tip.suspend_job");
+	bindSidebarTooltip("hud_tool_resume_job","hud.tip.resume_job");
+	bindSidebarTooltip("hud_tool_cancel_job","hud.tip.cancel_job");
+	bindSidebarTooltip("hud_tool_lower_priority","hud.tip.lower_priority");
+	bindSidebarTooltip("hud_tool_raise_priority","hud.tip.raise_priority");
 	bind("hud_event_ack",[this]{controller_->respondToPrompt(EventResponse::Acknowledge);}); bind("hud_event_yes",[this]{controller_->respondToPrompt(EventResponse::Yes);}); bind("hud_event_no",[this]{controller_->respondToPrompt(EventResponse::No);});
 	bindEvent("hud_build_catalog","click",[this](Rml::Event& event){if(updatingBuildCatalog_){event.StopPropagation();return;}for(auto* element=event.GetTargetElement();element&&element!=event.GetCurrentElement();element=element->GetParentNode()){if(!element->GetAttribute<Rml::String>("data-build-component","").empty()){event.StopPropagation();return;}const auto id=element->GetAttribute<Rml::String>("data-build","");if(!id.empty()){if(element->GetAttribute<Rml::String>("aria-disabled","")=="true"){event.StopPropagation();return;}selectedBuild_=id;const auto action=element->GetAttribute<Rml::String>("data-build-action","");const auto buildAction=action=="FillHole"?BuildAction::FillHole:action=="Replace"?BuildAction::Replace:BuildAction::Build;controller_->chooseBuildAction(CatalogId{id},buildAction);event.StopPropagation();stateChanged(controller_->state());break;}}});
 	bindEvent("hud_build_catalog","change",[this](Rml::Event& event){if(updatingBuildCatalog_){event.StopPropagation();return;}auto* element=event.GetTargetElement();if(!element)return;const auto id=element->GetAttribute<Rml::String>("data-build","");const auto component=element->GetAttribute<Rml::String>("data-build-component","");if(id.empty()||component.empty())return;try{const auto value=element->GetAttribute<Rml::String>("value","");controller_->selectBuildMaterial(CatalogId{id},static_cast<std::uint32_t>(std::stoul(std::string(component.data(),component.size()))),CatalogId{value},false);event.StopPropagation();}catch(...){}});
 	bindEvent("hud_build_type_list","click",[this](Rml::Event& event){for(auto* element=event.GetTargetElement();element&&element!=event.GetCurrentElement();element=element->GetParentNode()){const auto type=element->GetAttribute<Rml::String>("data-build-type","");if(!type.empty()){selectedBuildType_=type;selectedBuild_.clear();event.StopPropagation();stateChanged(controller_->state());break;}}});
 	bindEvent("hud_watch_rows","click",[this](Rml::Event& event){for(auto* element=event.GetTargetElement();element&&element!=event.GetCurrentElement();element=element->GetParentNode()){if(!element->GetAttribute<Rml::String>("data-watch","").empty()){if(openInventory_)openInventory_(FocusToken{2});event.StopPropagation();break;}}});
 	stateChanged( controller.state() ); document_->Show(); return true;
+}
+bool HudRmlBinding::reloadDocument()
+{
+	auto* controller = controller_;
+	if ( !controller ) return false;
+	shutdown();
+	return initialize( *controller );
 }
 void HudRmlBinding::setWorkbenchHandlers(WorkbenchHandler population,WorkbenchHandler inventory,WorkbenchHandler military,WorkbenchHandler diplomacy){openPopulation_=std::move(population);openInventory_=std::move(inventory);openMilitary_=std::move(military);openDiplomacy_=std::move(diplomacy);}
 void HudRmlBinding::setOrdersToolsHandler( OrdersToolsHandler handler ){ openOrdersTools_ = std::move( handler ); }
@@ -220,9 +255,19 @@ void HudRmlBinding::bind( const char* id, std::function<void()> callback ){ if(a
 void HudRmlBinding::bindEvent( const char* id, const char* event, std::function<void( Rml::Event& )> callback ){ if(auto* e=document_->GetElementById(id)){auto cb=std::make_unique<Callback>(std::move(callback));e->AddEventListener(event,cb.get());listenerTargets_.emplace_back(e,event);callbacks_.push_back(std::move(cb));} }
 void HudRmlBinding::text( const char* id, const std::string& value ){if(auto* e=document_->GetElementById(id))e->SetInnerRML(Rml::StringUtilities::EncodeRml(value));}
 void HudRmlBinding::visible( const char* id, bool value ){if(auto* e=document_->GetElementById(id))e->SetClass("is-hidden",!value);}
+void HudRmlBinding::setInspectionActive( bool active )
+{
+	inspectionActive_ = active;
+	if ( !document_ ) return;
+	document_->SetClass("is-inspecting", active);
+	if ( auto* button = document_->GetElementById("hud_tool_inspect") )
+	{
+		button->SetAttribute("aria-pressed",active?"true":"false");
+	}
+}
 void HudRmlBinding::stateChanged( const HudState& s )
 {
-	if(!document_)return; char b[96];auto tr=[this](const char*key,std::initializer_list<localization::TextArgument>args={}){return textCatalog_.format(LocalizationKey{key},args);}; text("hud_kingdom",s.settlement.kingdomName);text("hud_gnomes",tr("hud.gnomes",{{"count",std::to_string(s.settlement.gnomes)}}));text("hud_animals",tr("hud.animals",{{"count",std::to_string(s.settlement.animals)}}));text("hud_items",tr("hud.items",{{"count",std::to_string(s.settlement.items)}}));
+	if(!document_)return; setInspectionActive(inspectionActive_ && s.acceptsWorldActions); char b[96];auto tr=[this](const char*key,std::initializer_list<localization::TextArgument>args={}){return textCatalog_.format(LocalizationKey{key},args);}; text("hud_kingdom",s.settlement.kingdomName);text("hud_gnomes",tr("hud.gnomes",{{"count",std::to_string(s.settlement.gnomes)}}));text("hud_animals",tr("hud.animals",{{"count",std::to_string(s.settlement.animals)}}));text("hud_items",tr("hud.items",{{"count",std::to_string(s.settlement.items)}}));
 	if(auto* watch=document_->GetElementById("hud_watch_rows")){std::string markup;for(const auto& row:s.watchRows){const auto key=row.id.category.value+"_"+row.id.group.value+"_"+row.id.item.value+"_"+row.id.material.value;markup += "<button class='c-hud-watch-row' data-watch='" + domId("watch_",key) + "'><span class='c-hud-watch-label'>" + Rml::StringUtilities::EncodeRml(row.label) + "</span><strong>" + std::to_string(row.count) + "</strong></button>";}watch->SetInnerRML(markup);}
 	if(!s.acceptsWorldActions){mineMenuOpen_=false;agricultureMenuOpen_=false;designationMenuOpen_=false;jobsMenuOpen_=false;buildMenuOpen_=false;kingdomPanelOpen_=false;}
 	const bool compactToolWindow = presentation_ == Presentation::OrdersTools;
@@ -306,8 +351,8 @@ void HudRmlBinding::stateChanged( const HudState& s )
 			const auto selected = selectedBuild_ == row.id.value ? " is-selected" : "";
 			const auto unavailable = row.available ? "" : " is-unavailable";
 			const auto material = row.defaultMaterials.empty() ? std::string{} : row.defaultMaterials.front().value;
-			const bool canPlace = row.available || row.kind == BuildKind::Workshop;
-			const auto blueprint = !row.available && row.kind == BuildKind::Workshop ? " can-place-blueprint" : "";
+			const bool canPlace = true;
+			const auto blueprint = !row.available ? " can-place-blueprint" : "";
 			const auto detail = row.available ? material : ( row.unavailableReason.empty() ? textCatalog_.format( LocalizationKey{ "hud.build.unavailable" } ) : row.unavailableReason );
 			const auto sprite = buildSpriteMarkup( row );
 			const auto icon = sprite.empty() ? "<span class='c-hud-build-glyph'>" + Rml::StringUtilities::EncodeRml( buildGlyph( row ) ) + "</span>" : sprite;
@@ -332,14 +377,12 @@ void HudRmlBinding::stateChanged( const HudState& s )
 			}
 			const auto encodedId = Rml::StringUtilities::EncodeRml( row.id.value );
 			const auto availabilityLabel = textCatalog_.format( LocalizationKey{
-				row.available ? "hud.build.available"
-					: row.kind == BuildKind::Workshop ? "hud.build.awaiting_resources"
-					: "hud.build.cannot_build" } );
+				row.available ? "hud.build.available" : "hud.build.awaiting_resources" } );
 			markup += std::string{ "<div class='c-hud-build-availability " } + ( row.available ? "is-available'>" : "is-unavailable'>" ) + Rml::StringUtilities::EncodeRml( availabilityLabel ) + "</div>";
 			markup += "<div class='c-hud-build-actions'>";
 			if ( row.kind == BuildKind::Terrain ) markup += "<button id='hud_build_action_FillHole_" + domId( "", row.id.value ) + "' class='c-button c-hud-build-action' data-build='" + encodedId + "' data-build-action='FillHole'" + ( row.available ? "" : " disabled='disabled' aria-disabled='true'" ) + ">Fill hole</button><button id='hud_build_action_Replace_" + domId( "", row.id.value ) + "' class='c-button c-hud-build-action' data-build='" + encodedId + "' data-build-action='Replace'" + ( row.available ? "" : " disabled='disabled' aria-disabled='true'" ) + ">Replace</button>";
 			const auto buildLabel = textCatalog_.format( LocalizationKey{
-				!row.available && row.kind == BuildKind::Workshop
+				!row.available
 					? "hud.build.action_place_blueprint"
 					: "hud.build.action_build" } );
 			markup += "<button id='hud_build_action_Build_" + domId( "", row.id.value ) + "' class='c-button c-hud-build-action" + blueprint + "' data-build='" + encodedId + "' data-build-action='Build' aria-label='" + Rml::StringUtilities::EncodeRml( buildLabel ) + "'" + ( canPlace ? " aria-disabled='false'" : " disabled='disabled' aria-disabled='true'" ) + ">" + Rml::StringUtilities::EncodeRml( buildLabel ) + "</button></div></article>";
@@ -378,7 +421,7 @@ void HudRmlBinding::stateChanged( const HudState& s )
 	const auto statusText = statusKey.empty() ? std::string{} : ( textCatalog_.contains( LocalizationKey{ statusKey } ) ? textCatalog_.format( LocalizationKey{ statusKey } ) : statusKey );
 	text( "hud_status", statusText );
 	visible( "hud_status", !statusText.empty() );
-	for( const auto* id : { "hud_tool_inspect", "hud_open_population", "hud_open_inventory", "hud_tool_build", "hud_tool_mine", "hud_tool_agriculture", "hud_pause", "hud_speed_normal", "hud_level_down", "hud_level_up", "tutorial-finish" } )
+	for( const auto* id : { "hud_tool_inspect", "hud_open_population", "hud_open_inventory", "hud_tool_build", "hud_tool_mine", "hud_tool_agriculture", "hud_tool_designations", "hud_tool_fell_tree", "hud_mine_stairs_down", "hud_mine_walls", "hud_tool_stockpile", "hud_tool_farm", "hud_tool_dormitory", "hud_build_workshop", "hud_build_furniture", "hud_pause", "hud_speed_normal", "hud_speed_fast", "hud_level_down", "hud_level_up", "tutorial-finish" } )
 	{
 		bool highlighted = false;
 		if( s.tutorial.hintsEnabled ) for( const auto& target : s.tutorial.highlightedIds ) if( target == id ) { highlighted = true; break; }
@@ -399,7 +442,7 @@ void HudRmlBinding::stateChanged( const HudState& s )
 	text( "tutorial_steps", tutorialInstructions );
 	visible( "tutorial_steps", s.tutorial.hintsEnabled || s.tutorial.incompatible );
 	text( "tutorial-hints", tutorialText( s.tutorial.hintsEnabled ? "tutorial.action.hide_hints" : "tutorial.action.show_hints" ) );
-	static const char* const tutorialSteps[] = { "tutorial.step.orientation", "tutorial.step.inspect_assign", "tutorial.step.shelter_storage", "tutorial.step.mining_levels", "tutorial.step.farming", "tutorial.step.crafting", "tutorial.step.cooking", "tutorial.step.population", "tutorial.step.graduation" }; constexpr std::size_t tutorialStepCount = 9;
+	static const char* const tutorialSteps[] = { "tutorial.step.orientation", "tutorial.step.inspect_assign", "tutorial.step.gathering", "tutorial.step.mining_levels", "tutorial.step.stockpile", "tutorial.step.crafting", "tutorial.step.farming", "tutorial.step.shelter", "tutorial.step.graduation" }; constexpr std::size_t tutorialStepCount = 9;
 	std::string checklist; std::string skipped;
 	for( std::size_t i = 0; i < tutorialStepCount; ++i )
 	{

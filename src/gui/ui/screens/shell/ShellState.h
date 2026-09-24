@@ -110,6 +110,8 @@ struct ShellState
 	std::string version;
 	bool reducedMotion{};
 	bool continueAvailable{};
+	std::string continueSaveName;
+	std::string continueSavedAt;
 	std::optional<Message> continueBlocker;
 	LoadGameState loadGame;
 	SettingsState settings;

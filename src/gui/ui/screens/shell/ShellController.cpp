@@ -66,10 +66,13 @@ void ShellController::setReducedMotion( bool enabled )
 	notify();
 }
 
-void ShellController::setContinueAvailability( bool available, std::optional<Message> blocker )
+void ShellController::setContinueAvailability( bool available, std::optional<Message> blocker,
+	std::string saveName, std::string savedAt )
 {
 	state_.continueAvailable = available;
 	state_.continueBlocker = std::move( blocker );
+	state_.continueSaveName = std::move( saveName );
+	state_.continueSavedAt = std::move( savedAt );
 	notify();
 }
 

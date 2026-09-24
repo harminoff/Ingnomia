@@ -1,10 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6BController.h"
+#include "../InventoryTableSchema.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <functional>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ingnomia::ui::management6b
 {
@@ -88,6 +92,7 @@ void Management6BController::endWorld()
 }
 void Management6BController::open( View v )
 {
+	const bool wasPopulationOpen = state_.populationOpen;
 	state_.open = true;
 	state_.view = v;
 	if ( v == View::Inventory )
@@ -103,7 +108,7 @@ void Management6BController::open( View v )
 	}
 	state_.status.clear();
 	notify();
-	refresh();
+	if ( v == View::Inventory || !wasPopulationOpen || !state_.populationRevision.value ) refresh();
 }
 void Management6BController::close()
 {
@@ -127,17 +132,22 @@ void Management6BController::closeInventory()
 {
 	state_.inventoryOpen = false;
 	state_.open          = state_.populationOpen;
+	state_.inventoryDetail.reset();
+	state_.inventoryDetailBack.clear();
+	state_.historyTarget.reset();
+	state_.inventoryHistory.clear();
+	state_.inventoryHistoryLoading = false;
 	state_.pendingAction.reset();
 	if ( !state_.open )
 		state_.status.clear();
 	notify();
 }
-bool Management6BController::dispatch( std::string_view id, UiActionPayload payload )
+bool Management6BController::dispatch( std::string_view id, UiActionPayload payload, bool confirmed )
 {
 	if ( !state_.acceptsWorldActions || !state_.world )
 		return false;
 	UiActionEnvelope a { ActionId { id }, RequestId { nextRequest_++ }, state_.world, std::nullopt, std::move( payload ) };
-	auto r = commands_.dispatch( a );
+	auto r = confirmed ? commands_.dispatchConfirmed( a ) : commands_.dispatch( a );
 	if ( r.status == CommandStatus::Rejected )
 	{
 		state_.status = r.error;
@@ -178,12 +188,40 @@ void Management6BController::setPopulationFilter( std::string v )
 {
 	state_.populationFilter = std::move( v );
 	state_.populationPage   = 0;
+	const auto filtered = visiblePopulation();
+	if ( state_.selectedCreature && std::ranges::none_of( filtered, [&]( const PopulationRow& row ) { return row.id == *state_.selectedCreature; } ) )
+		state_.selectedCreature = filtered.empty() ? std::nullopt : std::optional { filtered.front().id };
 	notify();
 }
 void Management6BController::setInventoryFilter( std::string v )
 {
 	state_.inventoryFilter = std::move( v );
 	state_.inventoryPage   = 0;
+	notify();
+}
+void Management6BController::setInventoryColumnFilter( std::size_t column, std::string value )
+{
+	if ( column >= state_.inventoryColumnFilters.size() ) return;
+	state_.inventoryColumnFilters[column] = std::move( value );
+	state_.inventoryPage = 0;
+	state_.selectedInventory.reset();
+	notify();
+}
+void Management6BController::toggleInventoryColumnSelection( std::size_t column, std::string value )
+{
+	if ( column >= state_.inventoryColumnSelections.size() ) return;
+	auto& selected = state_.inventoryColumnSelections[column];
+	if ( value.empty() )
+		selected.clear();
+	else if ( const auto found = std::ranges::find_if( selected, [&]( const auto& candidate ) { return folded( candidate ) == folded( value ); } ); found != selected.end() )
+		selected.erase( found );
+	else
+		{
+		if ( column >= 4 ) selected.clear();
+		selected.push_back( std::move( value ) );
+	}
+	state_.inventoryPage = 0;
+	state_.selectedInventory.reset();
 	notify();
 }
 void Management6BController::setInventoryOwnedOnly( bool v )
@@ -237,7 +275,13 @@ void Management6BController::setPopulationSort( Sort v )
 }
 void Management6BController::setInventorySort( Sort v )
 {
-	state_.inventorySort = v;
+	if ( state_.inventorySort == v )
+		state_.inventorySortDescending = !state_.inventorySortDescending;
+	else
+	{
+		state_.inventorySort = v;
+		state_.inventorySortDescending = v == Sort::Total || v == Sort::Stock;
+	}
 	state_.inventoryPage = 0;
 	state_.selectedInventory.reset();
 	notify();
@@ -255,83 +299,94 @@ std::vector<PopulationRow> Management6BController::visiblePopulation() const
 }
 std::vector<InventoryRow> Management6BController::visibleInventory() const
 {
-	auto candidates = state_.inventory;
-	std::vector<InventoryRowId> flattenedItems;
-	for ( const auto& group : state_.inventory )
+	const auto pathKey = []( const InventoryRowId& id, InventoryDepth depth )
 	{
-		if ( group.id.depth != InventoryDepth::Group ) continue;
-		std::vector<const InventoryRow*> items;
-		for ( const auto& row : state_.inventory )
-			if ( row.id.depth == InventoryDepth::Item && row.id.category == group.id.category && row.id.group == group.id.group ) items.push_back( &row );
-		if ( items.size() == 1 && redundantItemLabel( group, *items.front() ) ) flattenedItems.push_back( items.front()->id );
-	}
-	std::erase_if( candidates, [&]( const auto& row ) { return std::ranges::find( flattenedItems, row.id ) != flattenedItems.end(); } );
-	const auto directChild = [&]( const InventoryRowId& child, const InventoryRowId& parent )
-	{
-		if ( isChildOf( child, parent ) ) return true;
-		if ( child.depth != InventoryDepth::Material || parent.depth != InventoryDepth::Group ) return false;
-		return child.category == parent.category && child.group == parent.group
-			&& std::ranges::any_of( flattenedItems, [&]( const auto& item ) { return item.category == child.category && item.group == child.group && item.item == child.item; } );
+		std::string key = id.category.value;
+		if ( depth >= InventoryDepth::Group ) key += '\x1f' + id.group.value;
+		if ( depth >= InventoryDepth::Item ) key += '\x1f' + id.item.value;
+		if ( depth >= InventoryDepth::Material ) key += '\x1f' + id.material.value;
+		return key;
 	};
+	std::unordered_set<std::string> parents;
+	std::array<std::unordered_map<std::string, std::string>, 4> names;
+	for ( const auto& row : state_.inventory )
+	{
+		names[static_cast<std::size_t>( row.id.depth )][pathKey( row.id, row.id.depth )] = row.name;
+		if ( row.id.depth == InventoryDepth::Group ) parents.insert( pathKey( row.id, InventoryDepth::Category ) );
+		else if ( row.id.depth == InventoryDepth::Item ) parents.insert( pathKey( row.id, InventoryDepth::Group ) );
+		else if ( row.id.depth == InventoryDepth::Material ) parents.insert( pathKey( row.id, InventoryDepth::Item ) );
+	}
+	const auto pathLabels = [&]( const InventoryRow& row )
+	{
+		std::array<std::string, 4> labels;
+		for ( std::size_t depth = 0; depth < labels.size(); ++depth )
+		{
+			const auto found = names[depth].find( pathKey( row.id, static_cast<InventoryDepth>( depth ) ) );
+			if ( found != names[depth].end() ) labels[depth] = found->second;
+		}
+		normalizeInventoryTableLabels( labels[1], labels[2], labels[3], row.id.item.value );
+		return labels;
+	};
+	struct Candidate
+	{
+		InventoryRow row;
+		std::array<std::string, 4> labels;
+		std::array<std::string, 4> foldedLabels;
+	};
+	std::unordered_set<std::string> seenLeaves;
+	std::vector<Candidate> candidates;
+	candidates.reserve( state_.inventory.size() );
+	for ( const auto& row : state_.inventory )
+	{
+		if ( parents.contains( pathKey( row.id, row.id.depth ) ) ) continue;
+		if ( !seenLeaves.insert( pathKey( row.id, row.id.depth ) ).second ) continue;
+		auto labels = pathLabels( row );
+		std::array<std::string, 4> foldedLabels;
+		for ( std::size_t column = 0; column < labels.size(); ++column ) foldedLabels[column] = folded( labels[column] );
+		candidates.push_back( { row, std::move( labels ), std::move( foldedLabels ) } );
+	}
 	const auto q = folded( state_.inventoryFilter );
 	if ( !state_.inventoryCategory.empty() )
-		std::erase_if( candidates, [&]( const auto& r ) { return r.id.category.value != state_.inventoryCategory || r.id.depth == InventoryDepth::Category; } );
+		std::erase_if( candidates, [&]( const auto& candidate ) { return candidate.row.id.category.value != state_.inventoryCategory; } );
 	if ( !q.empty() )
-		std::erase_if( candidates, [&]( const auto& r )
-					   { return folded( r.name ).find( q ) == std::string::npos || r.id.depth == InventoryDepth::Category; } );
+		std::erase_if( candidates, [&]( const auto& candidate )
+						   { return std::ranges::none_of( candidate.foldedLabels, [&]( const auto& label ) { return label.find( q ) != std::string::npos; } ); } );
 	if ( state_.inventoryOwnedOnly )
-		std::erase_if( candidates, [&]( const auto& r )
-					   {
-						   if ( r.total > 0 )
-							   return false;
-						   if ( r.id.depth == InventoryDepth::Category )
-							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.depth != InventoryDepth::Category; } );
-						   if ( r.id.depth == InventoryDepth::Group )
-							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.group == r.id.group && child.id.depth != InventoryDepth::Group; } );
-						   if ( r.id.depth == InventoryDepth::Item )
-							   return std::ranges::none_of( state_.inventory, [&]( const auto& child ) { return child.total > 0 && child.id.category == r.id.category && child.id.group == r.id.group && child.id.item == r.id.item && child.id.depth == InventoryDepth::Material; } );
-						   return true;
-					   } );
-	auto before = [&]( const InventoryRow& a, const InventoryRow& b )
+		std::erase_if( candidates, []( const auto& candidate ) { return candidate.row.total == 0; } );
+	std::array<std::string, 6> foldedFilters;
+	std::array<std::vector<std::string>, 6> foldedSelections;
+	for ( std::size_t column = 0; column < foldedFilters.size(); ++column )
 	{
-		if ( state_.inventorySort == Sort::Total )
-			return std::tie( a.total, a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) > std::tie( b.total, b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
-		if ( state_.inventorySort == Sort::Stock )
-			return std::tie( a.stockpiled, a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) > std::tie( b.stockpiled, b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
-		return std::tie( a.name, a.id.category.value, a.id.group.value, a.id.item.value, a.id.material.value ) < std::tie( b.name, b.id.category.value, b.id.group.value, b.id.item.value, b.id.material.value );
-	};
-	std::vector<InventoryRow> out;
-	std::vector<bool> emitted( candidates.size(), false );
-	std::function<void( std::size_t )> append = [&]( std::size_t index )
-	{
-		if ( emitted[index] )
-			return;
-		emitted[index] = true;
-		const auto& row = candidates[index];
-		out.push_back( row );
-		if ( !inventoryExpanded( row.id ) )
-			return;
-		std::vector<std::size_t> children;
-		for ( std::size_t i = 0; i < candidates.size(); ++i )
-			if ( !emitted[i] && directChild( candidates[i].id, row.id ) )
-				children.push_back( i );
-		std::ranges::stable_sort( children, [&]( std::size_t a, std::size_t b ) { return before( candidates[a], candidates[b] ); } );
-		for ( const auto child : children )
-			append( child );
-	};
-	std::vector<std::size_t> roots;
-	for ( std::size_t i = 0; i < candidates.size(); ++i )
-	{
-		const auto hasParent = std::ranges::any_of( candidates, [&]( const auto& parent ) { return directChild( candidates[i].id, parent.id ); } );
-		if ( !hasParent )
-			roots.push_back( i );
+		foldedFilters[column] = folded( state_.inventoryColumnFilters[column] );
+		foldedSelections[column].reserve( state_.inventoryColumnSelections[column].size() );
+		for ( const auto& selection : state_.inventoryColumnSelections[column] ) foldedSelections[column].push_back( folded( selection ) );
 	}
-	std::ranges::stable_sort( roots, [&]( std::size_t a, std::size_t b ) { return before( candidates[a], candidates[b] ); } );
-	for ( const auto root : roots )
-		append( root );
-	for ( std::size_t i = 0; i < candidates.size(); ++i )
-		if ( !emitted[i] && !std::ranges::any_of( candidates, [&]( const auto& parent ) { return directChild( candidates[i].id, parent.id ); } ) )
-			append( i );
+	std::erase_if( candidates, [&]( const auto& candidate )
+	{
+		const auto matches = [&]( std::size_t column, const std::string& foldedValue )
+		{
+			if ( !foldedFilters[column].empty() && foldedValue.find( foldedFilters[column] ) == std::string::npos ) return false;
+			return foldedSelections[column].empty() || std::ranges::find( foldedSelections[column], foldedValue ) != foldedSelections[column].end();
+		};
+		for ( std::size_t column = 0; column < 4; ++column )
+			if ( !matches( column, candidate.foldedLabels[column] ) ) return true;
+		if ( !inventoryQuantityMatches( candidate.row.stockpiled, state_.inventoryColumnFilters[4], state_.inventoryColumnSelections[4] ) ) return true;
+		return !inventoryQuantityMatches( candidate.row.total, state_.inventoryColumnFilters[5], state_.inventoryColumnSelections[5] );
+	} );
+	auto before = [&]( const Candidate& a, const Candidate& b )
+	{
+		if ( state_.inventorySort == Sort::Total && a.row.total != b.row.total ) return state_.inventorySortDescending ? a.row.total > b.row.total : a.row.total < b.row.total;
+		if ( state_.inventorySort == Sort::Stock && a.row.stockpiled != b.row.stockpiled ) return state_.inventorySortDescending ? a.row.stockpiled > b.row.stockpiled : a.row.stockpiled < b.row.stockpiled;
+		const std::size_t column = state_.inventorySort == Sort::Category ? 0 : state_.inventorySort == Sort::Group ? 1 : state_.inventorySort == Sort::Material ? 3 : 2;
+		const auto& leftColumn = a.foldedLabels[column];
+		const auto& rightColumn = b.foldedLabels[column];
+		if ( leftColumn != rightColumn ) return state_.inventorySortDescending ? leftColumn > rightColumn : leftColumn < rightColumn;
+		return state_.inventorySortDescending ? inventoryTableSortKey( a.labels, column ) > inventoryTableSortKey( b.labels, column ) : inventoryTableSortKey( a.labels, column ) < inventoryTableSortKey( b.labels, column );
+	};
+	std::ranges::stable_sort( candidates, before );
+	std::vector<InventoryRow> out;
+	out.reserve( candidates.size() );
+	for ( auto& candidate : candidates ) out.push_back( std::move( candidate.row ) );
 	return out;
 }
 template <class T>
@@ -369,8 +424,16 @@ void Management6BController::reconcileSelection()
 														  { return r.id == *state_.selectedCreature; } ) )
 		state_.selectedCreature = state_.population.empty() ? std::nullopt : std::optional { state_.population.front().id };
 	if ( state_.selectedInventory && std::ranges::none_of( state_.inventory, [&]( const auto& r )
-														   { return same( r.id, *state_.selectedInventory ); } ) )
+															   { return same( r.id, *state_.selectedInventory ); } ) )
 		state_.selectedInventory = state_.inventory.empty() ? std::nullopt : std::optional { state_.inventory.front().id };
+	if ( state_.inventoryDetail && std::ranges::none_of( state_.inventory, [&]( const auto& r ) { return r.id == *state_.inventoryDetail; } ) )
+	{
+		state_.inventoryDetail.reset();
+		state_.inventoryDetailBack.clear();
+		state_.historyTarget.reset();
+		state_.inventoryHistory.clear();
+		state_.inventoryHistoryLoading = false;
+	}
 }
 void Management6BController::selectCreature( CreatureId id )
 {
@@ -388,6 +451,91 @@ void Management6BController::selectCreature( CreatureId id )
 	notify();
 	dispatch( "inspect.select", SelectPayload { { state_.world, EntityKind::Creature, id.value, {} } } );
 }
+void Management6BController::selectSkill( CatalogId id )
+{
+	if( std::ranges::none_of( state_.skillCatalog, [&]( const SkillCatalogRow& row ){ return row.id == id; } ) ) return;
+	state_.selectedSkill = std::move( id );
+	notify();
+}
+void Management6BController::selectProfession( ProfessionId id )
+{
+	const auto it = std::ranges::find_if( state_.professions, [&]( const ProfessionRow& row ){ return row.id == id; } );
+	if( it == state_.professions.end() ) return;
+	state_.selectedProfession = id;
+	state_.professionDraftName = it->name;
+	state_.professionDraftSkills = it->skills;
+	state_.professionDraftDirty = false;
+	state_.selectedProfessionSkill.reset();
+	state_.selectedAvailableSkill.reset();
+	notify();
+	dispatch( "profession.request_skills", ProfessionTargetPayload{ id } );
+}
+void Management6BController::selectProfessionSkill( CatalogId id )
+{
+	if( std::ranges::find( state_.professionDraftSkills, id ) == state_.professionDraftSkills.end() ) return;
+	state_.selectedProfessionSkill = std::move( id ); notify();
+}
+void Management6BController::selectAvailableSkill( CatalogId id )
+{
+	if( std::ranges::none_of( state_.skillCatalog, [&]( const SkillCatalogRow& row ){ return row.id == id; } ) ) return;
+	state_.selectedAvailableSkill = std::move( id ); notify();
+}
+void Management6BController::setProfessionDraftName( std::string name )
+{
+	state_.professionDraftName = std::move( name ); state_.professionDraftDirty = true; notify();
+}
+void Management6BController::addProfessionSkill()
+{
+	if( !state_.selectedAvailableSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	const auto id = *state_.selectedAvailableSkill;
+	if( std::ranges::find( state_.professionDraftSkills, id ) == state_.professionDraftSkills.end() ) state_.professionDraftSkills.push_back( id );
+	state_.professionDraftDirty = true;
+	state_.selectedProfessionSkill = id; notify();
+}
+void Management6BController::removeProfessionSkill()
+{
+	if( !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	std::erase( state_.professionDraftSkills, *state_.selectedProfessionSkill );
+	state_.professionDraftDirty = true;
+	state_.selectedProfessionSkill.reset(); notify();
+}
+void Management6BController::moveProfessionSkill( std::int32_t delta )
+{
+	if( !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	const auto it = std::ranges::find( state_.professionDraftSkills, *state_.selectedProfessionSkill );
+	if( it == state_.professionDraftSkills.end() ) return;
+	const auto index = std::distance( state_.professionDraftSkills.begin(), it );
+	const auto moved = index + delta;
+	if( moved < 0 || moved >= static_cast<std::ptrdiff_t>( state_.professionDraftSkills.size() ) ) return;
+	std::iter_swap( it, state_.professionDraftSkills.begin() + moved ); state_.professionDraftDirty = true; notify();
+}
+void Management6BController::createProfession( std::string name )
+{
+	const auto first = name.find_first_not_of( " \t\r\n" );
+	const auto last = name.find_last_not_of( " \t\r\n" );
+	if( first == std::string::npos ) { state_.status = "management.population.error_name_required"; notify(); return; }
+	name = name.substr( first, last - first + 1 );
+	if( std::ranges::any_of( state_.professions, [&]( const ProfessionRow& row ){ return row.name == name; } ) ) { state_.status = "management.population.error_duplicate_name"; notify(); return; }
+	if( dispatch( "profession.create", CreateProfessionPayload{ name } ) ) state_.selectedProfession = ProfessionId{ name };
+}
+void Management6BController::saveProfession()
+{
+	if( !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	const auto name = state_.professionDraftName;
+	if( name.find_first_not_of( " \t\r\n" ) == std::string::npos ) { state_.status = "management.population.error_name_required"; notify(); return; }
+	if( std::ranges::any_of( state_.professions, [&]( const ProfessionRow& row ){ return row.name == name && row.id != *state_.selectedProfession; } ) ) { state_.status = "management.population.error_duplicate_name"; notify(); return; }
+	const auto old = *state_.selectedProfession;
+	if( dispatch( "profession.update", UpdateProfessionPayload{ old, name, state_.professionDraftSkills } ) ) { state_.selectedProfession = ProfessionId{ name }; state_.professionDraftDirty = false; }
+}
+void Management6BController::deleteProfession()
+{
+	if( !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	if ( dispatch( "profession.delete", ProfessionTargetPayload{ *state_.selectedProfession }, true ) ) state_.selectedProfession.reset();
+}
+void Management6BController::setScheduleActivity( ManagedScheduleActivity activity )
+{
+	state_.scheduleActivity = activity; notify();
+}
 void Management6BController::selectInventory( InventoryRowId id )
 {
 	const auto rows = visibleInventory();
@@ -397,6 +545,38 @@ void Management6BController::selectInventory( InventoryRowId id )
 		return;
 	state_.selectedInventory = std::move( id );
 	state_.inventoryPage     = static_cast<std::size_t>( i - rows.begin() ) / Management6BState::pageSize;
+	notify();
+}
+void Management6BController::openInventoryDetail( InventoryRowId id )
+{
+	if ( id.depth != InventoryDepth::Item && id.depth != InventoryDepth::Material ) return;
+	if ( std::ranges::none_of( state_.inventory, [&]( const auto& row ) { return row.id == id; } ) ) return;
+	if ( state_.inventoryDetail && *state_.inventoryDetail != id ) state_.inventoryDetailBack.push_back( *state_.inventoryDetail );
+	state_.inventoryDetail = std::move( id );
+	requestSelectedInventoryHistory();
+	notify();
+}
+void Management6BController::openRelatedInventoryItem( std::string itemID )
+{
+	const auto row = std::ranges::find_if( state_.inventory, [&]( const auto& value )
+		{ return value.id.depth == InventoryDepth::Item && value.id.item.value == itemID; } );
+	if ( row != state_.inventory.end() ) openInventoryDetail( row->id );
+}
+void Management6BController::backInventoryDetail()
+{
+	if ( state_.inventoryDetailBack.empty() ) { closeInventoryDetail(); return; }
+	state_.inventoryDetail = state_.inventoryDetailBack.back();
+	state_.inventoryDetailBack.pop_back();
+	requestSelectedInventoryHistory();
+	notify();
+}
+void Management6BController::closeInventoryDetail()
+{
+	state_.inventoryDetail.reset();
+	state_.inventoryDetailBack.clear();
+	state_.historyTarget.reset();
+	state_.inventoryHistory.clear();
+	state_.inventoryHistoryLoading = false;
 	notify();
 }
 void Management6BController::movePopulationSelection( std::int32_t delta )
@@ -495,11 +675,29 @@ bool Management6BController::applyProfessions( Snapshot<std::vector<ProfessionRo
 	if ( !accepts( s.world, s.revision, state_.professionRevision ) )
 		return false;
 	state_.professions        = std::move( s.value );
+	if( state_.selectedProfession )
+	{
+		const auto selected = std::ranges::find_if( state_.professions, [&]( const ProfessionRow& row ){ return row.id == *state_.selectedProfession; } );
+		if( selected != state_.professions.end() )
+		{
+			if( !state_.professionDraftDirty ) { state_.professionDraftName = selected->name; state_.professionDraftSkills = selected->skills; }
+			dispatch( "profession.request_skills", ProfessionTargetPayload{ selected->id } );
+		}
+		else { state_.selectedProfession.reset(); state_.professionDraftDirty = false; }
+	}
 	state_.professionRevision = s.revision;
 	state_.loadingPopulation  = false;
 	state_.pendingAction.reset();
 	notify();
 	return true;
+}
+bool Management6BController::applySkillCatalog( WorldEpoch world, std::vector<SkillCatalogRow> rows )
+{
+	if( world != state_.world ) return false;
+	state_.skillCatalog = std::move( rows );
+	if( state_.selectedSkill && std::ranges::none_of( state_.skillCatalog, [&]( const SkillCatalogRow& row ){ return row.id == *state_.selectedSkill; } ) ) state_.selectedSkill.reset();
+	if( !state_.selectedSkill && !state_.skillCatalog.empty() ) state_.selectedSkill = state_.skillCatalog.front().id;
+	notify(); return true;
 }
 bool Management6BController::applyProfessionSkills( WorldEpoch w, ProfessionId id, std::vector<CatalogId> skills )
 {
@@ -510,6 +708,7 @@ bool Management6BController::applyProfessionSkills( WorldEpoch w, ProfessionId i
 	if ( i == state_.professions.end() )
 		return false;
 	i->skills = std::move( skills );
+	if( state_.selectedProfession == id && !state_.professionDraftDirty ) state_.professionDraftSkills = i->skills;
 	notify();
 	return true;
 }
@@ -662,10 +861,11 @@ void Management6BController::setWatched( InventoryRowId r, bool w )
 }
 void Management6BController::requestSelectedInventoryHistory()
 {
-	if ( !state_.selectedInventory || isSection( state_.selectedInventory->depth ) )
+	const auto target = state_.inventoryDetail ? state_.inventoryDetail : state_.selectedInventory;
+	if ( !target || target->depth == InventoryDepth::Category || target->depth == InventoryDepth::Group )
 		return;
 	const auto it = std::ranges::find_if( state_.inventory, [&]( const auto& r )
-		{ return r.id == *state_.selectedInventory; } );
+		{ return r.id == *target; } );
 	if ( it == state_.inventory.end() )
 		return;
 	state_.historyTarget = it->id;

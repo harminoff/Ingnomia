@@ -140,7 +140,7 @@ void InspectorController::applyEquipmentSlot()
 	}
 }
 void InspectorController::closeEquipmentEditor(){if(state_.equipmentSlotEditor){state_.equipmentSlotEditor.reset();state_.equipmentDraftType={};state_.equipmentDraftMaterial.reset();notify();}}
-void InspectorController::executeContext(TileContextAction action){if(state_.tile)dispatch("tile.execute_context_action",TileContextPayload{state_.tile->id,action});}
+void InspectorController::executeContext(TileContextAction action){if(state_.tile && (action!=TileContextAction::DeleteStockpile || state_.tile->canDeleteStockpile))dispatch("tile.execute_context_action",TileContextPayload{state_.tile->id,action});}
 void InspectorController::toggleWorkshopSuspended(){if(!state_.workshop)return;const auto&s=*state_.workshop;dispatch("workshop.set_basics",SetWorkshopBasicsPayload{s.id,s.name,s.priority,!s.suspended,s.acceptGenerated,s.autoCraftMissing,std::nullopt});}
 void InspectorController::toggleStockpileSuspended(){if(!state_.stockpile)return;const auto&s=*state_.stockpile;dispatch("stockpile.set_basics",SetStockpileBasicsPayload{s.id,s.name,s.priority,!s.suspended,s.pullFromOthers,s.allowPullFromHere});}
 void InspectorController::toggleAgricultureSuspended(){if(!state_.agriculture)return;const auto&s=*state_.agriculture;dispatch("agriculture.set_basics",SetAgricultureBasicsPayload{s.target,s.name,s.priority,!s.suspended});}

@@ -11,10 +11,12 @@ class Management6BQtCommandPort final : public CommandPort
 public:
 	explicit Management6BQtCommandPort( EventConnector* );
 	CommandResult dispatch( const UiActionEnvelope& ) override;
+	CommandResult dispatchConfirmed( const UiActionEnvelope& ) override;
 	void setWorld( WorldEpoch w, bool accepts ) { world_=w;accepts_=accepts; }
 private:
 	CommandResult reject( const char* ) const;
 	CommandResult queue( std::function<void()> ) const;
+	CommandResult dispatchValidated( const UiActionEnvelope&, bool confirmed );
 	QPointer<EventConnector> connector_;
 	WorldEpoch world_;
 	bool accepts_{};

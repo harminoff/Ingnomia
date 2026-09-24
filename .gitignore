@@ -411,3 +411,19 @@ CLAUDE.md
 /*.error.txt
 /hud-domdump.txt
 /real-creature-layout-lifecycle.txt
+
+# Local runtime output, ad-hoc verification, and developer-only notes/tools.
+/log.txt
+/tests/ui-inspector/live_tile_probe.h
+/tests/ui-management6a/runtime_probe.h
+/scripts/generate_inventory_icons.py
+/tools/run-rmlui-dev.ps1
+/docs/canvas-layer-alignment-*.md
+/docs/inventory-table-updates.md
+/docs/live-tile-inspection-*.md
+/docs/management-window-parity-*.md
+/docs/rmlui-development.md
+/docs/tutorial-first-spring-review.md
+/docs/ui-designer-plan.md
+/docs/ui-designer.md
+/docs/workshop-*.md

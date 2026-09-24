@@ -25,13 +25,6 @@ struct IsometricTilePick
 	int y = 0;
 };
 
-// The shaders project relative to the visible top level. Cancel that change
-// in the camera offset so changing the cutaway does not pan existing terrain.
-inline constexpr float cameraYAfterLayerChange( float cameraY, int oldLevel, int newLevel )
-{
-	return cameraY - ( newLevel - oldLevel ) * 20.f;
-}
-
 // Stairs/ramps have a top-face anchor at height 28 in their atlas sprite.
 // Lift the buried ghost to the selected surface for presentation only. Its
 // Position and the excavation job still refer to the original depth.

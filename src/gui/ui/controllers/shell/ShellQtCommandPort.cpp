@@ -143,6 +143,12 @@ CommandResult ShellQtCommandPort::dispatch( const UiActionEnvelope& action )
 			return QMetaObject::invokeMethod( settings, [settings, value = std::get<std::int32_t>( payload->value )]() { settings->onSetLightMin( value ); }, Qt::QueuedConnection ) ? complete() : reject( "ui.error.bridge_queue_failed" );
 		if( payload->setting.value == "camera.wheel_changes_level" && std::holds_alternative<bool>( payload->value ) )
 			return QMetaObject::invokeMethod( settings, [settings, value = std::get<bool>( payload->value )]() { settings->onSetToggleMouseWheel( value ); }, Qt::QueuedConnection ) ? complete() : reject( "ui.error.bridge_queue_failed" );
+		if( payload->setting.value == "audio.master_volume" && std::holds_alternative<std::int32_t>( payload->value ) )
+			return QMetaObject::invokeMethod( settings, [settings, value = std::get<std::int32_t>( payload->value )]() { settings->onSetAudioMasterVolume( value ); }, Qt::QueuedConnection ) ? complete() : reject( "ui.error.bridge_queue_failed" );
+		if( payload->setting.value == "game.autosave_interval" && std::holds_alternative<std::int32_t>( payload->value ) )
+			return QMetaObject::invokeMethod( settings, [settings, value = std::get<std::int32_t>( payload->value )]() { settings->onSetAutoSaveInterval( value ); }, Qt::QueuedConnection ) ? complete() : reject( "ui.error.bridge_queue_failed" );
+		if( payload->setting.value == "game.autosave_continue" && std::holds_alternative<bool>( payload->value ) )
+			return QMetaObject::invokeMethod( settings, [settings, value = std::get<bool>( payload->value )]() { settings->onSetAutoSaveContinue( value ); }, Qt::QueuedConnection ) ? complete() : reject( "ui.error.bridge_queue_failed" );
 		return reject( "ui.error.setting_unsupported" );
 	}
 	if( action.id.value == "settings.apply" ) return complete(); // All exposed rows are immediate.

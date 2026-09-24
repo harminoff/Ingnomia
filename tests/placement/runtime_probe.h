@@ -125,10 +125,18 @@ inline void schedulePlacementProbe(QApplication& app, GameManager* manager)
                 tile.wallSpriteUID = 0;
                 tile.flags = TileFlag::TF_WALKABLE;
             }
-            // Expose a lower-layer landmark for stationary-canvas captures.
+            // Matching rooms and a staircase column across three floors:
+            // compare the active grid, not a fixed-Z rock seen through a hole.
             if (qEnvironmentVariableIsSet("INGNOMIA_LAYER_SCROLL_PROBE")
-                && level >= z && x >= 46 && x <= 54 && y >= 44 && y <= 52)
-                tile = Tile{};
+                && x >= 46 && x <= 54 && y >= 44 && y <= 52) {
+                tile.wallType = WT_NOWALL;
+                tile.wallSpriteUID = 0;
+                tile.flags = TileFlag::TF_WALKABLE;
+                if (x == state->target.x && y == state->target.y) {
+                    tile.wallType = WT_STAIR;
+                    tile.wallSpriteUID = game->sf()->createSprite("Stairs", {"Granite"})->uID;
+                }
+            }
             world->addToUpdateList(x,y,level);
         }
         Position workerPos(45,45,z);

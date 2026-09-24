@@ -81,8 +81,12 @@ constexpr std::array ACTIONS{
 	action<StockpileTargetPayload>( "stockpile.refresh", ActionScope::World ),
 	action<SetStockpileBasicsPayload>( "stockpile.set_basics", ActionScope::World ),
 	action<SetStockpileFilterPayload>( "stockpile.set_filter", ActionScope::World ),
+	action<SetStockpileFiltersPayload>( "stockpile.set_filters", ActionScope::World ),
+	action<StockpileTemplatePayload>( "stockpile.save_template", ActionScope::World ),
+	action<StockpileTemplatePayload>( "stockpile.apply_template", ActionScope::World ),
 	action<WorkshopTargetPayload>( "workshop.refresh", ActionScope::World ),
 	action<SetWorkshopBasicsPayload>( "workshop.set_basics", ActionScope::World ),
+	action<SetWorkshopStockpileLinkPayload>( "workshop.set_stockpile_link", ActionScope::World ),
 	action<SetButcherOptionsPayload>( "workshop.set_butcher_options", ActionScope::World ),
 	action<SetFisherOptionsPayload>( "workshop.set_fisher_options", ActionScope::World ),
 	action<QueueCraftPayload>( "workshop.queue_craft", ActionScope::World ),
@@ -95,6 +99,10 @@ constexpr std::array ACTIONS{
 	action<AgricultureTargetPayload>( "agriculture.refresh", ActionScope::World ),
 	action<SetAgricultureBasicsPayload>( "agriculture.set_basics", ActionScope::World ),
 	action<SetAgricultureProductPayload>( "agriculture.select_product", ActionScope::World ),
+	action<SetFarmPlotCropPayload>( "agriculture.set_plot_crop", ActionScope::World ),
+	action<QueueFarmPlotCropPayload>( "agriculture.queue_plot_crop", ActionScope::World ),
+	action<FarmPlotOrderPayload>( "agriculture.cancel_plot_order", ActionScope::World ),
+	action<MoveFarmPlotOrderPayload>( "agriculture.move_plot_order", ActionScope::World ),
 	action<SetHarvestOptionsPayload>( "agriculture.set_harvest_options", ActionScope::World ),
 	action<SetGroveOptionsPayload>( "agriculture.set_grove_options", ActionScope::World ),
 	action<SetPastureCapPayload>( "agriculture.set_population_caps", ActionScope::World ),
@@ -110,6 +118,7 @@ constexpr std::array ACTIONS{
 	action<SetScheduleColumnPayload>( "population.set_schedule_column", ActionScope::World ),
 	action<NoPayload>( "profession.refresh", ActionScope::World ),
 	action<CreateProfessionPayload>( "profession.create", ActionScope::World ),
+	action<ProfessionTargetPayload>( "profession.request_skills", ActionScope::World ),
 	action<ProfessionTargetPayload>( "profession.delete", ActionScope::World, true ),
 	action<UpdateProfessionPayload>( "profession.update", ActionScope::World ),
 	action<NoPayload>( "inventory.refresh", ActionScope::World ),
@@ -257,6 +266,11 @@ bool basicPayloadValid( const Payload& payload, const ActionValidationContext& c
 		return validCatalog( payload.material );
 	else if constexpr( std::is_same_v<Payload, SetStockpileFilterPayload> )
 		return validStockpileFilterRow( payload.row );
+	else if constexpr( std::is_same_v<Payload, SetStockpileFiltersPayload> )
+		return payload.stockpile && !payload.rows.empty()
+			&& std::ranges::all_of( payload.rows, [&]( const auto& row ) { return row.stockpile == payload.stockpile && validStockpileFilterRow( row ); } );
+	else if constexpr( std::is_same_v<Payload, StockpileTemplatePayload> )
+		return payload.stockpile && !payload.name.empty() && payload.name.size() <= 48;
 	else if constexpr( std::is_same_v<Payload, QueueCraftPayload> )
 		return payload.workshop && validCatalog( payload.craft ) && payload.count > 0
 			&& std::ranges::all_of( payload.materials, validCatalog );
@@ -274,6 +288,12 @@ bool basicPayloadValid( const Payload& payload, const ActionValidationContext& c
 		return validAgricultureTarget( payload.target );
 	else if constexpr( std::is_same_v<Payload, SetAgricultureProductPayload> )
 		return validAgricultureTarget( payload.target ) && validCatalog( payload.product );
+	else if constexpr( std::is_same_v<Payload, SetFarmPlotCropPayload> )
+		return payload.farm && !payload.plots.empty() && ( payload.crop.value.empty() || validCatalog( payload.crop ) );
+	else if constexpr( std::is_same_v<Payload, QueueFarmPlotCropPayload> )
+		return payload.farm && !payload.plots.empty() && validCatalog( payload.crop ) && payload.count > 0 && payload.count <= 9999;
+	else if constexpr( std::is_same_v<Payload, FarmPlotOrderPayload> || std::is_same_v<Payload, MoveFarmPlotOrderPayload> )
+		return payload.farm && payload.order > 0;
 	else if constexpr( std::is_same_v<Payload, SetPastureFoodPayload> )
 		return payload.pasture && validCatalog( payload.item ) && validCatalog( payload.material );
 	else if constexpr( std::is_same_v<Payload, SetSkillPayload> )
@@ -314,6 +334,8 @@ bool basicPayloadValid( const Payload& payload, const ActionValidationContext& c
 		return payload.room && ( !payload.tenant || static_cast<bool>( *payload.tenant ) );
 	else if constexpr( std::is_same_v<Payload, SetAutomatonCorePayload> )
 		return payload.automaton && validCatalog( payload.core );
+	else if constexpr( std::is_same_v<Payload, SetWorkshopStockpileLinkPayload> )
+		return payload.workshop && payload.stockpile;
 	else if constexpr( requires { payload.workshop; } )
 		return static_cast<bool>( payload.workshop );
 	else if constexpr( requires { payload.stockpile; } )

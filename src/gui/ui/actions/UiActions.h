@@ -20,7 +20,7 @@ enum class BuildKind : std::uint8_t { Workshop, Terrain, Item };
 // for the resulting selection action and placement validation.
 enum class BuildAction : std::uint8_t { Build, FillHole, Replace };
 enum class EventResponse : std::uint8_t { Acknowledge, Yes, No };
-enum class TileContextAction : std::uint8_t { Mine, Harvest, Manage, CancelJob, RaisePriority, LowerPriority, Deconstruct, RemoveFloor, FellTree, RemovePlant };
+enum class TileContextAction : std::uint8_t { Mine, Harvest, Manage, CancelJob, RaisePriority, LowerPriority, Deconstruct, RemoveFloor, FellTree, RemovePlant, DeleteStockpile };
 enum class Gender : std::uint8_t { Female, Male };
 enum class CraftRepeatMode : std::uint8_t { Once, Repeat, Maintain };
 enum class MoveDirection : std::uint8_t { Up, Down, Front, Back };
@@ -141,7 +141,10 @@ struct StartingAnimalTargetPayload { CatalogId species; Gender gender{ Gender::F
 struct StockpileTargetPayload { StockpileId stockpile; UI_PAYLOAD_EQUALITY( StockpileTargetPayload ); };
 struct SetStockpileBasicsPayload { StockpileId stockpile; std::string name; std::int32_t priority{}; bool suspended{}, pull{}, allowPull{}; UI_PAYLOAD_EQUALITY( SetStockpileBasicsPayload ); };
 struct SetStockpileFilterPayload { StockpileFilterRowId row; bool active{}; UI_PAYLOAD_EQUALITY( SetStockpileFilterPayload ); };
+struct SetStockpileFiltersPayload { StockpileId stockpile; std::vector<StockpileFilterRowId> rows; bool active{}; UI_PAYLOAD_EQUALITY( SetStockpileFiltersPayload ); };
+struct StockpileTemplatePayload { StockpileId stockpile; std::string name; UI_PAYLOAD_EQUALITY( StockpileTemplatePayload ); };
 struct WorkshopTargetPayload { WorkshopId workshop; UI_PAYLOAD_EQUALITY( WorkshopTargetPayload ); };
+struct SetWorkshopStockpileLinkPayload { WorkshopId workshop; StockpileId stockpile; bool linked{}; UI_PAYLOAD_EQUALITY( SetWorkshopStockpileLinkPayload ); };
 struct SetWorkshopBasicsPayload { WorkshopId workshop; std::string name; std::int32_t priority{}; bool suspended{}, acceptGenerated{}, autoCraftMissing{}; std::optional<StockpileId> connectStockpile; std::optional<bool> linkStockpile; UI_PAYLOAD_EQUALITY( SetWorkshopBasicsPayload ); };
 struct SetButcherOptionsPayload { WorkshopId workshop; bool butcherCorpses{}, butcherExcess{}; UI_PAYLOAD_EQUALITY( SetButcherOptionsPayload ); };
 struct SetFisherOptionsPayload { WorkshopId workshop; bool catchFish{}, processFish{}; UI_PAYLOAD_EQUALITY( SetFisherOptionsPayload ); };
@@ -153,6 +156,10 @@ struct SetTradeOfferPayload { WorkshopId workshop; TradeRowId row; std::uint32_t
 struct AgricultureTargetPayload { AgricultureTarget target; UI_PAYLOAD_EQUALITY( AgricultureTargetPayload ); };
 struct SetAgricultureBasicsPayload { AgricultureTarget target; std::string name; std::int32_t priority{}; bool suspended{}; UI_PAYLOAD_EQUALITY( SetAgricultureBasicsPayload ); };
 struct SetAgricultureProductPayload { AgricultureTarget target; CatalogId product; UI_PAYLOAD_EQUALITY( SetAgricultureProductPayload ); };
+struct SetFarmPlotCropPayload { DesignationId farm; std::vector<WorldPosition> plots; CatalogId crop; UI_PAYLOAD_EQUALITY( SetFarmPlotCropPayload ); };
+struct QueueFarmPlotCropPayload { DesignationId farm; std::vector<WorldPosition> plots; CatalogId crop; std::uint32_t count{ 1 }; bool repeat{}; UI_PAYLOAD_EQUALITY( QueueFarmPlotCropPayload ); };
+struct FarmPlotOrderPayload { DesignationId farm; WorldPosition plot; std::uint32_t order{}; UI_PAYLOAD_EQUALITY( FarmPlotOrderPayload ); };
+struct MoveFarmPlotOrderPayload { DesignationId farm; WorldPosition plot; std::uint32_t order{}; MoveDirection direction{ MoveDirection::Up }; UI_PAYLOAD_EQUALITY( MoveFarmPlotOrderPayload ); };
 struct SetHarvestOptionsPayload { AgricultureTarget target; bool harvest{}, harvestHay{}, tame{}; UI_PAYLOAD_EQUALITY( SetHarvestOptionsPayload ); };
 struct SetGroveOptionsPayload { DesignationId grove; bool pick{}, plant{}, fell{}; UI_PAYLOAD_EQUALITY( SetGroveOptionsPayload ); };
 struct SetPastureCapPayload { DesignationId pasture; Gender gender{ Gender::Female }; std::uint32_t max{}; UI_PAYLOAD_EQUALITY( SetPastureCapPayload ); };
@@ -197,9 +204,10 @@ using UiActionPayload = std::variant<NoPayload, StartNewGamePayload, LoadGamePay
 	WatchPayload, SetSettingDraftPayload, SelectKingdomPayload, SetNewGameFieldPayload, PresetTargetPayload,
 	SavePresetPayload, SetSpeciesPayload, SetStartingItemPayload, StartingItemTargetPayload,
 	SetStartingAnimalPayload, StartingAnimalTargetPayload, StockpileTargetPayload, SetStockpileBasicsPayload,
-	SetStockpileFilterPayload, WorkshopTargetPayload, SetWorkshopBasicsPayload, SetButcherOptionsPayload,
+	SetStockpileFilterPayload, SetStockpileFiltersPayload, StockpileTemplatePayload, WorkshopTargetPayload, SetWorkshopStockpileLinkPayload, SetWorkshopBasicsPayload, SetButcherOptionsPayload,
 	SetFisherOptionsPayload, QueueCraftPayload, SetCraftJobPayload, MoveCraftJobPayload, CraftJobTargetPayload,
 	SetTradeOfferPayload, AgricultureTargetPayload, SetAgricultureBasicsPayload, SetAgricultureProductPayload,
+	SetFarmPlotCropPayload, QueueFarmPlotCropPayload, FarmPlotOrderPayload, MoveFarmPlotOrderPayload,
 	SetHarvestOptionsPayload, SetGroveOptionsPayload, SetPastureCapPayload, SetButcheringPayload,
 	SetPastureFoodPayload, SetSkillPayload, SetGnomeSkillsPayload, SetSkillForAllPayload, SetProfessionPayload,
 	SetScheduleCellPayload, SetScheduleRowPayload, SetScheduleColumnPayload, CreateProfessionPayload,

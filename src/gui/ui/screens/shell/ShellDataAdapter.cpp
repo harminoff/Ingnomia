@@ -38,7 +38,13 @@ SettingsState ShellDataAdapter::settings( const UpstreamSettingsSnapshot& source
 		row( "display.minimum_light", "ui.settings.minimum_light", "ui.settings.minimum_light.description",
 			SettingControl::Integer, std::clamp( source.minimumLightPercent, 0, 100 ), SettingValue{ std::int32_t{ 0 } }, SettingValue{ std::int32_t{ 100 } } ),
 		row( "camera.wheel_changes_level", "ui.settings.wheel_changes_level", "ui.settings.wheel_changes_level.description",
-			SettingControl::Toggle, source.wheelChangesLevel )
+			SettingControl::Toggle, source.wheelChangesLevel ),
+		row( "audio.master_volume", "ui.settings.master_volume", "ui.settings.master_volume.description",
+			SettingControl::Integer, std::clamp( source.masterVolumePercent, 0, 100 ), SettingValue{ std::int32_t{ 0 } }, SettingValue{ std::int32_t{ 100 } } ),
+		row( "game.autosave_interval", "ui.settings.autosave_interval", "ui.settings.autosave_interval.description",
+			SettingControl::Integer, std::clamp( source.autoSaveInterval, 1, 14 ), SettingValue{ std::int32_t{ 1 } }, SettingValue{ std::int32_t{ 14 } } ),
+		row( "game.autosave_continue", "ui.settings.autosave_continue", "ui.settings.autosave_continue.description",
+			SettingControl::Toggle, source.autoSaveContinue )
 	};
 	return result;
 }

@@ -46,6 +46,14 @@ std::string equipmentIcon( const EquipmentItem& item )
 	return baseID.isEmpty() ? std::string{} : "../tilesheet/inventory_" + text( baseID ) + ".tga";
 }
 
+std::string itemIcon( const QString& item )
+{
+	if( item.isEmpty() ) return {};
+	const auto base = equipmentBaseSprite( item );
+	const auto baseID = base.value( "ID" ).toString();
+	return baseID.isEmpty() ? std::string{} : "../tilesheet/inventory_" + text( baseID ) + ".tga";
+}
+
 std::vector<EquipmentTypeChoice> equipmentChoices( const QString& slot )
 {
 	std::vector<EquipmentTypeChoice> result;
@@ -77,6 +85,7 @@ TileInspectorState InspectorQtDataAdapter::tile(const GuiTileInfo& in)
 	if(in.designationFlag==TileFlag::TF_ROOM)out.roomSummary="Beds "+text(in.beds)+(in.isEnclosed?" | enclosed":" | open")+(in.hasRoof?" | roofed":" | no roof");
 	if(in.mechInfo.itemID)out.mechanismSummary=text(in.mechInfo.name)+" | "+(in.mechInfo.active?"active":"inactive")+(in.mechInfo.isInvertable?(in.mechInfo.inverted?" | inverted":" | normal"):"");
 	out.plantIsTree=in.plantIsTree;out.plantIsHarvestable=in.plantIsHarvestable;out.canMine=!in.wall.isEmpty()&&!out.hasJob;out.canRemoveFloor=!in.floor.isEmpty()&&in.wall.isEmpty()&&in.plant.isEmpty()&&!out.hasJob;out.canHarvest=!in.plant.isEmpty()&&in.plantIsHarvestable&&!out.hasJob;out.canFell=!in.plant.isEmpty()&&in.plantIsTree&&!out.hasJob;out.canRemovePlant=!in.plant.isEmpty()&&!in.plantIsTree&&!out.hasJob;
+	out.canDeleteStockpile=in.designationID && in.designationFlag==TileFlag::TF_STOCKPILE;
 	out.canManage=in.designationID&&(in.designationFlag==TileFlag::TF_WORKSHOP||in.designationFlag==TileFlag::TF_STOCKPILE||in.designationFlag==TileFlag::TF_FARM||in.designationFlag==TileFlag::TF_PASTURE||in.designationFlag==TileFlag::TF_GROVE);
 	return out;
 }
@@ -140,7 +149,7 @@ CreatureInspectorState InspectorQtDataAdapter::creature(const GuiCreatureInfo& i
 	return out;
 }
 WorkshopInspectorState InspectorQtDataAdapter::workshop(const GuiWorkshopInfo&i){return {WorkshopId{i.workshopID},text(i.name),text(i.gui),i.priority,i.maxPriority,i.suspended,i.acceptGenerated,i.autoCraftMissing,i.linkStockpile,i.butcherCorpses,i.butcherExcess,i.catchFish,i.processFish,static_cast<std::uint32_t>(i.products.size()),static_cast<std::uint32_t>(i.jobList.size())};}
-StockpileInspectorState InspectorQtDataAdapter::stockpile(const GuiStockpileInfo&i){StockpileInspectorState o{StockpileId{i.stockpileID},text(i.name),i.priority,i.maxPriority,i.capacity,i.itemCount,i.reserved,i.suspended,i.pullFromOthers,i.allowPullFromHere,{}};for(const auto&r:i.summary)o.contents.push_back({text(r.itemName),text(r.materialName),static_cast<std::uint32_t>(qMax(0,r.count))});return o;}
+StockpileInspectorState InspectorQtDataAdapter::stockpile(const GuiStockpileInfo&i){StockpileInspectorState o{StockpileId{i.stockpileID},text(i.name),i.priority,i.maxPriority,i.capacity,i.itemCount,i.reserved,i.suspended,i.pullFromOthers,i.allowPullFromHere,{}};for(const auto&r:i.summary)o.contents.push_back({text(r.itemName),text(r.materialName),static_cast<std::uint32_t>(qMax(0,r.count)),false,itemIcon(r.itemSID)});return o;}
 AgricultureInspectorState InspectorQtDataAdapter::farm(const GuiFarmInfo&i){AgricultureInspectorState o;o.target={AgricultureKind::Farm,DesignationId{i.ID}};o.name=text(i.name);o.product=text(i.plantType);o.priority=i.priority;o.maxPriority=i.maxPriority;o.plots=i.numPlots;o.planted=i.planted;o.ready=i.cropReady;o.suspended=i.suspended;o.harvest=i.harvest;return o;}
 AgricultureInspectorState InspectorQtDataAdapter::pasture(const GuiPastureInfo&i){AgricultureInspectorState o;o.target={AgricultureKind::Pasture,DesignationId{i.ID}};o.name=text(i.name);o.product=text(i.animalType);o.priority=i.priority;o.maxPriority=i.maxPriority;o.plots=i.numPlots;o.male=i.numMale;o.female=i.numFemale;o.total=i.total;o.maxMale=i.maxMale;o.maxFemale=i.maxFemale;o.foodCurrent=i.foodCurrent;o.foodMax=i.foodMax;o.hayCurrent=i.hayCurrent;o.hayMax=i.hayMax;o.suspended=i.suspended;o.harvest=i.harvest;o.harvestHay=i.harvestHay;o.tame=i.tame;return o;}
 AgricultureInspectorState InspectorQtDataAdapter::grove(const GuiGroveInfo&i){AgricultureInspectorState o;o.target={AgricultureKind::Grove,DesignationId{i.ID}};o.name=text(i.name);o.product=text(i.treeType);o.priority=i.priority;o.maxPriority=i.maxPriority;o.plots=i.numPlots;o.planted=i.planted;o.ready=i.cropReady;o.suspended=i.suspended;o.pick=i.pickFruits;o.plant=i.plantTrees;o.fell=i.fellTrees;return o;}

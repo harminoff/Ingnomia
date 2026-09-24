@@ -26,6 +26,8 @@
 #include "../game/creature.h"
 
 #include <QObject>
+#include <QTimer>
+#include <QTimer>
 
 class Game;
 
@@ -81,6 +83,23 @@ enum class AgriType
 };
 Q_DECLARE_METATYPE( AgriType )
 
+struct GuiFarmCropOrder
+{
+	unsigned int id = 0;
+	QString crop;
+	int remaining = 1;
+	bool repeat = false;
+};
+
+struct GuiFarmPlot
+{
+	int x = 0, y = 0, z = 0;
+	QString assignedCrop;
+	QString plantedCrop;
+	bool tilled = false, planted = false, ready = false, busy = false;
+	QList<GuiFarmCropOrder> orders;
+};
+
 /// @brief Full state of one farm designation as shown in the Agriculture GUI.
 struct GuiFarmInfo
 {
@@ -99,6 +118,7 @@ struct GuiFarmInfo
 	int cropReady = 0;      ///< Tiles with ready-to-harvest crops.
 
 	GuiPlant product;       ///< Current crop product details.
+	QList<GuiFarmPlot> fields; ///< Real plot positions and their crop plans.
 };
 Q_DECLARE_METATYPE( GuiFarmInfo )
 
@@ -194,6 +214,7 @@ private:
 	QList<GuiPlant> m_globalPlantInfo;      ///< Global plant availability list.
 	QList<GuiAnimal> m_globalAnimalInfo;    ///< Global animal availability list.
 	QList<GuiPlant> m_globalTreeInfo;       ///< Global tree availability list.
+	QTimer* m_liveFarmTimer = nullptr;
 
 public slots:
 	void onOpen( TileFlag designation, unsigned int tileID );
@@ -204,6 +225,10 @@ public slots:
 
 	void onSetBasicOptions( AgriType type, unsigned int ID, QString name, int priority, bool suspended );
 	void onSelectProduct( AgriType type, unsigned int designationID, QString productSID );
+	void onSetFarmPlotCrop( unsigned int farmID, QList<Position> plots, QString crop );
+	void onQueueFarmPlotCrop( unsigned int farmID, QList<Position> plots, QString crop, int count, bool repeat );
+	void onRemoveFarmPlotOrder( unsigned int farmID, Position plot, unsigned int orderID );
+	void onMoveFarmPlotOrder( unsigned int farmID, Position plot, unsigned int orderID, bool earlier );
 	void onSetHarvestOptions( AgriType type, unsigned int designationID, bool harvest, bool harvestHay, bool tame );
 	void onSetGroveOptions( unsigned int groveID, bool pick, bool plant, bool fell );
 

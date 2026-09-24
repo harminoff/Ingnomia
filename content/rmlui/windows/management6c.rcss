@@ -1,4 +1,4 @@
-/* Military and diplomacy share one native, resizable workbench. */
+/* Military and Diplomacy use separate native windows with shared workbench styling. */
 .is-hidden { display: none; }
 .m6c-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: transparent; pointer-events: none; }
 .m6c-workbench { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; max-width: none; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; pointer-events: auto; }
@@ -104,6 +104,25 @@
 .m6c-roster-rows .m6c-row .c-list__primary { flex: 3 1 0dp; width: 0; }
 .m6c-roster-rows .m6c-row .c-list__meta { flex: 2 1 0dp; width: 0; max-width: none; }
 #military_priority_rows .c-list__meta { flex: 0 0 96dp; width: 96dp; max-width: none; }
+/* Use the same chrome and inset content palette as the other management windows. */
+.m6c-body { padding: 0; gap: 0; background-color: #c0c0c0; }
+.m6c-workbench .c-management-main { gap: 5dp; padding: 6dp; }
+.m6c-detail-pane, .m6c-detail-pane h2, .m6c-detail-pane h3,
+.m6c-search-field, .m6c-name-row label, .m6c-field__value { color: #000000; }
+.m6c-section, .m6c-body .c-state-panel { color: #000000; background-color: #dfdfdf; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #808080; border-bottom-color: #808080; }
+.m6c-field { background-color: #ffffff; border-bottom-color: #808080; }
+.m6c-field__label, .m6c-help, .m6c-form-row > label,
+.m6c-uniform-heading, .m6c-footer { color: #333333; }
+.m6c-workbench select, .m6c-workbench select selectvalue,
+.m6c-workbench select selectbox { color: #000000; background-color: #ffffff; border-color: #808080; }
+.m6c-workbench select selectarrow { color: #000000; background-color: #c0c0c0; border-left-color: #808080; }
+.m6c-workbench select selectbox option { color: #000000; background-color: #ffffff; }
+.m6c-workbench select selectbox option:hover, .m6c-workbench select selectbox option:checked { color: #ffffff; background-color: #000080; }
+.m6c-workbench scrollbarvertical { width: 18dp; background-color: #c0c0c0; }
+.m6c-workbench scrollbarvertical track { background-color: #dfdfdf; border-left-color: #808080; }
+.m6c-workbench scrollbarvertical slider { min-height: 28dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
+.m6c-workbench scrollbarvertical slider:hover { background-color: #d4d0c8; }
+#neighbor_undiscovered_detail { display: block; width: 100%; min-width: 0; box-sizing: border-box; overflow: visible; }
 @media (min-width: 761dp) and (min-height: 500dp) {
     #military_priority_detail { display: flex; flex-direction: column; overflow: hidden; }
     #military_priority_detail > h2, .m6c-priority-editor { flex: 0 0 auto; }

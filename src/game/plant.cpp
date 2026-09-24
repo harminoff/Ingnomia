@@ -599,7 +599,7 @@ bool Plant::harvest( Position& pos )
 
 /// @brief Returns whether this plant currently has items ready to harvest.
 /// @return true if m_harvestable is set.
-bool Plant::harvestable()
+bool Plant::harvestable() const
 {
 	return m_harvestable;
 }

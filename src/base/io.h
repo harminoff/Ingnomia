@@ -22,6 +22,15 @@
 #pragma once
 
 #include <QObject>
+#include <QDateTime>
+#include <optional>
+
+struct CompatibleSave
+{
+	QString folder;
+	QString kingdomName;
+	QDateTime modified;
+};
 
 class Game;
 
@@ -56,6 +65,7 @@ public:
 	void sanitize();
 
 	static bool saveCompatible( QString folder );
+	static std::optional<CompatibleSave> newestCompatibleSave();
 	static QString versionString( QString folder );
 	static int versionInt( QString folder );
 

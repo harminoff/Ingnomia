@@ -363,7 +363,9 @@ Device::Device() :
 /// @brief Closes the OpenAL device.
 Device::~Device()
 {
-	ALCboolean closed = alcCall( alcCloseDevice, m_openALDevice, m_openALDevice );
+	// alcCall checks alcGetError afterwards; a successfully closed device is
+	// already invalid at that point and must never be queried again.
+	alcCloseDevice( m_openALDevice );
 }
 
 /// @brief Creates an ALCcontext on the given device and probes ALC_EXT_EFX /

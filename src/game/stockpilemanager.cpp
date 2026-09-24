@@ -20,6 +20,8 @@
  *         priority ordering, container placement, and suspend-status signals.
  */
 #include "stockpilemanager.h"
+#include <limits>
+#include <algorithm>
 #include "game.h"
 
 #include "../base/config.h"
@@ -94,6 +96,7 @@ void StockpileManager::addStockpile( Position& firstClick, QList<QPair<Position,
 	else
 	{
 		Stockpile* sp = new Stockpile( fields, g );
+		sp->setName(uniqueName({}));
 		for ( auto p : fields )
 		{
 			if ( p.second )
@@ -115,6 +118,7 @@ void StockpileManager::addStockpile( Position& firstClick, QList<QPair<Position,
 void StockpileManager::load( QVariantMap vals )
 {
 	Stockpile* sp = new Stockpile( vals, g );
+	sp->setName(uniqueName(sp->name()));
 	for ( auto sf : vals.value( "Fields" ).toList() )
 	{
 		auto sfm = sf.toMap();
@@ -499,4 +503,25 @@ void StockpileManager::setInfiNotFull( Position pos )
 	{
 		sp->setInfiNotFull( pos );
 	}
+}
+
+QString StockpileManager::uniqueName(QString requested, unsigned int exceptId)
+{
+    requested=requested.trimmed();
+    const auto used=[&](const QString& name) {
+        for(auto* sp : m_stockpiles) if(sp->id()!=exceptId && sp->name().compare(name,Qt::CaseInsensitive)==0) return true;
+        return false;
+    };
+    if(requested.isEmpty() || requested.compare("Stockpile",Qt::CaseInsensitive)==0) {
+        do { requested="Stockpile"+QString::number(m_nextName++); } while(used(requested));
+    } else {
+        const auto base=requested;
+        unsigned suffix=2;
+        while(used(requested)) requested=base+QString::number(suffix++);
+    }
+    if(requested.startsWith("Stockpile",Qt::CaseInsensitive)) {
+        bool ok=false; const auto number=requested.mid(9).toUInt(&ok);
+        if(ok && number < std::numeric_limits<unsigned int>::max()) m_nextName=std::max(m_nextName,number+1);
+    }
+    return requested;
 }

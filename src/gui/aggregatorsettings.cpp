@@ -58,7 +58,9 @@ void AggregatorSettings::onRequestSettings()
 
     m_settings.toggleMouseWheel = Global::cfg->get( "toggleMouseWheel" ).toBool();
 	 
-	 m_settings.audioMasterVolume = Global::cfg->get( "AudioMasterVolume" ).toFloat() * 100; 
+	 m_settings.audioMasterVolume = qBound( 0.0f, Global::cfg->get( "AudioMasterVolume" ).toFloat() * 100.0f, 100.0f );
+    m_settings.autoSaveInterval = qBound( 1, Global::cfg->get( "AutoSaveInterval" ).toInt(), 14 );
+    m_settings.autoSaveContinue = Global::cfg->get( "AutoSaveContinue" ).toBool();
 
     emit signalUpdateSettings( m_settings );
 }
@@ -147,7 +149,20 @@ void AggregatorSettings::onRequestVersion()
 /// @param value Volume in percent (0–100).
 void AggregatorSettings::onSetAudioMasterVolume( float value )
 {
-	Global::cfg->set( "AudioMasterVolume", (float)value);
+	Global::cfg->set( "AudioMasterVolume", qBound( 0.0f, value, 100.0f ) / 100.0f );
+	onRequestSettings();
+}
+
+void AggregatorSettings::onSetAutoSaveInterval( int value )
+{
+	Global::cfg->set( "AutoSaveInterval", qBound( 1, value, 14 ) );
+	onRequestSettings();
+}
+
+void AggregatorSettings::onSetAutoSaveContinue( bool value )
+{
+	Global::cfg->set( "AutoSaveContinue", value );
+	onRequestSettings();
 }
 
 /// @brief Restores the supported RmlUi shell settings to safe defaults.
@@ -160,6 +175,9 @@ void AggregatorSettings::onResetSupportedSettings()
 	Global::cfg->set( "keyboardMoveSpeed", 100 );
 	Global::cfg->set( "lightMin", 0.3f );
 	Global::cfg->set( "toggleMouseWheel", false );
+	Global::cfg->set( "AudioMasterVolume", 0.5f );
+	Global::cfg->set( "AutoSaveInterval", 3 );
+	Global::cfg->set( "AutoSaveContinue", false );
 	emit signalFullScreen( false );
 	emit signalUIScale( 1.0f );
 	onRequestSettings();

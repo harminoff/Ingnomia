@@ -37,6 +37,8 @@ struct GuiSettings
     int lightMin = 30;                ///< Minimum tile light level (ambient floor).
     bool toggleMouseWheel = false;    ///< True if the mouse wheel cycles z-levels (else zooms).
     float audioMasterVolume = 50.0;   ///< Master audio volume 0–100.
+    int autoSaveInterval = 3;          ///< In-game days between autosaves.
+    bool autoSaveContinue = false;     ///< Resume simulation after an autosave.
 };
 
 Q_DECLARE_METATYPE( GuiSettings )
@@ -69,6 +71,8 @@ public slots:
     void onSetLightMin( int value );
     void onSetToggleMouseWheel( bool value );
 	void onSetAudioMasterVolume( float value );
+	void onSetAutoSaveInterval( int value );
+	void onSetAutoSaveContinue( bool value );
 	void onResetSupportedSettings();
 
 signals:

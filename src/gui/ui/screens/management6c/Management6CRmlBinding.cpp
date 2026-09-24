@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6CRmlBinding.h"
+#include "../ManagementTooltip.h"
 #include "../../localization/RmlText.h"
 
 #include <RmlUi/Core/Context.h>
@@ -323,6 +324,13 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 	if( !military_ || !diplomacy_ ) { shutdown(); return false; }
 	localization::applyRmlText( *military_, textCatalog_ );
 	localization::applyRmlText( *diplomacy_, textCatalog_ );
+	if ( secondarySurface_ )
+	{
+		// Native windows own their own tabs; unrelated workbenches open from
+		// the HUD and must not replace this window's document.
+		for ( const char* id : { "military_tab_neighbors", "military_tab_missions" } ) visible( military_, id, false );
+		for ( const char* id : { "diplomacy_tab_squads", "diplomacy_tab_roles", "diplomacy_tab_priorities" } ) visible( diplomacy_, id, false );
+	}
 	military_->Hide();
 	diplomacy_->Hide();
 
@@ -331,7 +339,23 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 	bind( military_, "military_tab_roles", [this]{ controller_->open( View::Roles ); } );
 	bind( military_, "military_tab_priorities", [this]{ controller_->open( View::Priorities ); } );
 	bind( military_, "military_tab_neighbors", [this]{ controller_->open( View::Neighbors ); } );
-	bind( military_, "military_tab_missions", [this]{ controller_->open( View::Missions ); } );
+		bind( military_, "military_tab_missions", [this]{ controller_->open( View::Missions ); } );
+		bind( military_, "military_views_toggle", [this]{
+			if( auto* shell = military_->GetElementById( "military_shell" ) )
+			{
+				const bool open = !shell->IsClassSet( "is-rail-open" );
+				shell->SetClass( "is-rail-open", open );
+				if( auto* toggle = military_->GetElementById( "military_views_toggle" ) ) toggle->SetAttribute( "aria-expanded", open ? "true" : "false" );
+			}
+		} );
+		bind( diplomacy_, "diplomacy_views_toggle", [this]{
+			if( auto* shell = diplomacy_->GetElementById( "diplomacy_shell" ) )
+			{
+				const bool open = !shell->IsClassSet( "is-rail-open" );
+				shell->SetClass( "is-rail-open", open );
+				if( auto* toggle = diplomacy_->GetElementById( "diplomacy_views_toggle" ) ) toggle->SetAttribute( "aria-expanded", open ? "true" : "false" );
+			}
+		} );
 	bind( military_, "military_refresh", [this]{ controller_->refresh(); } );
 	bind( military_, "military_error_retry", [this]{ controller_->refresh(); } );
 	bind( military_, "military_sort_source", [this]{ controller_->setMilitarySort( controller_->state().militarySort == Sort::SourceOrder ? Sort::Name : Sort::SourceOrder ); } );
@@ -527,8 +551,54 @@ bool Management6CRmlBinding::initialize( Management6CController& controller )
 		{ diplomacy_, "diplomacy_neighbor_rows" }, { diplomacy_, "diplomacy_mission_rows" },
 		{ diplomacy_, "diplomacy_gnome_rows" } } )
 		bindEvent( target.first, target.second, "click", [this]( Rml::Event& event ){ (void)handleWindowPage( event ); } );
+	auto bindTooltips = [this]( Rml::ElementDocument* document, const char* tooltipId,
+		std::initializer_list<const char*> ids )
+	{
+		for ( const char* id : ids )
+		{
+			if ( auto* target = document->GetElementById( id ) ) target->SetAttribute( "aria-describedby", tooltipId );
+			for ( const char* event : { "mouseover", "focus" } )
+				bindEvent( document, id, event, [this, document, tooltipId]( Rml::Event& e ) {
+					showManagementTooltip( document, context_, tooltipId, e.GetCurrentElement() );
+				} );
+			for ( const char* event : { "mouseout", "blur" } )
+				bindEvent( document, id, event, [document, tooltipId]( Rml::Event& ) {
+					hideManagementTooltip( document, tooltipId );
+				} );
+		}
+	};
+	bindTooltips( military_, "military_tooltip", { "military_views_toggle", "military_tab_squads",
+		"military_tab_roles", "military_tab_priorities" } );
+	bindTooltips( diplomacy_, "diplomacy_tooltip", { "diplomacy_views_toggle", "diplomacy_tab_neighbors",
+		"diplomacy_tab_missions" } );
 
 	stateChanged( controller.state() );
+	return true;
+}
+
+bool Management6CRmlBinding::reloadDocuments()
+{
+	auto* controller = controller_;
+	if ( !controller ) return false;
+	const auto activeRoute = activeRoute_;
+	const auto returnFocus = returnFocus_;
+	const auto militaryFocus = militaryFocus_;
+	const auto diplomacyFocus = diplomacyFocus_;
+	const bool detailOpen = detailOpen_;
+	const bool filtersOpen = filtersOpen_;
+	const auto windows = windows_;
+	shutdown();
+	if ( !initialize( *controller ) ) return false;
+	activeRoute_ = activeRoute;
+	returnFocus_ = returnFocus;
+	militaryFocus_ = militaryFocus;
+	diplomacyFocus_ = diplomacyFocus;
+	detailOpen_ = detailOpen;
+	filtersOpen_ = filtersOpen;
+	windows_ = windows;
+	renderedView_.reset();
+	renderedRml_.clear();
+	stateChanged( controller->state() );
 	return true;
 }
 
@@ -614,8 +684,10 @@ void Management6CRmlBinding::bindEvent( Rml::ElementDocument* document, const ch
 	if( !document ) return;
 	if( auto* element = document->GetElementById( id ) )
 	{
-		auto callback = std::make_unique<Callback>( [this, function = std::move( function )]( Rml::Event& value ) {
-			if( !rendering_ ) function( value );
+		auto callback = std::make_unique<Callback>( [this, document, function = std::move( function )]( Rml::Event& value ) {
+            if(rendering_) return;
+            controller_->activateViewForInput(document == diplomacy_ ? controller_->state().diplomacyView : controller_->state().militaryView);
+            function( value );
 		} );
 		element->AddEventListener( event, callback.get() );
 		listeners_.push_back( { element, event, std::move( callback ) } );
@@ -780,11 +852,26 @@ bool Management6CRmlBinding::activateFirstDataElement( std::string_view kind )
 	return false;
 }
 
-void Management6CRmlBinding::stateChanged( const Management6CState& state )
+void Management6CRmlBinding::stateChanged( const Management6CState& source )
 {
+    auto state = source;
+    if (secondarySurface_) {
+        state.view = *secondarySurface_ ? source.diplomacyView : source.militaryView;
+        state.open = *secondarySurface_ ? source.diplomacyOpen : source.militaryOpen;
+        state.militaryOpen = !*secondarySurface_ && source.militaryOpen;
+        state.diplomacyOpen = *secondarySurface_ && source.diplomacyOpen;
+    }
 	if( !military_ || !diplomacy_ || !controller_ ) return;
     rendering_ = true;
-    if( renderedWorld_ != state.world || renderedView_ != state.view || !state.open ) { detailOpen_ = false; filtersOpen_ = false; }
+    if( renderedWorld_ != state.world || renderedView_ != state.view || !state.open ) {
+        detailOpen_ = false; filtersOpen_ = false;
+		hideManagementTooltip( military_, "military_tooltip" );
+		hideManagementTooltip( diplomacy_, "diplomacy_tooltip" );
+        if( auto* shell = military_->GetElementById( "military_shell" ) ) shell->SetClass( "is-rail-open", false );
+        if( auto* toggle = military_->GetElementById( "military_views_toggle" ) ) toggle->SetAttribute( "aria-expanded", "false" );
+        if( auto* shell = diplomacy_->GetElementById( "diplomacy_shell" ) ) shell->SetClass( "is-rail-open", false );
+        if( auto* toggle = diplomacy_->GetElementById( "diplomacy_views_toggle" ) ) toggle->SetAttribute( "aria-expanded", "false" );
+    }
     renderedWorld_ = state.world;
     renderedView_ = state.view;
     for( auto* document : { military_, diplomacy_ } )
@@ -803,6 +890,7 @@ void Management6CRmlBinding::stateChanged( const Management6CState& state )
 
 void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 {
+	text( military_, "military_views_toggle", tr( "management.navigation.views" ) + ": " + tr( state.view == View::Roles ? "management.military.roles_uniforms" : state.view == View::Priorities ? "management.military.target_priorities" : "management.military.squads" ) );
 	selected( military_, "military_tab_squads", state.view == View::Squads );
 	selected( military_, "military_tab_roles", state.view == View::Roles );
 	selected( military_, "military_tab_priorities", state.view == View::Priorities );
@@ -1047,6 +1135,7 @@ void Management6CRmlBinding::renderMilitary( const Management6CState& state )
 
 void Management6CRmlBinding::renderDiplomacy( const Management6CState& state )
 {
+	text( diplomacy_, "diplomacy_views_toggle", tr( "management.navigation.views" ) + ": " + tr( state.view == View::Missions ? "management.diplomacy.mission_activity" : "management.diplomacy.neighbors" ) );
 	selected( diplomacy_, "diplomacy_tab_neighbors", state.view == View::Neighbors );
 	selected( diplomacy_, "diplomacy_tab_missions", state.view == View::Missions );
 	selected( diplomacy_, "diplomacy_tab_squads", state.view == View::Squads );

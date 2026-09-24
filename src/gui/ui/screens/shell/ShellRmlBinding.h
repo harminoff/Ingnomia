@@ -33,6 +33,7 @@ public:
 	ShellRmlBinding& operator=( const ShellRmlBinding& ) = delete;
 
 	bool initialize( ShellController& controller );
+	bool reloadDocuments();
 	void shutdown();
 	void setInMenu( bool inMenu );
 	[[nodiscard]] bool initialized() const noexcept;

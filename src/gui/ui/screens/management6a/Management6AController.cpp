@@ -1,9 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6AController.h"
+#include "../InventoryTableSchema.h"
 
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace ingnomia::ui::management6a
 {
@@ -13,6 +17,13 @@ std::string folded( std::string value )
 {
 	std::transform( value.begin(), value.end(), value.begin(), []( unsigned char c )
 					{ return static_cast<char>( std::tolower( c ) ); } );
+	return value;
+}
+std::string trimmed( std::string value )
+{
+	const auto notSpace = []( unsigned char c ) { return std::isspace( c ) == 0; };
+	value.erase( value.begin(), std::find_if( value.begin(), value.end(), notSpace ) );
+	value.erase( std::find_if( value.rbegin(), value.rend(), notSpace ).base(), value.end() );
 	return value;
 }
 bool contains( const std::string& value, const std::string& query )
@@ -37,34 +48,12 @@ void sortRows( std::vector<Row>& rows, SortDirection direction, Label label )
 	std::stable_sort( rows.begin(), rows.end(), [&]( const Row& a, const Row& b )
 					  { return direction == SortDirection::Ascending ? label( a ) < label( b ) : label( b ) < label( a ); } );
 }
-bool stockpileFilterIsAncestor( const StockpileFilterRowId& ancestor, const StockpileFilterRowId& child )
-{
-	if ( static_cast<int>( ancestor.depth ) >= static_cast<int>( child.depth ) || ancestor.category != child.category )
-		return false;
-	if ( ancestor.depth == FilterDepth::Category )
-		return true;
-	if ( ancestor.group != child.group )
-		return false;
-	return ancestor.depth == FilterDepth::Group || ancestor.item == child.item;
-}
-bool stockpileFilterRowMatches( const StockpileFilterRow& row, const std::string& search )
-{
-	return contains( row.label, search ) || contains( row.id.category.value, search ) || contains( row.id.group.value, search ) || contains( row.id.item.value, search ) || contains( row.id.material.value, search );
-}
-bool stockpileFilterLeafMatches( const std::vector<StockpileFilterRow>& filters, std::size_t leafIndex, const std::string& search )
+bool stockpileFilterRowMatchesFolded( const StockpileFilterRow& row, const std::string& search )
 {
 	if ( search.empty() )
 		return true;
-	const auto& leaf = filters[leafIndex];
-	if ( stockpileFilterRowMatches( leaf, search ) )
-		return true;
-	for ( std::size_t index = leafIndex; index-- > 0; )
-	{
-		const auto& ancestor = filters[index];
-		if ( stockpileFilterIsAncestor( ancestor.id, leaf.id ) && stockpileFilterRowMatches( ancestor, search ) )
-			return true;
-	}
-	return false;
+	const auto matches = [&]( const std::string& value ) { return folded( value ).find( search ) != std::string::npos; };
+	return matches( row.label ) || matches( row.id.category.value ) || matches( row.id.group.value ) || matches( row.id.item.value ) || matches( row.id.material.value );
 }
 } // namespace
 
@@ -132,8 +121,15 @@ void Management6AController::showWorkshop( WorkshopSnapshot value, Revision revi
 {
 	if ( !state_.acceptsWorldActions || !value.id || ( state_.workshop.value.id == value.id && revision.value <= state_.workshop.revision.value ) )
 		return;
-	if ( state_.workshop.value.id != value.id )
+	const bool sameWorkshop = state_.workshop.value.id == value.id;
+	if ( !sameWorkshop )
+	{
 		state_.workshop.tradeConfirmationRequired = false;
+		state_.workshop.orderPending=false;
+		state_.workshop.orderFeedback.clear();
+		state_.workshop.search.clear();
+		state_.workshop.pane = value.products.empty() ? WorkshopPane::Settings : WorkshopPane::Craft;
+	}
 	const auto previousProduct      = state_.workshop.selectedProduct;
 	const auto product              = state_.workshop.value.id == value.id ? state_.workshop.selectedProduct : std::optional<CatalogId> {};
 	const auto job                  = state_.workshop.value.id == value.id ? state_.workshop.selectedJob : std::optional<CraftJobId> {};
@@ -141,10 +137,10 @@ void Management6AController::showWorkshop( WorkshopSnapshot value, Revision revi
 	state_.workshop.value           = std::move( value );
 	state_.workshop.revision        = revision;
 	state_.workshop.position        = position;
-	state_.workshop.request         = { state_.workshop.value.products.empty() && state_.workshop.value.queue.empty() ? RequestStatus::Empty : RequestStatus::Ready, {}, {}, false };
+	state_.workshop.request         = { RequestStatus::Ready, {}, {}, false };
 	state_.workshop.selectedProduct = product && hasRow( state_.workshop.value.products, *product ) ? product : ( state_.workshop.value.products.empty() ? std::optional<CatalogId> {} : std::optional<CatalogId> { state_.workshop.value.products.front().id } );
 	state_.workshop.selectedJob     = job && hasRow( state_.workshop.value.queue, *job ) ? job : ( state_.workshop.value.queue.empty() ? std::optional<CraftJobId> {} : std::optional<CraftJobId> { state_.workshop.value.queue.front().id } );
-	if ( previousProduct != state_.workshop.selectedProduct )
+	if ( !sameWorkshop || previousProduct != state_.workshop.selectedProduct )
 		resetWorkshopOrderDraft();
 	else
 		normalizeWorkshopOrderDraft();
@@ -161,27 +157,38 @@ void Management6AController::showStockpile( StockpileSnapshot value, Revision re
 	const auto filter                = same ? state_.stockpile.selectedFilter : std::optional<StockpileFilterRowId> {};
 	const auto content               = same ? state_.stockpile.selectedContent : std::optional<StockpileContentRowId> {};
 	const auto expanded              = same ? state_.stockpile.expandedFilters : std::vector<StockpileFilterRowId> {};
-	const bool hasAllowedRules       = std::any_of( value.filters.begin(), value.filters.end(), []( const auto& row )
-																		 { return row.id.depth == FilterDepth::Material && row.state == TriState::On; } );
+	const auto expandedContents      = same ? state_.stockpile.expandedContents : std::vector<StockpileContentRowId> {};
 	state_.view                      = ManagementView::Stockpile;
 	state_.stockpile.value           = std::move( value );
+	if ( !state_.stockpile.filterCategory.value.empty() && std::none_of( state_.stockpile.value.filters.begin(), state_.stockpile.value.filters.end(), [&]( const auto& row ) { return row.id.depth == FilterDepth::Category && row.id.category == state_.stockpile.filterCategory; } ) )
+		state_.stockpile.filterCategory = {};
 	state_.stockpile.revision        = revision;
 	state_.stockpile.position        = position;
 	state_.stockpile.request         = { state_.stockpile.value.filters.empty() && state_.stockpile.value.contents.empty() ? RequestStatus::Empty : RequestStatus::Ready, {}, {}, false };
-	state_.stockpile.selectedFilter  = filter && hasRow( state_.stockpile.value.filters, *filter ) ? filter : ( state_.stockpile.value.filters.empty() ? std::optional<StockpileFilterRowId> {} : std::optional<StockpileFilterRowId> { state_.stockpile.value.filters.front().id } );
+	const auto firstListRow = std::find_if( state_.stockpile.value.filters.begin(), state_.stockpile.value.filters.end(), []( const auto& row ) { return row.id.depth != FilterDepth::Category; } );
+	state_.stockpile.selectedFilter  = filter && hasRow( state_.stockpile.value.filters, *filter ) && filter->depth != FilterDepth::Category ? filter : ( firstListRow == state_.stockpile.value.filters.end() ? std::optional<StockpileFilterRowId> {} : std::optional<StockpileFilterRowId> { firstListRow->id } );
 	state_.stockpile.selectedContent = content && hasRow( state_.stockpile.value.contents, *content ) ? content : ( state_.stockpile.value.contents.empty() ? std::optional<StockpileContentRowId> {} : std::optional<StockpileContentRowId> { state_.stockpile.value.contents.front().id } );
 	if ( !same )
 	{
 		state_.stockpile.search.clear();
-		state_.stockpile.filterSearch.clear();
-		state_.stockpile.contentSearch.clear();
+			state_.stockpile.filterSearch.clear();
+			state_.stockpile.contentSearch.clear();
 		state_.stockpile.filterSearchBeforeReveal.clear();
+		state_.stockpile.templateName.clear();
+		state_.stockpile.pendingTemplateOverwrite.clear();
+		state_.stockpile.filterCategory = {};
 		state_.stockpile.filterSearchRevealed = false;
+		state_.stockpile.templateMenuOpen = false;
+		state_.stockpile.templateOverwriteConfirmationRequired = false;
 		state_.stockpile.expandedFilters.clear();
-		state_.stockpile.pane = hasAllowedRules ? StockpilePane::Contents : StockpilePane::AllowList;
+		state_.stockpile.expandedContents.clear();
+		state_.stockpile.pane = StockpilePane::Contents;
 	}
 	else
+	{
 		state_.stockpile.expandedFilters = expanded;
+		state_.stockpile.expandedContents = expandedContents;
+	}
 	state_.pendingAction.reset();
 	state_.status.clear();
 	rebuildStockpile();
@@ -192,18 +199,31 @@ void Management6AController::showAgriculture( AgricultureSnapshot value, Revisio
 	if ( !state_.acceptsWorldActions || !value.target.designation || ( state_.agriculture.value.target == value.target && revision.value <= state_.agriculture.revision.value ) )
 		return;
 	const bool same                    = state_.agriculture.value.target == value.target;
+	if ( !same ) state_.agriculture.pane = AgriculturePane::Overview;
 	const auto product                 = same ? state_.agriculture.selectedProduct : std::optional<CatalogId> {};
+	const auto selectedPlots = same ? state_.agriculture.selectedPlots : std::vector<WorldPosition> {};
 	const auto animal                  = same ? state_.agriculture.selectedAnimal : std::optional<CreatureId> {};
 	state_.view                        = ManagementView::Agriculture;
 	state_.agriculture.value           = std::move( value );
 	state_.agriculture.revision        = revision;
 	state_.agriculture.position        = position;
 	state_.agriculture.request         = { RequestStatus::Ready, {}, {}, false };
-	state_.agriculture.selectedProduct = product && hasRow( state_.agriculture.value.catalog, *product ) ? product : ( !state_.agriculture.value.product.value.empty() ? std::optional<CatalogId> { state_.agriculture.value.product } : ( state_.agriculture.value.catalog.empty() ? std::optional<CatalogId> {} : std::optional<CatalogId> { state_.agriculture.value.catalog.front().id } ) );
+	state_.agriculture.selectedProduct = product && hasRow( state_.agriculture.value.catalog, *product ) ? product : ( !state_.agriculture.value.product.value.empty() ? std::optional<CatalogId> { state_.agriculture.value.product } : std::optional<CatalogId> {} );
+	state_.agriculture.selectedPlots.clear();
+	for ( const auto& plot : selectedPlots )
+		if ( std::ranges::any_of( state_.agriculture.value.fields, [&]( const auto& field ) { return field.position == plot; } ) )
+			state_.agriculture.selectedPlots.push_back( plot );
 	state_.agriculture.selectedAnimal  = animal && hasRow( state_.agriculture.value.animals, *animal ) ? animal : ( state_.agriculture.value.animals.empty() ? std::optional<CreatureId> {} : std::optional<CreatureId> { state_.agriculture.value.animals.front().id } );
 	state_.pendingAction.reset();
 	state_.status.clear();
 	rebuildAgriculture();
+	notify();
+}
+void Management6AController::setAgriculturePane( AgriculturePane pane )
+{
+	if ( state_.view != ManagementView::Agriculture || state_.agriculture.pane == pane )
+		return;
+	state_.agriculture.pane = pane;
 	notify();
 }
 void Management6AController::setTradeRows( TradeParty party, std::vector<TradeRow> rows )
@@ -373,69 +393,123 @@ void Management6AController::rebuildWorkshop()
 			  { return r.id.value; } );
 	s.visibleQueue.clear();
 	for ( const auto& r : s.value.queue )
-		if ( contains( r.craft.value, s.search ) || contains( std::to_string( r.id.value ), s.search ) )
-			s.visibleQueue.push_back( r );
+		s.visibleQueue.push_back( r );
 	s.selectionFiltered = ( s.selectedProduct && !hasRow( s.visibleProducts, *s.selectedProduct ) ) || ( s.selectedJob && !hasRow( s.visibleQueue, *s.selectedJob ) );
 }
 void Management6AController::rebuildStockpile()
 {
 	auto& s = state_.stockpile;
 	s.visibleFilters.clear();
-	const auto expanded = [&]( const StockpileFilterRowId& id )
-	{ return std::find( s.expandedFilters.begin(), s.expandedFilters.end(), id ) != s.expandedFilters.end(); };
+	s.matchingFilterLeaves.clear();
+	const auto foldedSearch = folded( s.filterSearch );
 	std::vector<bool> matchingLeaves( s.value.filters.size(), false );
+	std::vector<bool> pathMatches( s.value.filters.size(), false );
+	std::vector<bool> hasChildren( s.value.filters.size(), false );
+	std::vector<std::array<std::string, 4>> rowLabels( s.value.filters.size() );
+	std::array<std::optional<std::size_t>, 4> ancestors;
+	const auto key = []( const CatalogId& category, const CatalogId& group, const CatalogId& item, const CatalogId& material )
+	{ return category.value + '\x1f' + group.value + '\x1f' + item.value + '\x1f' + material.value; };
+	std::unordered_map<std::string, std::array<std::string, 4>> leafLabels;
 	for ( std::size_t index = 0; index < s.value.filters.size(); ++index )
-		if ( s.value.filters[index].id.depth == FilterDepth::Material )
-			matchingLeaves[index] = stockpileFilterLeafMatches( s.value.filters, index, s.filterSearch );
-	const auto hasMatchingDescendant = [&]( std::size_t index )
 	{
-		if ( s.filterSearch.empty() )
-			return false;
-		for ( std::size_t next = index + 1; next < s.value.filters.size(); ++next )
+		const auto depth = static_cast<std::size_t>( s.value.filters[index].id.depth );
+		if ( depth > 0 && ancestors[depth - 1] )
+			hasChildren[*ancestors[depth - 1]] = true;
+		for ( std::size_t level = 0; level < depth; ++level )
+			if ( ancestors[level] ) rowLabels[index][level] = s.value.filters[*ancestors[level]].label;
+		rowLabels[index][depth] = s.value.filters[index].label;
+		for ( std::size_t level = depth; level < ancestors.size(); ++level )
+			ancestors[level].reset();
+		bool inheritedMatch = false;
+		for ( std::size_t level = 0; level < depth; ++level )
+			if ( ancestors[level] )
+				inheritedMatch = inheritedMatch || pathMatches[*ancestors[level]];
+		pathMatches[index] = inheritedMatch || stockpileFilterRowMatchesFolded( s.value.filters[index], foldedSearch );
+		ancestors[depth] = index;
+	}
+	for ( std::size_t index = 0; index < s.value.filters.size(); ++index )
+	{
+		matchingLeaves[index] = !hasChildren[index] && pathMatches[index];
+		if ( !hasChildren[index] )
 		{
-			const auto& candidate = s.value.filters[next];
-			if ( static_cast<int>( candidate.id.depth ) <= static_cast<int>( s.value.filters[index].id.depth ) )
-				break;
-			if ( candidate.id.depth == FilterDepth::Material && matchingLeaves[next] )
-				return true;
+			auto labels = rowLabels[index];
+			normalizeInventoryTableLabels( labels[1], labels[2], labels[3], s.value.filters[index].id.item.value );
+			leafLabels[key( s.value.filters[index].id.category, s.value.filters[index].id.group, s.value.filters[index].id.item, s.value.filters[index].id.material )] = std::move( labels );
 		}
-		return false;
+	}
+	const auto columnMatches = []( const std::string& value, const std::string& filter, const auto& selected )
+	{
+		if ( !filter.empty() && folded( value ).find( folded( filter ) ) == std::string::npos ) return false;
+		return selected.empty() || std::ranges::any_of( selected, [&]( const auto& candidate ) { return folded( candidate ) == folded( value ); } );
 	};
+	const auto textColumnsMatch = [&]( const auto& labels, const auto& filters, const auto& selections, std::size_t count )
+	{
+		for ( std::size_t column = 0; column < count; ++column )
+			if ( !columnMatches( labels[column], filters[column], selections[column] ) ) return false;
+		return true;
+	};
+	std::unordered_set<std::string> seenRules, seenContents;
+	const auto status = []( TriState value ) { return value == TriState::On ? std::string( "Allowed" ) : value == TriState::Mixed ? std::string( "Mixed" ) : std::string( "Blocked" ); };
 	for ( std::size_t index = 0; index < s.value.filters.size(); ++index )
 	{
 		const auto& row = s.value.filters[index];
-		const bool searchMatch = row.id.depth == FilterDepth::Material ? matchingLeaves[index] : hasMatchingDescendant( index );
-		bool open = row.id.depth == FilterDepth::Category;
-		// A non-empty search temporarily reveals matching ancestor paths. The
-		// saved disclosure state still controls the normal, unfiltered tree.
-		if ( s.filterSearch.empty() && !open )
-		{
-			for ( const auto& ancestor : s.value.filters )
-				if ( stockpileFilterIsAncestor( ancestor.id, row.id ) && !expanded( ancestor.id ) )
-				{
-					open = false;
-					goto hidden_by_parent;
-				}
-			open = true;
-		}
-		if ( ( s.filterSearch.empty() && open ) || ( !s.filterSearch.empty() && searchMatch ) )
-			s.visibleFilters.push_back( row );
-	hidden_by_parent:;
+		if ( !matchingLeaves[index] ) continue;
+		if ( !s.filterCategory.value.empty() && row.id.category != s.filterCategory ) continue;
+		const auto& labels = leafLabels.at( key( row.id.category, row.id.group, row.id.item, row.id.material ) );
+		if ( !textColumnsMatch( labels, s.allowColumnFilters, s.allowColumnSelections, 4 ) ) continue;
+		if ( !columnMatches( status( row.state ), s.allowColumnFilters[4], s.allowColumnSelections[4] ) ) continue;
+		if ( !seenRules.insert( key( row.id.category, row.id.group, row.id.item, row.id.material ) ).second ) continue;
+		s.matchingFilterLeaves.push_back( row.id );
+		s.visibleFilters.push_back( row );
 	}
+	std::ranges::stable_sort( s.visibleFilters, [&]( const auto& left, const auto& right )
+	{
+		const auto& leftLabels = leafLabels.at( key( left.id.category, left.id.group, left.id.item, left.id.material ) );
+		const auto& rightLabels = leafLabels.at( key( right.id.category, right.id.group, right.id.item, right.id.material ) );
+		if ( s.allowSort == StockpileSortKey::Status && left.state != right.state )
+			return s.allowSortDirection == SortDirection::Ascending ? left.state < right.state : left.state > right.state;
+		const std::size_t column = s.allowSort == StockpileSortKey::Category ? 0 : s.allowSort == StockpileSortKey::Group ? 1 : s.allowSort == StockpileSortKey::Material ? 3 : 2;
+		return s.allowSortDirection == SortDirection::Ascending ? inventoryTableSortKey( leftLabels, column ) < inventoryTableSortKey( rightLabels, column ) : inventoryTableSortKey( leftLabels, column ) > inventoryTableSortKey( rightLabels, column );
+	} );
 	s.visibleContents.clear();
-	for ( const auto& r : s.value.contents )
-		if ( contains( r.itemName, s.contentSearch ) || contains( r.materialName, s.contentSearch ) )
-			s.visibleContents.push_back( r );
-	// Filter rows are an authoritative category -> group -> item -> material
-	// preorder from the Filter contract. Sorting this flattened projection by
-	// label destroys the original tree's information hierarchy; contents remain
-	// sortable below.
-	if ( s.contentSort == StockpileSortKey::Quantity )
-		std::stable_sort( s.visibleContents.begin(), s.visibleContents.end(), [&]( const auto& a, const auto& b )
-																				 { return s.sort == SortDirection::Ascending ? ( a.count != b.count ? a.count < b.count : a.itemName < b.itemName ) : ( a.count != b.count ? a.count > b.count : a.itemName > b.itemName ); } );
-	else
-		sortRows( s.visibleContents, s.sort, []( const auto& r )
-				  { return r.itemName + "\n" + r.materialName; } );
+	const auto contentPathMatches = [&]( const StockpileContentRow& content )
+	{
+		if ( s.contentSearch.empty() ) return true;
+		for ( const auto& row : s.value.filters )
+		{
+			if ( row.id.category != content.id.category ) continue;
+			if ( row.id.depth >= FilterDepth::Group && row.id.group != content.id.group ) continue;
+			if ( row.id.depth >= FilterDepth::Item && row.id.item != content.id.item ) continue;
+			if ( row.id.depth == FilterDepth::Material && row.id.material != content.id.material ) continue;
+			if ( contains( row.label, s.contentSearch ) ) return true;
+		}
+		return contains( content.name, s.contentSearch );
+	};
+	for ( std::size_t index = 0; index < s.value.contents.size(); ++index )
+	{
+		const auto& row = s.value.contents[index];
+		const auto depth = static_cast<std::size_t>( row.id.depth );
+		const bool hasChild = index + 1 < s.value.contents.size()
+			&& static_cast<std::size_t>( s.value.contents[index + 1].id.depth ) > depth;
+		if ( hasChild ) continue;
+		if ( !s.filterCategory.value.empty() && row.id.category != s.filterCategory ) continue;
+		const auto found = leafLabels.find( key( row.id.category, row.id.group, row.id.item, row.id.material ) );
+		if ( found == leafLabels.end() || !textColumnsMatch( found->second, s.contentColumnFilters, s.contentColumnSelections, 4 ) ) continue;
+		if ( !inventoryQuantityMatches( row.stockpiled, s.contentColumnFilters[4], s.contentColumnSelections[4] ) ) continue;
+		if ( !inventoryQuantityMatches( row.total, s.contentColumnFilters[5], s.contentColumnSelections[5] ) ) continue;
+		if ( contentPathMatches( row ) && seenContents.insert( key( row.id.category, row.id.group, row.id.item, row.id.material ) ).second ) s.visibleContents.push_back( row );
+	}
+	std::ranges::stable_sort( s.visibleContents, [&]( const auto& left, const auto& right )
+	{
+		if ( s.contentSort == StockpileSortKey::Quantity && left.stockpiled != right.stockpiled )
+			return s.sort == SortDirection::Ascending ? left.stockpiled < right.stockpiled : left.stockpiled > right.stockpiled;
+		if ( s.contentSort == StockpileSortKey::Total && left.total != right.total )
+			return s.sort == SortDirection::Ascending ? left.total < right.total : left.total > right.total;
+		const auto& leftLabels = leafLabels.at( key( left.id.category, left.id.group, left.id.item, left.id.material ) );
+		const auto& rightLabels = leafLabels.at( key( right.id.category, right.id.group, right.id.item, right.id.material ) );
+		const std::size_t column = s.contentSort == StockpileSortKey::Category ? 0 : s.contentSort == StockpileSortKey::Group ? 1 : s.contentSort == StockpileSortKey::Material ? 3 : 2;
+		return s.sort == SortDirection::Ascending ? inventoryTableSortKey( leftLabels, column ) < inventoryTableSortKey( rightLabels, column ) : inventoryTableSortKey( leftLabels, column ) > inventoryTableSortKey( rightLabels, column );
+	} );
 	s.selectionFiltered = ( s.selectedFilter && !hasRow( s.visibleFilters, *s.selectedFilter ) ) || ( s.selectedContent && !hasRow( s.visibleContents, *s.selectedContent ) );
 }
 void Management6AController::rebuildAgriculture()
@@ -480,20 +554,67 @@ void Management6AController::setStockpileFilterSearch( std::string value )
 {
 	if ( state_.view == ManagementView::Stockpile )
 	{
-		state_.stockpile.filterSearch = std::move( value );
+		state_.stockpile.filterSearch = trimmed( std::move( value ) );
 		state_.stockpile.filterSearchRevealed = false;
 		rebuildStockpile();
 		notify();
 	}
 }
+void Management6AController::setStockpileFilterCategory( CatalogId value )
+{
+	if ( state_.view != ManagementView::Stockpile )
+		return;
+	state_.stockpile.filterCategory = std::move( value );
+	rebuildStockpile();
+	state_.stockpile.selectedFilter = state_.stockpile.visibleFilters.empty() ? std::optional<StockpileFilterRowId> {} : std::optional<StockpileFilterRowId> { state_.stockpile.visibleFilters.front().id };
+	notify();
+}
 void Management6AController::setStockpileContentSearch( std::string value )
 {
 	if ( state_.view == ManagementView::Stockpile )
 	{
-		state_.stockpile.contentSearch = std::move( value );
+		state_.stockpile.contentSearch = trimmed( std::move( value ) );
 		rebuildStockpile();
 		notify();
 	}
+}
+void Management6AController::setStockpileColumnFilter( bool allowList, std::size_t column, std::string value )
+{
+	if ( state_.view != ManagementView::Stockpile ) return;
+	if ( allowList )
+	{
+		if ( column >= state_.stockpile.allowColumnFilters.size() ) return;
+		state_.stockpile.allowColumnFilters[column] = std::move( value );
+	}
+	else
+	{
+		if ( column >= state_.stockpile.contentColumnFilters.size() ) return;
+		state_.stockpile.contentColumnFilters[column] = std::move( value );
+	}
+	rebuildStockpile();
+	notify();
+}
+void Management6AController::toggleStockpileColumnSelection( bool allowList, std::size_t column, std::string value )
+{
+	if ( state_.view != ManagementView::Stockpile ) return;
+	const auto toggle = [&]( auto& columns )
+	{
+		if ( column >= columns.size() ) return false;
+		auto& selected = columns[column];
+		if ( value.empty() )
+			selected.clear();
+		else if ( const auto found = std::ranges::find_if( selected, [&]( const auto& candidate ) { return folded( candidate ) == folded( value ); } ); found != selected.end() )
+			selected.erase( found );
+		else
+			{
+			if ( !allowList && column >= 4 ) selected.clear();
+			selected.push_back( value );
+		}
+		return true;
+	};
+	if ( !( allowList ? toggle( state_.stockpile.allowColumnSelections ) : toggle( state_.stockpile.contentColumnSelections ) ) ) return;
+	rebuildStockpile();
+	notify();
 }
 void Management6AController::setStockpileContentSort( StockpileSortKey key )
 {
@@ -505,6 +626,19 @@ void Management6AController::setStockpileContentSort( StockpileSortKey key )
 	{
 		state_.stockpile.contentSort = key;
 		state_.stockpile.sort = SortDirection::Ascending;
+	}
+	rebuildStockpile();
+	notify();
+}
+void Management6AController::setStockpileAllowSort( StockpileSortKey key )
+{
+	if ( state_.view != ManagementView::Stockpile ) return;
+	if ( state_.stockpile.allowSort == key )
+		state_.stockpile.allowSortDirection = state_.stockpile.allowSortDirection == SortDirection::Ascending ? SortDirection::Descending : SortDirection::Ascending;
+	else
+	{
+		state_.stockpile.allowSort = key;
+		state_.stockpile.allowSortDirection = SortDirection::Ascending;
 	}
 	rebuildStockpile();
 	notify();
@@ -591,6 +725,22 @@ void Management6AController::normalizeWorkshopOrderDraft()
 			state_.workshop.orderMaterials[index] = choices.empty() ? CatalogId { "any" } : choices.front().first;
 	}
 }
+void Management6AController::setWorkshopPane( WorkshopPane pane )
+{
+	state_.workshop.pane = pane;
+	notify();
+}
+void Management6AController::setWorkshopOrderMaterial( std::size_t index, CatalogId material )
+{
+	if ( !state_.workshop.selectedProduct ) return;
+	const auto product = findRow( state_.workshop.value.products, *state_.workshop.selectedProduct );
+	if ( product == state_.workshop.value.products.end() || index >= product->components.size() ) return;
+	const auto& choices = product->components[index].materials;
+	if ( std::none_of( choices.begin(), choices.end(), [&]( const auto& choice ) { return choice.first == material; } ) ) return;
+	normalizeWorkshopOrderDraft();
+	state_.workshop.orderMaterials[index] = std::move( material );
+	notify();
+}
 void Management6AController::cycleWorkshopOrderMaterial( std::size_t componentIndex, std::int32_t direction )
 {
 	if ( !state_.workshop.selectedProduct )
@@ -634,18 +784,86 @@ void Management6AController::selectStockpileContent( StockpileContentRowId id )
 {
 	if ( hasRow( state_.stockpile.value.contents, id ) )
 	{
-		state_.stockpile.selectedContent = std::move( id );
+		state_.stockpile.selectedContent = id;
 		const auto selected = std::find_if( state_.stockpile.value.contents.begin(), state_.stockpile.value.contents.end(), [&]( const auto& row ) { return row.id == *state_.stockpile.selectedContent; } );
 		if ( selected != state_.stockpile.value.contents.end() )
 		{
 			state_.stockpile.filterSearchBeforeReveal = state_.stockpile.filterSearch;
-			state_.stockpile.filterSearch = selected->materialName.empty() ? selected->itemName : selected->materialName;
+			state_.stockpile.filterSearch = selected->name;
 			state_.stockpile.filterSearchRevealed = true;
 			state_.stockpile.pane = StockpilePane::AllowList;
 		}
 		rebuildStockpile();
 		notify();
 	}
+}
+void Management6AController::toggleStockpileContentExpansion( StockpileContentRowId id )
+{
+	if ( id.depth == FilterDepth::Material || !hasRow( state_.stockpile.value.contents, id ) ) return;
+	const auto found = std::find( state_.stockpile.expandedContents.begin(), state_.stockpile.expandedContents.end(), id );
+	if ( found == state_.stockpile.expandedContents.end() ) state_.stockpile.expandedContents.push_back( std::move( id ) );
+	else state_.stockpile.expandedContents.erase( found );
+	rebuildStockpile();
+	notify();
+}
+void Management6AController::setStockpileTemplateName( std::string name )
+{
+	state_.stockpile.templateName = trimmed( std::move( name ) );
+	notify();
+}
+void Management6AController::toggleStockpileTemplateMenu()
+{
+	if ( state_.stockpile.templateOverwriteConfirmationRequired ) return;
+	state_.stockpile.templateMenuOpen = !state_.stockpile.templateMenuOpen;
+	notify();
+}
+void Management6AController::selectStockpileTemplate( std::string name )
+{
+	name = trimmed( std::move( name ) );
+	if ( name.empty() ) return;
+	state_.stockpile.templateName = name;
+	state_.stockpile.templateMenuOpen = false;
+	applyStockpileTemplate( std::move( name ) );
+}
+void Management6AController::saveStockpileTemplate()
+{
+	if ( !state_.stockpile.value.id || state_.stockpile.templateName.empty() ) return;
+	const auto requested = folded( state_.stockpile.templateName );
+	const auto existing = std::ranges::find_if( state_.stockpile.value.templateNames, [&]( const auto& name ) { return folded( name ) == requested; } );
+	state_.stockpile.templateMenuOpen = false;
+	if ( existing != state_.stockpile.value.templateNames.end() )
+	{
+		state_.stockpile.pendingTemplateOverwrite = *existing;
+		state_.stockpile.templateOverwriteConfirmationRequired = true;
+		notify();
+		return;
+	}
+	dispatch( "stockpile.save_template", StockpileTemplatePayload { state_.stockpile.value.id, state_.stockpile.templateName } );
+}
+void Management6AController::applyStockpileTemplate( std::string name )
+{
+	name = trimmed( std::move( name ) );
+	if ( state_.stockpile.value.id && !name.empty() )
+		dispatch( "stockpile.apply_template", StockpileTemplatePayload { state_.stockpile.value.id, std::move( name ) } );
+}
+void Management6AController::confirmStockpileTemplateOverwrite()
+{
+	if ( !state_.stockpile.templateOverwriteConfirmationRequired || !state_.stockpile.value.id || state_.stockpile.pendingTemplateOverwrite.empty() ) return;
+	const auto name = state_.stockpile.pendingTemplateOverwrite;
+	if ( dispatch( "stockpile.save_template", StockpileTemplatePayload { state_.stockpile.value.id, name }, DispatchOrigin::DestructiveConfirmation ) )
+	{
+		state_.stockpile.templateOverwriteConfirmationRequired = false;
+		state_.stockpile.pendingTemplateOverwrite.clear();
+		notify();
+	}
+}
+void Management6AController::cancelStockpileTemplateOverwrite()
+{
+	if ( !state_.stockpile.templateOverwriteConfirmationRequired ) return;
+	state_.stockpile.templateOverwriteConfirmationRequired = false;
+	state_.stockpile.pendingTemplateOverwrite.clear();
+	state_.status.clear();
+	notify();
 }
 void Management6AController::toggleStockpileFilterExpansion( StockpileFilterRowId id )
 {
@@ -780,7 +998,7 @@ void Management6AController::nextAgricultureAnimal()
 
 bool Management6AController::dispatch( std::string_view id, UiActionPayload payload, DispatchOrigin origin )
 {
-	if ( state_.workshop.tradeConfirmationRequired && origin != DispatchOrigin::DestructiveConfirmation )
+	if ( ( state_.workshop.tradeConfirmationRequired || state_.stockpile.templateOverwriteConfirmationRequired ) && origin != DispatchOrigin::DestructiveConfirmation )
 	{
 		state_.status = "ui.error.input_blocked_by_confirmation";
 		notify();
@@ -861,10 +1079,30 @@ void Management6AController::setFisherOptions( bool catchFish, bool processFish 
 	if ( state_.workshop.value.id )
 		dispatch( "workshop.set_fisher_options", SetFisherOptionsPayload { state_.workshop.value.id, catchFish, processFish } );
 }
+void Management6AController::setWorkshopStockpileLink(StockpileId stockpile, bool linked)
+{
+    if(state_.workshop.value.id && stockpile)
+        dispatch("workshop.set_stockpile_link",SetWorkshopStockpileLinkPayload{state_.workshop.value.id,stockpile,linked});
+}
+void Management6AController::onWorkshopOrderResult(WorkshopId workshop, bool accepted)
+{
+    if(workshop!=state_.workshop.value.id) return;
+    state_.workshop.orderPending=false;
+    state_.workshop.orderFeedback=accepted ? "Order added to queue." : "Could not add order. Check the recipe and materials.";
+    state_.pendingAction.reset();
+    state_.status.clear();
+    notify();
+}
 void Management6AController::queueSelectedCraft( CraftRepeatMode mode, std::uint32_t count, std::vector<CatalogId> materials )
 {
-	if ( state_.workshop.value.id && state_.workshop.selectedProduct && count > 0 )
-		dispatch( "workshop.queue_craft", QueueCraftPayload { state_.workshop.value.id, *state_.workshop.selectedProduct, mode, count, std::move( materials ) } );
+    if(state_.workshop.orderPending) return;
+    if(state_.workshop.value.id && state_.workshop.selectedProduct && count>0) {
+        if(dispatch("workshop.queue_craft",QueueCraftPayload{state_.workshop.value.id,*state_.workshop.selectedProduct,mode,count,std::move(materials)})) {
+            state_.workshop.orderPending=true;
+            state_.workshop.orderFeedback="Adding order...";
+        } else state_.workshop.orderFeedback="Could not add order.";
+        notify();
+    }
 }
 void Management6AController::queueSelectedCraftDefault()
 {
@@ -966,12 +1204,10 @@ void Management6AController::setStockpileFilterMatches( bool active )
 {
 	if ( !state_.stockpile.value.id )
 		return;
-	for ( std::size_t index = 0; index < state_.stockpile.value.filters.size(); ++index )
-	{
-		const auto& row = state_.stockpile.value.filters[index];
-		if ( row.id.depth == FilterDepth::Material && stockpileFilterLeafMatches( state_.stockpile.value.filters, index, state_.stockpile.filterSearch ) )
-			dispatch( "stockpile.set_filter", SetStockpileFilterPayload { row.id, active } );
-	}
+	std::vector<StockpileFilterRowId> matches;
+	matches = state_.stockpile.matchingFilterLeaves;
+	if ( !matches.empty() )
+		dispatch( "stockpile.set_filters", SetStockpileFiltersPayload { state_.stockpile.value.id, std::move( matches ), active } );
 }
 void Management6AController::setAgricultureBasics( std::string name, std::int32_t priority, bool suspended )
 {
@@ -982,6 +1218,67 @@ void Management6AController::applySelectedAgricultureProduct()
 {
 	if ( state_.agriculture.selectedProduct )
 		dispatch( "agriculture.select_product", SetAgricultureProductPayload { state_.agriculture.value.target, *state_.agriculture.selectedProduct } );
+}
+
+void Management6AController::toggleFarmPlot( WorldPosition plot )
+{
+	auto& s = state_.agriculture;
+	if ( s.value.target.kind != AgricultureKind::Farm ||
+		!std::ranges::any_of( s.value.fields, [&]( const auto& field ) { return field.position == plot; } ) ) return;
+	auto selected = std::find( s.selectedPlots.begin(), s.selectedPlots.end(), plot );
+	if ( selected == s.selectedPlots.end() ) s.selectedPlots.push_back( plot );
+	else s.selectedPlots.erase( selected );
+	notify();
+}
+
+void Management6AController::selectAllFarmPlots()
+{
+	auto& s = state_.agriculture;
+	if ( s.value.target.kind != AgricultureKind::Farm ) return;
+	s.selectedPlots.clear();
+	for ( const auto& field : s.value.fields ) s.selectedPlots.push_back( field.position );
+	notify();
+}
+
+void Management6AController::clearFarmPlotSelection()
+{
+	state_.agriculture.selectedPlots.clear();
+	notify();
+}
+
+void Management6AController::assignSelectedFarmPlotCrop()
+{
+	const auto& s = state_.agriculture;
+	if ( s.value.target.kind == AgricultureKind::Farm && s.selectedProduct && !s.selectedPlots.empty() )
+		dispatch( "agriculture.set_plot_crop", SetFarmPlotCropPayload { s.value.target.designation, s.selectedPlots, *s.selectedProduct } );
+}
+
+void Management6AController::useFarmDefaultForSelectedPlots()
+{
+	const auto& s = state_.agriculture;
+	if ( s.value.target.kind == AgricultureKind::Farm && !s.selectedPlots.empty() )
+		dispatch( "agriculture.set_plot_crop", SetFarmPlotCropPayload { s.value.target.designation, s.selectedPlots, {} } );
+}
+
+void Management6AController::queueSelectedFarmPlotCrop( std::uint32_t count, bool repeat )
+{
+	const auto& s = state_.agriculture;
+	if ( s.value.target.kind == AgricultureKind::Farm && s.selectedProduct && !s.selectedPlots.empty() && count > 0 )
+		dispatch( "agriculture.queue_plot_crop", QueueFarmPlotCropPayload { s.value.target.designation, s.selectedPlots, *s.selectedProduct, count, repeat } );
+}
+
+void Management6AController::cancelFarmPlotOrder( WorldPosition plot, std::uint32_t order )
+{
+	const auto& s = state_.agriculture;
+	if ( s.value.target.kind == AgricultureKind::Farm )
+		dispatch( "agriculture.cancel_plot_order", FarmPlotOrderPayload { s.value.target.designation, plot, order } );
+}
+
+void Management6AController::moveFarmPlotOrder( WorldPosition plot, std::uint32_t order, MoveDirection direction )
+{
+	const auto& s = state_.agriculture;
+	if ( s.value.target.kind == AgricultureKind::Farm )
+		dispatch( "agriculture.move_plot_order", MoveFarmPlotOrderPayload { s.value.target.designation, plot, order, direction } );
 }
 void Management6AController::setHarvestOptions( bool harvest, bool hay, bool tame )
 {

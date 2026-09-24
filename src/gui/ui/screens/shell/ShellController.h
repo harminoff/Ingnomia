@@ -78,7 +78,8 @@ public:
 	[[nodiscard]] const ShellState& state() const noexcept { return state_; }
 	void setVersion( std::string version );
 	void setReducedMotion( bool enabled );
-	void setContinueAvailability( bool available, std::optional<Message> blocker = std::nullopt );
+	void setContinueAvailability( bool available, std::optional<Message> blocker = std::nullopt,
+		std::string saveName = {}, std::string savedAt = {} );
 	void setNewGameState( NewGameState state );
 	void setLoadGameState( LoadGameState state );
 	void setSettingsState( SettingsState state );

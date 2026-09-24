@@ -172,7 +172,6 @@ protected:
 	BT_RESULT actionMove( bool halt );
 
 	BT_RESULT actionClaimItems( bool halt );
-	bool claimFromLinkedStockpile( QString itemSID, QString materialSID, int count, bool requireSame, QStringList restriction );
 
 	BT_RESULT actionDropItem( bool halt );
 	BT_RESULT actionDropAllItems( bool halt );

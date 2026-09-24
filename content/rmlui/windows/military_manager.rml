@@ -1,26 +1,29 @@
 <rml>
 <head>
-  <title data-l10n="management.military.title">Military &amp; Diplomacy</title>
-  <link type="text/rcss" href="/styles/base.rcss" />
-  <link type="text/rcss" href="/styles/components.rcss" />
-  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <title data-l10n="management.military.window_title">Military</title>
+  <link type="text/template" href="/templates/management_window.rml" />
   <link type="text/rcss" href="/windows/management6c.rcss" />
 </head>
 <body id="military_root" class="m6c-root is-hidden">
+  <template src="management-window">
   <div id="military_workbench" class="c-window m6c-workbench">
     <div class="c-title-bar">
       <handle class="c-title-bar__drag-handle" move_target="military_workbench" edge_margin="64dp 12dp 52dp 12dp"><div class="c-title-bar__mark"></div>
-      <h1 class="c-title-bar__title" data-l10n="management.military.title">Military &amp; Diplomacy</h1></handle>
+      <h1 class="c-title-bar__title" data-l10n="management.military.window_title">Military</h1></handle>
       <button id="military_close" class="c-button" data-l10n="management.military.close">Close</button>
     </div>
     <div id="military_body" class="c-window__body m6c-body">
-      <div id="military_tabs" class="c-tabs m6c-tabs" role="tablist" aria-label="Management views">
-        <button id="military_tab_squads" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.squads">Squads</button>
-        <button id="military_tab_roles" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.roles_uniforms">Roles &amp; Uniforms</button>
-        <button id="military_tab_priorities" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.military.target_priorities">Target Priorities</button>
-        <button id="military_tab_neighbors" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.diplomacy.neighbors">Neighbors</button>
-        <button id="military_tab_missions" class="c-tabs__tab m6c-tab" role="tab" aria-selected="false" data-l10n="management.diplomacy.mission_activity">Missions</button>
-      </div>
+      <div id="military_shell" class="c-management-shell">
+        <aside id="military_rail" class="c-management-rail" aria-label="Military views" data-l10n-aria-label="management.military.views_label"><span class="c-management-rail__heading" data-l10n="management.navigation.views">Views</span>
+          <nav id="military_tabs" class="c-management-rail__nav" role="tablist" aria-label="Military views" aria-orientation="vertical">
+            <button id="military_tab_squads" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.military.squads" title="Manage squads, order, members, and roles." data-l10n-title="management.military.squads_help">Squads</button>
+            <button id="military_tab_roles" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.military.roles_uniforms" title="Edit role names, civilian behavior, and uniform rules." data-l10n-title="management.military.roles_help">Roles &amp; Uniforms</button>
+            <button id="military_tab_priorities" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.military.target_priorities" title="Order targets and choose each response." data-l10n-title="management.military.priorities_help">Target Priorities</button>
+            <button id="military_tab_neighbors" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.diplomacy.neighbors">Neighbors</button>
+            <button id="military_tab_missions" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.diplomacy.mission_activity">Missions</button>
+          </nav>
+        </aside>
+        <div class="c-management-main"><button id="military_views_toggle" class="c-button c-management-views-toggle" aria-expanded="false" title="Open the Military views menu" data-l10n-title="management.military.views_help">Views: Squads</button>
 
       <button id="military_back" class="c-button m6c-back" data-l10n="management.military.back">Back to list</button>
       <div id="military_loading" class="c-state-panel is-hidden"><h2 data-l10n="management.military.loading_title">Loading military records</h2></div>
@@ -64,6 +67,8 @@
         </section>
       </div>
       <div id="military_footer" class="m6c-footer is-hidden"><span id="military_status"></span></div>
+        </div>
+      </div>
     </div>
     <span class="c-window__resize-grip" aria-hidden="true"></span>
   </div>
@@ -74,5 +79,7 @@
       <div class="c-modal__actions"><button id="military_confirm_cancel" data-l10n="management.military.cancel">Cancel</button><button id="military_confirm_accept" class="c-button c-button--danger" data-l10n="management.military.remove">Remove</button></div>
     </div>
   </div>
+  <div id="military_tooltip" class="c-tooltip c-management-tooltip" role="tooltip" aria-hidden="true"></div>
+  </template>
 </body>
 </rml>

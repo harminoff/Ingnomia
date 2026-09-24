@@ -26,6 +26,7 @@
 
 
 #include <QObject>
+#include <QElapsedTimer>
 
 class Game;
 struct TraderItem;
@@ -62,6 +63,8 @@ struct GuiWorkshopProduct
 };
 
 /// @brief Full workshop payload sent to the Workshop window.
+struct GuiWorkshopStockpile { unsigned int id{}; QString name; bool linked{}; };
+
 struct GuiWorkshopInfo
 {
 	unsigned int workshopID = 0;      ///< Workshop UID.
@@ -73,6 +76,8 @@ struct GuiWorkshopInfo
 	bool autoCraftMissing = false;    ///< Auto-queue craft jobs to refill requirements.
 	bool acceptGenerated  = false;    ///< Accept auto-generated craft jobs from other systems.
 	bool linkStockpile    = false;    ///< Pull components directly from linked stockpile.
+	QList<GuiWorkshopStockpile> stockpiles;
+	bool canLinkStockpile = false;    ///< An eligible stockpile borders the input tile.
 	bool butcherExcess    = false;    ///< Butcher excess pasture animals (butcher workshop).
 	bool butcherCorpses   = false;    ///< Butcher creature corpses (butcher workshop).
 	bool catchFish        = false;    ///< Generate catch-fish jobs (fisher workshop).
@@ -121,6 +126,7 @@ private:
 	bool m_contentDirty = false;              ///< Unused (reserved for batch refresh).
 
 	GuiWorkshopInfo m_info;                   ///< Cached payload for the open workshop.
+	QElapsedTimer m_lastRefresh;
 
 	bool aggregate( unsigned int workshopID );
 	bool updateCraftList( unsigned int workshopID );
@@ -148,9 +154,10 @@ public slots:
 	void onUpdateWorkshopContent( unsigned int workshopID );
 	void onUpdateAfterTick();
 
-	void onSetBasicOptions( unsigned int workshopID, QString name, int priority, bool suspended, bool acceptGenerated, bool autoCraftMissing, bool connectStockpile );
+	void onSetBasicOptions( unsigned int workshopID, QString name, int priority, bool suspended, bool acceptGenerated, bool autoCraftMissing, bool connectStockpile, bool preserveLinks = false );
 	void onSetButcherOptions( unsigned int WorkshopID, bool butcherCorpses, bool butcherExcess );
 	void onSetFisherOptions( unsigned int WorkshopID, bool catchFish, bool processFish );
+	void onSetStockpileLink(unsigned int workshopID, unsigned int stockpileID, bool linked);
 	void onCraftItem( unsigned int workshopID, QString craftID, int mode, int number, QStringList mats );
 	void onCraftJobCommand( unsigned int workshopID, unsigned int craftJobID, QString command );
 	void onCraftJobParams( unsigned int workshopID, unsigned int craftJobID, int mode, int numToCraft, bool suspended, bool moveBack );
@@ -167,6 +174,7 @@ public slots:
 
 	void onCloseWindow();
 signals:
+	void signalCraftOrderResult(unsigned int workshopID, bool accepted);
 	void signalOpenWorkshopWindow( unsigned int workshopID );
 	void signalUpdateInfo( const GuiWorkshopInfo& info );
 	void signalUpdateContent( const GuiWorkshopInfo& info );

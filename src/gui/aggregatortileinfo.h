@@ -124,11 +124,14 @@ private:
 
 	unsigned int m_currentTileID = 0;    ///< Currently shown tile UID.
 	bool m_tileInfoDirty         = false;///< Reserved for batched refresh.
+	bool m_liveInspection = false;
 	GuiTileInfo m_tileInfo;              ///< Cached payload for the current tile.
 	GuiStockpileInfo m_spInfo;           ///< Cached payload when the tile is a stockpile.
 
 public slots:
 	void onShowTileInfo( unsigned int tileID );
+	void setLiveInspection( bool active ) { m_liveInspection = active; }
+	void clearSelection() { m_currentTileID = 0; }
 	void onUpdateAnyTileInfo( const QSet<unsigned int>& changeSet );
 	void onUpdateTileInfo( unsigned int tileID );
 	void onRequestStockpileItems( unsigned int tileID );
@@ -142,5 +145,6 @@ public slots:
 signals:
 	void signalShowTileInfo( unsigned int id );
 	void signalUpdateTileInfo( const GuiTileInfo& info );
+	void signalUpdateLiveTileInfo( const GuiTileInfo& info );
 	void signalUpdateSPInfo( const GuiStockpileInfo& info );
 };

@@ -37,7 +37,6 @@
 #include "../gfx/spritefactory.h"
 #include "eventconnector.h"
 #include "mainwindow.h"
-#include "isometricplacement.h"
 #include "aggregatorselection.h"
 
 #include <QCoreApplication>
@@ -1677,14 +1676,13 @@ void MainWindowRenderer::setScale( float scale )
 	onRenderParamsChanged();
 }
 
-/// @brief Sets the top z-level without shifting the canvas on screen.
+/// @brief Sets the top z-level while keeping the active floor's grid aligned.
 /// @param level New view level (z coordinate).
 void MainWindowRenderer::setViewLevel( int level )
 {
-	// Use the authoritative level, not the last painted level: several wheel
-	// events can arrive before the next frame. The caller clamps to the world.
-	m_moveY = ingnomia::ui::cameraYAfterLayerChange( m_moveY, GameState::viewLevel, level );
-	GameState::moveY = m_moveY;
+	// Shaders use (viewLevel - tile.z), so the active floor already has zero
+	// depth offset. Keep the camera unchanged so vertically stacked stairs
+	// occupy the same grid position as we browse floors. The caller clamps.
 	GameState::viewLevel = level;
 	m_viewLevel = level;
 	onRenderParamsChanged();

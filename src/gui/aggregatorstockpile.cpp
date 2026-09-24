@@ -25,11 +25,34 @@
 #include "../base/db.h"
 #include "../base/dbhelper.h"
 #include "../base/global.h"
+#include "../base/io.h"
 #include "../game/game.h"
 #include "../game/inventory.h"
 #include "../game/stockpilemanager.h"
+#include "../game/tutorialmanager.h"
 #include "../game/world.h"
 #include "../gui/strings.h"
+
+#include <QJsonDocument>
+
+namespace
+{
+QString stockpileTemplatePath()
+{
+	return IO::getDataFolder() + "/settings/stockpile-filter-templates.json";
+}
+
+QVariantList loadStockpileTemplates()
+{
+	QJsonDocument document;
+	return IO::loadFile( stockpileTemplatePath(), document ) ? document.toVariant().toList() : QVariantList {};
+}
+
+void saveStockpileTemplates( const QVariantList& templates )
+{
+	IO::saveFile( stockpileTemplatePath(), QJsonDocument::fromVariant( templates ) );
+}
+}
 
 /// @brief Constructs the AggregatorStockpile and registers GuiStockpileInfo as a metatype.
 /// @param parent Qt parent object.
@@ -106,7 +129,15 @@ bool AggregatorStockpile::aggregate( unsigned int stockpileID )
 		m_info.capacity = 0;
 		m_info.itemCount = 0;
 		m_info.reserved = 0;
-		m_info.summary.clear();
+			m_info.summary.clear();
+			m_info.templateNames.clear();
+			for ( const auto& value : loadStockpileTemplates() )
+			{
+				const auto name = value.toMap().value( "Name" ).toString().trimmed();
+				if ( !name.isEmpty() ) m_info.templateNames.push_back( name );
+			}
+			std::sort( m_info.templateNames.begin(), m_info.templateNames.end(), []( const QString& a, const QString& b )
+				{ return QString::compare( a, b, Qt::CaseInsensitive ) < 0; } );
 		QMap<QPair<QString, QString>, int> counts;
 		for ( const auto& field : sp->getFields() )
 		{
@@ -128,8 +159,9 @@ bool AggregatorStockpile::aggregate( unsigned int stockpileID )
 			is.materialSID  = it.key().second;
 			is.itemName     = S::s( "$ItemName_" + is.itemSID );
 			is.materialName = S::s( "$MaterialName_" + is.materialSID );
-			is.count        = it.value();
-			m_info.summary.append( is );
+				is.count        = it.value();
+				is.total        = static_cast<int>( g->inv()->itemCountDetailed( is.itemSID, is.materialSID ).total );
+				m_info.summary.append( is );
 		}
 
 		return true;
@@ -180,7 +212,7 @@ void AggregatorStockpile::onSetBasicOptions( unsigned int stockpileID, QString n
 	if ( sp )
 	{
 		//qDebug() << stockpileID << name << priority << suspended << pull << allowPull;
-		sp->setName( name );
+		sp->setName( g->spm()->uniqueName(name,stockpileID) );
 		g->spm()->setPriority( stockpileID, priority );
 		sp->setActive( !suspended );
 		sp->setAllowPull( allowPull );
@@ -198,32 +230,72 @@ void AggregatorStockpile::onSetBasicOptions( unsigned int stockpileID, QString n
 /// @param material    Material key (empty to apply to whole item).
 void AggregatorStockpile::onSetActive( unsigned int stockpileID, bool active, QString category, QString group, QString item, QString material )
 {
-	if( !g ) return;
-	qDebug() << "set active:" << stockpileID << active << category << group << item << material;
+	onSetActiveBatch( stockpileID, active, { QStringList { std::move( category ), std::move( group ), std::move( item ), std::move( material ) } } );
+}
+
+void AggregatorStockpile::onSetActiveBatch( unsigned int stockpileID, bool active, const QList<QStringList>& paths )
+{
+	if( !g || paths.empty() ) return;
 	auto sp = g->spm()->getStockpile( stockpileID );
 	if ( sp )
 	{
 		auto filter = sp->pFilter();
 		if ( filter )
 		{
-			if ( group.isEmpty() )
+			for ( const auto& path : paths )
 			{
-				filter->setCheckState( category, active );
-			}
-			else if ( item.isEmpty() )
-			{
-				filter->setCheckState( category, group, active );
-			}
-			else if ( material.isEmpty() )
-			{
-				filter->setCheckState( category, group, item, active );
-			}
-			else
-			{
-				filter->setCheckState( category, group, item, material, active );
+				if ( path.size() != 4 || path[0].isEmpty() ) continue;
+				if ( path[1].isEmpty() )
+					filter->setCheckState( path[0], active );
+				else if ( path[2].isEmpty() )
+					filter->setCheckState( path[0], path[1], active );
+				else if ( path[3].isEmpty() )
+					filter->setCheckState( path[0], path[1], path[2], active );
+				else
+					filter->setCheckState( path[0], path[1], path[2], path[3], active );
 			}
 		}
+		if( g->tutorial() ) g->tutorial()->observeStockpileAllowRule( stockpileID );
 		onUpdateStockpileInfo( stockpileID );
+	}
+}
+
+void AggregatorStockpile::onSaveFilterTemplate( unsigned int stockpileID, QString name )
+{
+	if ( !g ) return;
+	name = name.trimmed();
+	if ( name.isEmpty() || name.size() > 48 ) return;
+	const auto stockpile = g->spm()->getStockpile( stockpileID );
+	if ( !stockpile ) return;
+	auto templates = loadStockpileTemplates();
+	QVariantMap saved { { "Name", name }, { "Filter", stockpile->filter().serialize() } };
+	bool replaced = false;
+	for ( auto& value : templates )
+		if ( value.toMap().value( "Name" ).toString().compare( name, Qt::CaseInsensitive ) == 0 )
+		{
+			value = saved;
+			replaced = true;
+			break;
+		}
+	if ( !replaced ) templates.push_back( saved );
+	saveStockpileTemplates( templates );
+	onUpdateStockpileInfo( stockpileID );
+}
+
+void AggregatorStockpile::onApplyFilterTemplate( unsigned int stockpileID, QString name )
+{
+	if ( !g ) return;
+	name = name.trimmed();
+	const auto stockpile = g->spm()->getStockpile( stockpileID );
+	if ( !stockpile || name.isEmpty() ) return;
+	for ( const auto& value : loadStockpileTemplates() )
+	{
+		const auto saved = value.toMap();
+		if ( saved.value( "Name" ).toString().compare( name, Qt::CaseInsensitive ) != 0 ) continue;
+		*stockpile->pFilter() = Filter( saved.value( "Filter" ).toMap() );
+		if( g->tutorial() ) g->tutorial()->observeStockpileAllowRule( stockpileID );
+		onUpdateStockpileInfo( stockpileID );
+		return;
 	}
 }
 

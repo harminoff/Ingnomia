@@ -128,15 +128,8 @@ void HudController::chooseBuildAction( CatalogId item, BuildAction action )
 {
 	const auto found = std::ranges::find_if( state_.buildCatalog, [&]( const BuildCatalogRow& row ) { return row.id == item; } );
 	if ( found == state_.buildCatalog.end() ) return;
-	// Workshops can be placed as blueprints before their components exist. The
-	// authoritative construction job remains pending until inventory can satisfy
-	// it; other build kinds retain the strict availability guard.
-	if ( !found->available && found->kind != BuildKind::Workshop )
-	{
-		state_.status = found->unavailableReason.empty() ? "hud.build.unavailable" : found->unavailableReason;
-		notify();
-		return;
-	}
+	// Every construction type can be placed as a blueprint before its components
+	// exist. The authoritative job remains pending until inventory can satisfy it.
 	if( dispatch( "tool.choose_build", ChooseBuildPayload{ found->id, found->kind, found->defaultMaterials, action } ) )
 	{
 		state_.tool.active = ToolId{ "build" };

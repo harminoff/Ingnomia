@@ -30,6 +30,7 @@
 #include <RmlUi/Core/Context.h>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 namespace ingnomia::ui
@@ -46,6 +47,7 @@ RmlUiDetachedWindow::RmlUiDetachedWindow( RmlUiHost& host, QOpenGLContext* share
     setTitle( std::move( title ) );
     setResizeMinimumSize( QSize( 240, 240 ) );
     resize( initialSize.expandedTo( m_resizeMinimumSize ) );
+    setResizable( false );
 
     m_timer = new QTimer( this );
     // Present the already-rendered preview texture at a steady 60-ish FPS. The
@@ -59,6 +61,9 @@ RmlUiDetachedWindow::RmlUiDetachedWindow( RmlUiHost& host, QOpenGLContext* share
 RmlUiDetachedWindow::~RmlUiDetachedWindow()
 {
     m_closeHandler = {};
+    m_designerFocusHandler = {};
+    m_designerKeyHandler = {};
+    m_designerMousePressHandler = {};
     if ( m_timer ) m_timer->stop();
     if ( m_glContext && m_glContext->makeCurrent( this ) )
     {
@@ -114,10 +119,46 @@ void RmlUiDetachedWindow::setCloseHandler( std::function<void()> handler )
     m_closeHandler = std::move( handler );
 }
 
+void RmlUiDetachedWindow::setDesignerFocusHandler( std::function<void()> handler )
+{
+    m_designerFocusHandler = std::move( handler );
+}
+
+void RmlUiDetachedWindow::setDesignerKeyHandler( std::function<bool( int, Qt::KeyboardModifiers )> handler )
+{
+    m_designerKeyHandler = std::move( handler );
+}
+
+void RmlUiDetachedWindow::setDesignerMousePressHandler(
+    std::function<bool( QPointF, Qt::MouseButton, Qt::KeyboardModifiers )> handler )
+{
+    m_designerMousePressHandler = std::move( handler );
+}
+
+void RmlUiDetachedWindow::setResizable( bool value )
+{
+    m_resizable = value;
+    if ( value )
+    {
+        setMaximumSize( QSize( 16777215, 16777215 ) );
+        setMinimumSize( m_resizeMinimumSize );
+    }
+    else
+    {
+        const QSize fixedSize = size().expandedTo( m_resizeMinimumSize );
+        if ( size() != fixedSize ) resize( fixedSize );
+        setMinimumSize( fixedSize );
+        setMaximumSize( fixedSize );
+        m_resizing = false;
+        m_resizeEdges = Qt::Edges();
+        setCursor( Qt::ArrowCursor );
+    }
+}
+
 void RmlUiDetachedWindow::setResizeMinimumSize( QSize size )
 {
     m_resizeMinimumSize = size.expandedTo( QSize( 240, 240 ) );
-    setMinimumSize( m_resizeMinimumSize );
+    if ( m_resizable ) setMinimumSize( m_resizeMinimumSize );
 }
 
 void RmlUiDetachedWindow::setResizeHandler( std::function<void( QSize )> handler )
@@ -154,7 +195,21 @@ void RmlUiDetachedWindow::resetView( QSize logicalSize )
     m_inspectorLayoutTraceDone = false;
     m_automationCaptureSkipFrames = qMax( 0, qEnvironmentVariableIntValue( "INGNOMIA_AUTOMATE_DETACHED_CAPTURE_DELAY_FRAMES" ) );
 
-    if ( logicalSize.isValid() ) resize( logicalSize );
+    if ( logicalSize.isValid() )
+    {
+        const QSize targetSize = logicalSize.expandedTo( m_resizeMinimumSize );
+        if ( !m_resizable )
+        {
+            setMaximumSize( QSize( 16777215, 16777215 ) );
+            setMinimumSize( m_resizeMinimumSize );
+        }
+        resize( targetSize );
+        if ( !m_resizable )
+        {
+            setMinimumSize( targetSize );
+            setMaximumSize( targetSize );
+        }
+    }
     // A resize event is not guaranteed while a parked QWindow is hidden. Apply
     // the RmlUi dimensions explicitly so a reopened inspector cannot retain the
     // expanded document viewport from its previous lifetime. Keep both resize
@@ -189,6 +244,15 @@ void RmlUiDetachedWindow::resetView( QSize logicalSize )
     m_host.setSystemWindow( nullptr );
 }
 
+void RmlUiDetachedWindow::requestAutomationCapture( QString path )
+{
+    if ( path.isEmpty() ) return;
+    m_automationCapturePath = std::move( path );
+    m_automationCaptureDone = false;
+    m_automationCaptureSkipFrames = 2;
+    queueRenderFrame();
+}
+
 void RmlUiDetachedWindow::requestClose()
 {
     close();
@@ -219,8 +283,13 @@ void RmlUiDetachedWindow::closeEvent( QCloseEvent* event )
     // submitting OpenGL work during that handoff.
     m_renderingEnabled = false;
     if ( m_timer ) m_timer->stop();
-    event->accept();
-    if ( m_closeQueued || !m_closeHandler ) return;
+    if (!m_closeHandler) { event->accept(); return; }
+    // Management windows are parked and reused. Accepting QWindow's close
+    // destroys its native surface, leaving the retained RmlUi context without
+    // a surface on which to release GL resources at shutdown.
+    event->ignore();
+    hide();
+    if ( m_closeQueued ) return;
     m_closeQueued = true;
     QTimer::singleShot( 0, this, [this]
     {
@@ -254,9 +323,21 @@ void RmlUiDetachedWindow::focusOutEvent( QFocusEvent* event )
     QWindow::focusOutEvent( event );
 }
 
+void RmlUiDetachedWindow::focusInEvent( QFocusEvent* event )
+{
+    if ( m_designerFocusHandler ) m_designerFocusHandler();
+    QWindow::focusInEvent( event );
+}
+
 void RmlUiDetachedWindow::keyPressEvent( QKeyEvent* event )
 {
     if ( !m_detachedContext ) return;
+    if ( m_designerFocusHandler ) m_designerFocusHandler();
+    if ( m_designerKeyHandler && m_designerKeyHandler( event->key(), event->modifiers() ) )
+    {
+        event->accept();
+        return;
+    }
     m_host.setSystemWindow( this );
     const auto key = m_detachedContext->input().keyDown( event->key(), event->modifiers() );
     const auto text = m_detachedContext->input().committedText( event->text() );
@@ -300,6 +381,7 @@ void RmlUiDetachedWindow::mouseMoveEvent( QMouseEvent* event )
 void RmlUiDetachedWindow::mousePressEvent( QMouseEvent* event )
 {
     if ( !m_detachedContext ) return;
+    if ( m_designerFocusHandler ) m_designerFocusHandler();
     if ( event->button() == Qt::LeftButton )
     {
         const auto edges = resizeEdgesAt( event->position() );
@@ -319,6 +401,12 @@ void RmlUiDetachedWindow::mousePressEvent( QMouseEvent* event )
         m_moveStartGlobal = event->globalPosition().toPoint();
         m_moveStartWindow = position();
         setMouseGrabEnabled( true );
+        event->accept();
+        return;
+    }
+    if ( m_designerMousePressHandler
+        && m_designerMousePressHandler( event->position(), event->button(), event->modifiers() ) )
+    {
         event->accept();
         return;
     }
@@ -542,7 +630,8 @@ void RmlUiDetachedWindow::renderFrame()
     // Keep detached-window rendering independently testable. The normal game
     // path never reads pixels back; the opt-in probe captures this window's
     // actual OpenGL surface rather than the main game's framebuffer.
-    const QString capturePath = qEnvironmentVariable( "INGNOMIA_AUTOMATE_DETACHED_CAPTURE_PATH" );
+    const QString capturePath = m_automationCapturePath.isEmpty()
+        ? qEnvironmentVariable( "INGNOMIA_AUTOMATE_DETACHED_CAPTURE_PATH" ) : m_automationCapturePath;
     if ( !m_automationCaptureDone && !capturePath.isEmpty() )
     {
         if ( m_automationCaptureSkipFrames > 0 )
@@ -586,6 +675,7 @@ void RmlUiDetachedWindow::renderFrame()
             if( layoutFile.open( QIODevice::WriteOnly ) ) layoutFile.write( QJsonDocument( elements ).toJson() );
         }
         m_automationCaptureDone = true;
+        m_automationCapturePath.clear();
         }
     }
     m_glContext->swapBuffers( this );

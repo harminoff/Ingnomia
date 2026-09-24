@@ -1,0 +1,12 @@
+<!-- Shared hot-reloadable production frame for detached management windows. -->
+<template name="management-window" content="management-window-content">
+<head>
+  <link type="text/rcss" href="/styles/base.rcss" />
+  <link type="text/rcss" href="/styles/components.rcss" />
+  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <link type="text/rcss" href="/styles/management_window.rcss" />
+</head>
+<body>
+  <div id="management-window-content" class="c-management-window-template"></div>
+</body>
+</template>

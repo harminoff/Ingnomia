@@ -6,6 +6,7 @@
 #include <RmlUi/Core/EventListener.h>
 #include <functional>
 #include <memory>
+#include <map>
 #include <vector>
 
 namespace Rml { class Context; class Element; class ElementDocument; class Event; }
@@ -19,6 +20,7 @@ public:
 	explicit Management6ARmlBinding( Rml::Context& );
 	~Management6ARmlBinding() override;
 	bool initialize( Management6AController& );
+	bool reloadDocuments();
 	void shutdown();
 	void setDocumentLoader( DocumentLoader loader ) { documentLoader_ = std::move( loader ); }
 	void setPresentationEnabled( bool enabled ) { presentationEnabled_ = enabled; }
@@ -56,8 +58,18 @@ private:
 	std::int32_t priority( const char*, std::int32_t fallback, std::int32_t maximum ) const;
 	std::int32_t normalizePriority( const char*, std::int32_t fallback, std::int32_t maximum );
 	void renderWorkshop( const WorkshopState& );
+	void workshopMarkup( const char*, const std::string& );
+	std::map<std::string, std::string> workshopMarkup_;
+	WorkshopId workshopSettingsId_;
+	std::string workshopSettingsName_;
+	std::int32_t workshopSettingsPriority_{-1};
+	std::optional<CraftJobId> workshopEditingJob_;
+	std::uint32_t workshopEditingCount_{};
+	bool renderingWorkshop_{};
 	void renderStockpile( const StockpileState& );
+	void renderStockpileFilterViewport();
 	void renderAgriculture( const AgricultureState& );
+	void renderFarmPlanner( const AgricultureState& );
 	Rml::Context& context_;
 	Management6AController* controller_{};
 	localization::UiText textCatalog_;
@@ -70,11 +82,19 @@ private:
 	std::function<void()> closeHandler_;
 	bool presentationEnabled_{ true };
 	bool tradeConfirmationVisible_{};
+	bool stockpileTemplateConfirmationVisible_{};
 	ManagementView activeView_{ ManagementView::None };
 	static constexpr std::size_t pageSize_ = 48;
 	std::size_t workshopPage_{};
 	std::size_t agriculturePage_{};
-	bool haulingOptionsExpanded_{};
+	std::string farmGridMarkup_, farmCatalogMarkup_, farmOrdersMarkup_;
+	std::vector<std::string> stockpileFilterMarkup_;
+	std::size_t stockpileFilterFirst_{ static_cast<std::size_t>( -1 ) };
+	bool renderingStockpileFilters_{};
 	bool normalizingPriority_{};
+	bool syncingCheckbox_{};
+	std::string stockpileCategoryMarkup_;
+	std::optional<std::size_t> stockpileContentFilterMenuColumn_;
+	std::optional<std::size_t> stockpileAllowFilterMenuColumn_;
 };
 } // namespace ingnomia::ui::management6a

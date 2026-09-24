@@ -21,6 +21,8 @@
  *         stock/offer view for the TradingPost workshop.
  */
 #include "aggregatorworkshop.h"
+#include "../game/stockpilemanager.h"
+#include "../game/stockpile.h"
 
 #include "../base/counter.h"
 #include "../base/db.h"
@@ -32,6 +34,7 @@
 #include "../game/gnomemanager.h"
 #include "../game/gnometrader.h"
 #include "../game/inventory.h"
+#include "../game/tutorialmanager.h"
 #include "../game/workshopmanager.h"
 #include "../game/world.h"
 #include "../gui/strings.h"
@@ -105,6 +108,9 @@ AggregatorWorkshop::~AggregatorWorkshop()
 void AggregatorWorkshop::init( Game* game )
 {
 	g = game;
+	m_info = {};
+	m_contentDirty = false;
+	m_lastRefresh.invalidate();
 }
 
 /// @brief Opens the workshop window for whichever workshop owns @p tileID.
@@ -139,7 +145,8 @@ void AggregatorWorkshop::onUpdateWorkshopInfo( unsigned int workshopID )
 	if( !g ) return;
 	if ( aggregate( workshopID ) )
 	{
-		emit signalUpdateInfo( m_info );
+			emit signalUpdateInfo( m_info );
+			m_lastRefresh.start();
 	}
 }
 
@@ -163,6 +170,11 @@ bool AggregatorWorkshop::aggregate( unsigned int workshopID )
 			m_info.acceptGenerated  = ws->isAcceptingGenerated();
 			m_info.autoCraftMissing = ws->getAutoCraftMissing();
 			m_info.linkStockpile    = (bool)ws->linkedStockpile();
+            m_info.stockpiles.clear();
+            const auto links=ws->linkedStockpiles();
+            for(auto id : g->spm()->allStockpilesOrdered())
+                m_info.stockpiles.append({id,g->spm()->name(id),links.contains(id)});
+            m_info.canLinkStockpile = !m_info.stockpiles.isEmpty();
 
 			m_info.products.clear();
 
@@ -233,16 +245,17 @@ void AggregatorWorkshop::onUpdateWorkshopContent( unsigned int WorkshopID )
 	}
 }
 
-/// @brief Post-tick hook that refreshes trader and player stock views for an open TradingPost.
+/// @brief Refreshes the open workshop on the GUI pulse, including while paused.
 void AggregatorWorkshop::onUpdateAfterTick()
 {
 	if( !g ) return;
-	if ( m_info.workshopID && m_contentDirty )
+	if ( m_info.workshopID && (m_contentDirty || !m_lastRefresh.isValid() || m_lastRefresh.elapsed() >= 500) )
 	{
 		if ( aggregate( m_info.workshopID ) )
 		{
 			emit signalUpdateContent( m_info );
-			m_contentDirty = false;
+				m_contentDirty = false;
+				m_lastRefresh.start();
 		}
 	}
 }
@@ -256,7 +269,7 @@ void AggregatorWorkshop::onUpdateAfterTick()
 /// @param acceptGenerated  Accept auto-generated craft jobs.
 /// @param autoCraftMissing Auto-queue craft jobs for missing items.
 /// @param connectStockpile Link to adjacent stockpile for pulling materials.
-void AggregatorWorkshop::onSetBasicOptions( unsigned int workshopID, QString name, int priority, bool suspended, bool acceptGenerated, bool autoCraftMissing, bool connectStockpile )
+void AggregatorWorkshop::onSetBasicOptions( unsigned int workshopID, QString name, int priority, bool suspended, bool acceptGenerated, bool autoCraftMissing, bool connectStockpile, bool preserveLinks )
 {
 	if( !g ) return;
 	auto ws = g->wsm()->workshop( workshopID );
@@ -267,7 +280,7 @@ void AggregatorWorkshop::onSetBasicOptions( unsigned int workshopID, QString nam
 		ws->setActive( !suspended );
 		ws->setAcceptGenerated( acceptGenerated );
 		ws->setAutoCraftMissing( autoCraftMissing );
-		ws->setLinkedStockpile( connectStockpile );
+		if(!preserveLinks) ws->setLinkedStockpile( connectStockpile );
 	}
 }
 
@@ -307,15 +320,31 @@ void AggregatorWorkshop::onSetFisherOptions( unsigned int workshopID, bool catch
 /// @param mode       Craft mode (one-shot, repeat, maintain).
 /// @param number     Number to craft.
 /// @param mats       Materials selected per component slot.
-void AggregatorWorkshop::onCraftItem( unsigned int workshopID, QString craftID, int mode, int number, QStringList mats )
+void AggregatorWorkshop::onSetStockpileLink(unsigned int workshopID, unsigned int stockpileID, bool linked)
 {
-	if( !g ) return;
-	auto ws = g->wsm()->workshop( workshopID );
-	if ( ws )
-	{
-		ws->addJob( craftID, mode, number, mats );
-		updateCraftList( workshopID );
-	}
+    if(!g) return;
+    if(auto* ws=g->wsm()->workshop(workshopID)) {
+        auto links=ws->linkedStockpiles();
+        if(linked && g->spm()->getStockpile(stockpileID) && !links.contains(stockpileID)) links.append(stockpileID);
+        if(!linked) links.removeAll(stockpileID);
+        ws->setLinkedStockpiles(links);
+        if(g->tutorial()) g->tutorial()->observeWorkshopStockpileLink(workshopID);
+        onUpdateWorkshopInfo(workshopID);
+    }
+}
+
+void AggregatorWorkshop::onCraftItem(unsigned int workshopID, QString craftID, int mode, int number, QStringList mats)
+{
+    bool accepted=false;
+    if(g) if(auto* ws=g->wsm()->workshop(workshopID)) {
+        const auto before=ws->jobList().size();
+        ws->addJob(craftID,mode,number,mats);
+		accepted=ws->jobList().size()>before;
+		if(accepted && ws->type()=="Crude" && DB::select("ItemID","Crafts",craftID).toString()=="Plank" && g->tutorial())
+			g->tutorial()->observeFact(TutorialFact::QueuePlank);
+        updateCraftList(workshopID);
+    }
+    emit signalCraftOrderResult(workshopID,accepted);
 }
 
 /// @brief Clears the open workshop ID when the GUI closes the window.

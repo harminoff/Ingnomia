@@ -11,7 +11,7 @@ namespace ingnomia::ui::inspector
 {
 enum class InspectorKind : std::uint8_t { None, Tile, Creature, Workshop, Stockpile, Agriculture };
 
-struct TextCountRow { std::string label; std::string detail; std::uint32_t count{}; bool available{}; bool operator==( const TextCountRow& ) const = default; };
+struct TextCountRow { std::string label; std::string detail; std::uint32_t count{}; bool available{}; std::string icon; bool operator==( const TextCountRow& ) const = default; };
 struct CreatureRow { CreatureId id; std::string label; EntityKind kind{ EntityKind::Creature }; bool operator==( const CreatureRow& ) const = default; };
 
 struct EquipmentTypeChoice
@@ -43,7 +43,7 @@ struct TileInspectorState
 	std::optional<DesignationId> designation;
 	std::string designationName, roomSummary, mechanismSummary;
 	bool plantIsTree{}, plantIsHarvestable{}, hasJob{}, canRaisePriority{}, canLowerPriority{};
-	bool canMine{}, canRemoveFloor{}, canFell{}, canHarvest{}, canRemovePlant{}, canManage{};
+	bool canMine{}, canRemoveFloor{}, canFell{}, canHarvest{}, canRemovePlant{}, canManage{}, canDeleteStockpile{};
 	bool operator==( const TileInspectorState& ) const = default;
 };
 

@@ -45,7 +45,7 @@ class RmlUiDetachedContext;
 class RmlUiDetachedWindow;
 namespace shell { class ShellController; class ShellQtCommandPort; class ShellRmlBinding; }
 namespace hud { class HudController; class HudQtCommandPort; class HudRmlBinding; }
-namespace inspector { struct CreatureInspectorState; class InspectorController; class InspectorQtCommandPort; class InspectorRmlBinding; }
+namespace inspector { struct CreatureInspectorState; struct TileInspectorState; class InspectorController; class InspectorQtCommandPort; class InspectorRmlBinding; }
 namespace management6b {
 class Management6BController;
 class Management6BQtCommandPort;
@@ -59,12 +59,14 @@ class Management6CRmlBinding;
 class Management6CController;
 class Management6CQtBridge;
 }
+namespace designer { class UiDesignerRmlBinding; }
 namespace navigation { class WorkbenchCoordinator; }
 #if defined(INGNOMIA_DEVELOPER_UI)
 namespace debug {
 class DebugQtCommandPort;
 class DebugController;
 class DebugQtDataAdapter;
+class DebugRmlBinding;
 }
 #endif
 }
@@ -134,7 +136,14 @@ public:
 	///        This does not touch the simulation and is only enabled by an explicit
 	///        INGNOMIA_AUTOMATE_UI_FIXTURE launch environment.
 	bool showInspectorCreatureFixture();
+	bool showInspectorBlueprintFixture();
+	bool showInspectorStockpileFixture();
+	void setTileInspection( bool active );
+	bool showManagementStockpileFixture();
+	bool showManagementFarmFixture();
 	bool showInventoryFixture();
+	/// @brief Validates that the first stockpile item icon and label share one row.
+	bool verifyInspectorStockpileItemGeometry( std::string* detail = nullptr );
 	/// @brief Returns the current typed HUD status for opt-in production probes.
 	std::string hudStatus() const;
 	/// @brief Dispatches a diagnostic click through the live shell RmlUi listener.
@@ -144,6 +153,19 @@ public:
 	/// @brief Dispatches a diagnostic click through a live management document.
 	///        This is opt-in and used only by production save/workbench probes.
 	bool activateManagementElement( std::string_view id );
+	bool clickManagementFarmCropForProbe( std::string_view crop );
+	std::string managementFarmSelectedCropForProbe() const;
+	bool clickInventoryDetailForProbe( std::string_view target );
+	std::string inventoryDetailItemForProbe() const;
+	int openLongestInventoryProductsForProbe();
+	bool scrollInventoryProductsForProbe();
+	std::string inventoryProductScrollStatusForProbe() const;
+	bool requestManagementCaptureForProbe( std::string_view kind, const QString& path );
+	bool createPopulationProfessionForProbe( std::string_view name );
+	bool populationHasProfessionForProbe( std::string_view name ) const;
+	bool verifyManagementWindowsForProbe(bool closePeers);
+	std::string workshopSettingsStatusForProbe() const;
+	bool managementFarmReadyForProbe() const;
 	/// @brief Sets a live management form control for an opt-in production probe.
 	///        Normal input remains routed through MainWindow's event boundary.
 	bool setManagementFormValueForProbe( std::string_view id, std::string_view value );
@@ -188,8 +210,10 @@ private:
 	void resizeGL( int w, int h );
 
 	bool initializeRmlUi();
+	void refreshContinueSave();
 	void shutdownRmlUi();
 	void resizeRmlUi();
+	bool reloadRmlUiDocuments();
 	bool rmlUiActive() const;
 	bool beginRmlWindowDrag( QPointF position );
 	void updateRmlWindowDrag( QPointF position );
@@ -197,21 +221,32 @@ private:
 	int frameTimerIntervalMs() const;
 	void restartFrameTimer();
 	bool openDetachedCreatureInspector( const ingnomia::ui::inspector::CreatureInspectorState&, std::optional<ingnomia::ui::WorldPosition> position );
+	bool openDetachedBlueprintInspector( const ingnomia::ui::inspector::TileInspectorState& );
+	bool openDetachedLiveTileInspector();
 	void closeDetachedCreatureInspector( int slot );
-	bool ensureDetachedManagement6A();
-	bool ensureDetachedManagement6B();
-	bool ensureDetachedManagement6C();
+	bool ensureDetachedManagement6A(int view = 0);
+	bool ensureDetachedManagement6B( bool inventoryView = false );
+	bool ensureDetachedManagement6C(bool diplomacyView = false);
 	bool openDetachedOrdersTools( std::string_view elementId );
 	bool ensureDetachedOrdersTools( std::string_view elementId );
-	void hideDetachedManagement6A();
-	void hideDetachedManagement6B();
-	void hideDetachedManagement6C();
+	void hideDetachedManagement6A(int view = 0);
+	void hideDetachedManagement6B(int surface = -1);
+	void hideDetachedManagement6C(int surface = -1);
 	void hideDetachedOrdersTools();
 	void hideDetachedOrdersTools( std::string_view panelKey );
 	void hideDetachedManagementWindows();
 	void destroyDetachedManagementWindows();
 	void closeDetachedManagement6B();
 	void closeDetachedManagement6C();
+#if defined( INGNOMIA_UI_DESIGNER )
+	bool uiDesignerEnabled() const;
+	std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> createDetachedUiDesigner(
+		ingnomia::ui::RmlUiDetachedContext&, std::string surfaceName );
+	void wireDetachedUiDesigner( ingnomia::ui::RmlUiDetachedWindow&, ingnomia::ui::designer::UiDesignerRmlBinding* );
+	void focusUiDesignerSurface( ingnomia::ui::designer::UiDesignerRmlBinding* );
+	void toggleUiDesignerSurface( ingnomia::ui::designer::UiDesignerRmlBinding* );
+	void deactivateUiDesignerSurface( ingnomia::ui::designer::UiDesignerRmlBinding* );
+#endif
 
 	void keyboardZPlus( bool shift = false, bool ctrl = false );
 	void keyboardZMinus( bool shift = false, bool ctrl = false );
@@ -233,6 +268,7 @@ private:
 	std::unique_ptr<ingnomia::ui::shell::ShellQtCommandPort> m_shellCommands;
 	std::unique_ptr<ingnomia::ui::shell::ShellController> m_shellController;
 	ingnomia::ui::hud::HudRmlBinding* m_hudBinding = nullptr; ///< Borrowed from m_rmlUiHost.
+	bool m_tileInspectionActive = false;
 	ingnomia::ui::inspector::InspectorRmlBinding* m_inspectorBinding = nullptr; ///< Borrowed from m_rmlUiHost.
 	std::unique_ptr<ingnomia::ui::hud::HudQtCommandPort> m_hudCommands;
 	std::unique_ptr<ingnomia::ui::hud::HudController> m_hudController;
@@ -246,26 +282,39 @@ private:
 		ingnomia::ui::inspector::InspectorRmlBinding* binding{};
 		std::unique_ptr<ingnomia::ui::inspector::InspectorQtCommandPort> commands;
 		std::unique_ptr<ingnomia::ui::inspector::InspectorController> controller;
+#if defined( INGNOMIA_UI_DESIGNER )
+		std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> designer;
+#endif
 	};
 	std::vector<CreatureInspectorWindow> m_creatureInspectorWindows;
 	std::vector<std::string> m_creatureProfessionChoices;
 	struct Management6AWindow
 	{
+        int view{};
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
 		std::unique_ptr<ingnomia::ui::management6a::Management6ARmlBinding> binding;
+#if defined( INGNOMIA_UI_DESIGNER )
+		std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> designer;
+#endif
 	};
 	struct Management6BWindow
 	{
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
 		std::unique_ptr<ingnomia::ui::management6b::Management6BRmlBinding> binding;
+#if defined( INGNOMIA_UI_DESIGNER )
+		std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> designer;
+#endif
 	};
 	struct Management6CWindow
 	{
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
 		std::unique_ptr<ingnomia::ui::management6c::Management6CRmlBinding> binding;
+#if defined( INGNOMIA_UI_DESIGNER )
+		std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> designer;
+#endif
 	};
 	struct OrdersToolsWindow
 	{
@@ -273,11 +322,14 @@ private:
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedContext> context;
 		std::unique_ptr<ingnomia::ui::RmlUiDetachedWindow> nativeWindow;
 		std::unique_ptr<ingnomia::ui::hud::HudRmlBinding> binding;
+#if defined( INGNOMIA_UI_DESIGNER )
+		std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> designer;
+#endif
 	};
 	std::vector<std::unique_ptr<OrdersToolsWindow>> m_ordersToolsWindows;
-	std::unique_ptr<Management6AWindow> m_management6aWindow;
-	std::unique_ptr<Management6BWindow> m_management6bWindow;
-	std::unique_ptr<Management6CWindow> m_management6cWindow;
+	std::unique_ptr<Management6AWindow> m_management6aWindow, m_stockpileWindow, m_agricultureWindow;
+	std::unique_ptr<Management6BWindow> m_management6bWindow, m_inventoryWindow;
+	std::unique_ptr<Management6CWindow> m_management6cWindow, m_diplomacyWindow;
 	ingnomia::ui::management6b::Management6BRmlBinding* m_management6bBinding = nullptr; ///< Borrowed from m_rmlUiHost.
 	std::unique_ptr<ingnomia::ui::management6b::Management6BQtCommandPort> m_management6bCommands;
 	std::unique_ptr<ingnomia::ui::management6b::Management6BController> m_management6bController;
@@ -288,7 +340,12 @@ private:
 	std::unique_ptr<ingnomia::ui::management6c::Management6CController> m_management6cController;
 	std::unique_ptr<ingnomia::ui::management6c::Management6CQtBridge> m_management6cBridge;
 	std::unique_ptr<ingnomia::ui::navigation::WorkbenchCoordinator> m_workbenchCoordinator;
+#if defined( INGNOMIA_UI_DESIGNER )
+	std::unique_ptr<ingnomia::ui::designer::UiDesignerRmlBinding> m_uiDesigner;
+	ingnomia::ui::designer::UiDesignerRmlBinding* m_uiDesignerActive = nullptr;
+#endif
 #if defined(INGNOMIA_DEVELOPER_UI)
+	ingnomia::ui::debug::DebugRmlBinding* m_debugBinding = nullptr;
 	std::unique_ptr<ingnomia::ui::debug::DebugQtCommandPort> m_debugCommands;
 	std::unique_ptr<ingnomia::ui::debug::DebugController> m_debugController;
 	std::unique_ptr<ingnomia::ui::debug::DebugQtDataAdapter> m_debugData;
@@ -305,7 +362,8 @@ private:
 
 	bool m_leftDown  = false;                    ///< True while the left mouse button is pressed.
 	bool m_rightDown = false;                    ///< True while the right mouse button is pressed.
-	bool m_isMove    = false;                    ///< True when the current drag is classified as a camera pan.
+	bool m_isMove    = false;                    ///< True after the pointer moves past the click threshold.
+	bool m_draggingAreaSelection = false;       ///< Area tools anchor on press and commit on drag release.
 	bool m_rmlWindowDragging = false;            ///< True while an RmlUi move_target handle is moving a panel.
 	Rml::Element* m_rmlWindowDragTarget = nullptr; ///< Non-owning target element for the active panel drag.
 	Rml::Element* m_rmlWindowDragParent = nullptr; ///< Non-owning offset parent for the active panel drag.

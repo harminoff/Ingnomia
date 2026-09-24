@@ -67,6 +67,13 @@ bool DebugRmlBinding::initialize( DebugController& c )
 	return true;
 #endif
 }
+bool DebugRmlBinding::reloadDocument()
+{
+	auto* controller = controller_;
+	if ( !controller ) return false;
+	shutdown();
+	return initialize( *controller );
+}
 void DebugRmlBinding::bind( const char* id, std::function<void()> fn )
 {
 	bindEvent( id, "click", [fn = std::move( fn )]( Rml::Event& )

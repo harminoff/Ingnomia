@@ -21,6 +21,7 @@
  */
 #include "farmingmanager.h"
 #include "game.h"
+#include "tutorialmanager.h"
 
 #include "../base/global.h"
 #include "../base/position.h"
@@ -365,6 +366,7 @@ void FarmingManager::addFarm( Position firstClick, QList<QPair<Position, bool>> 
 		m_farms.insert( fa->id(), fa );
 		emit signalFarmChanged( fa->id() );
 	}
+	if ( g->tutorial() && countFarms() > 0 ) g->tutorial()->observeFact( TutorialFact::Farm );
 }
 
 void FarmingManager::removeFarm( unsigned int id )

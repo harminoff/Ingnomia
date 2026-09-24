@@ -32,7 +32,15 @@
 
 class Game;
 
-/** @brief A single tile within a farm, holding its position and current job reference. */
+struct FarmCropOrder
+{
+	unsigned int id = 0;
+	QString crop;
+	int remaining = 1;
+	bool repeat = false;
+};
+
+/** @brief A single tile within a farm, holding its crop plan and current job reference. */
 struct FarmField
 {
 	FarmField() = default;
@@ -40,6 +48,10 @@ struct FarmField
 
 	Position pos;
 	QWeakPointer<Job> job;
+	QString crop;
+	QList<FarmCropOrder> orders;
+	QString pendingCrop;
+	unsigned int pendingOrder = 0;
 };
 
 /** @brief Job types that can be performed on farm tiles. */
@@ -110,6 +122,12 @@ public:
 	void getInfo( int& numPlots, int& tilled, int& planted, int& ready );
 
 	void setPlantType( QString plantID );
+	bool setPlotCrop( const QList<Position>& plots, const QString& crop );
+	bool queuePlotCrop( const QList<Position>& plots, const QString& crop, int count, bool repeat );
+	bool hasAssignedCrop() const;
+	bool hasQueuedCropOrder() const;
+	bool removePlotOrder( Position plot, unsigned int orderId );
+	bool movePlotOrder( Position plot, unsigned int orderId, bool earlier );
 	void setHarvest( bool harvest );
 
 	bool canDelete();
@@ -119,6 +137,7 @@ private:
 	FarmProperties m_properties;
 
 	QMap<unsigned int, FarmField> m_fields;
+	unsigned int m_nextCropOrderId = 1;
 
 	void updateAutoFarmer();
 

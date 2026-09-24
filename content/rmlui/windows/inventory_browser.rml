@@ -1,29 +1,45 @@
 <rml>
 <head>
   <title>Inventory and Resources</title>
-  <link type="text/rcss" href="/styles/base.rcss" />
-  <link type="text/rcss" href="/styles/components.rcss" />
-  <link type="text/rcss" href="/styles/accessibility.rcss" />
+  <link type="text/template" href="/templates/management_window.rml" />
   <link type="text/rcss" href="/windows/management6b.rcss" />
 </head>
 <body id="inventory_root" class="c-fixture-page l-m6b-root is-hidden">
+  <template src="management-window">
   <main id="inventory_workbench" class="c-window l-m6b-window" role="dialog" aria-labelledby="inventory_heading">
-    <header class="c-title-bar"><handle class="c-title-bar__drag-handle" move_target="inventory_workbench" edge_margin="76dp 12dp 58dp 12dp"><div class="c-title-bar__mark"></div><h1 id="inventory_heading" class="c-title-bar__title" tab-index="-1" data-l10n="management.inventory.title">Inventory &amp; Resources</h1></handle><button id="inventory_close" class="c-button" data-l10n="common.close">Close</button></header>
+    <header class="c-title-bar"><handle class="c-title-bar__drag-handle" move_target="inventory_workbench" edge_margin="76dp 12dp 58dp 12dp"><span class="c-title-bar__mark l-m6b-title-icon" aria-hidden="true"></span><h1 id="inventory_heading" class="c-title-bar__title" tab-index="-1" data-l10n="management.inventory.title">Inventory &amp; Resources</h1></handle><button id="inventory_close" class="c-button" data-l10n="common.close">Close</button></header>
     <div class="c-window__body l-m6b-body">
-      <div class="l-m6b-inventory-layout">
-        <aside class="l-m6b-inventory-rail">
-          <section class="l-m6b-rail-section"><div id="inventory_filters_heading" class="l-m6b-rail-heading" data-l10n="management.inventory.filters">Filters</div><button id="inventory_filter_owned" class="c-check-button l-m6b-rail-button l-m6b-filter-owned is-unchecked" aria-pressed="false" data-l10n="management.inventory.filter_owned">Items we have</button><button id="inventory_sort_name" class="c-button l-m6b-rail-button l-m6b-sort-button" aria-pressed="true" data-l10n="management.inventory.sort_name">Name</button><button id="inventory_sort_stock" class="c-button l-m6b-rail-button l-m6b-sort-button" aria-pressed="false" data-l10n="management.inventory.sort_stock">In Stock</button><button id="inventory_sort_total" class="c-button l-m6b-rail-button l-m6b-sort-button" aria-pressed="false" data-l10n="management.inventory.sort_total">Total</button></section>
-          <section class="l-m6b-rail-section l-m6b-rail-section--categories"><div id="inventory_categories_heading" class="l-m6b-rail-heading" data-l10n="management.inventory.categories">Categories</div><nav id="inventory_category_tabs" class="c-tabs l-m6b-tabs l-m6b-inventory-tabs" role="tablist" aria-orientation="vertical" aria-label="Inventory categories"></nav></section>
-        </aside>
-        <section class="l-m6b-inventory-main">
-          <div class="c-toolbar l-m6b-toolbar"><label class="l-m6b-search-field"><span data-l10n="common.search">Search</span><input id="inventory_search" class="text l-m6b-search" type="text" value="" placeholder="Filter inventory by name" data-l10n-placeholder="management.inventory.search.placeholder"/></label></div>
-          <div id="inventory_column_head" class="l-m6b-column-head" role="row"><span class="l-m6b-inventory__name-head" data-l10n="management.inventory.column.resource">Item</span><span class="l-m6b-inventory__metric-head" data-l10n="management.inventory.column.stock">In Stock</span><span class="l-m6b-inventory__metric-head" data-l10n="management.inventory.column.total">Total</span></div>
-          <div id="inventory_rows" class="c-list c-scroll-region l-m6b-inventory" role="tree" tab-index="0"></div>
+      <div id="inventory_list" class="l-m6b-inventory-layout">
+        <section class="l-m6b-inventory-main l-m6b-inventory-main--full">
+          <div id="inventory_column_head" class="l-m6b-column-head l-inventory-flat-header c-excel-header" role="row">
+            <div class="l-inventory-flat__category c-excel-header__cell"><button id="inventory_sort_category" class="c-excel-header__sort"><span id="inventory_column_category">Category</span><span id="inventory_sort_category_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_category" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Category" aria-controls="inventory_filter_category_options" aria-expanded="false"/><button id="inventory_filter_category_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Category values" aria-controls="inventory_filter_category_options" aria-expanded="false">v</button><div id="inventory_filter_category_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+            <div class="l-inventory-flat__group c-excel-header__cell"><button id="inventory_sort_group" class="c-excel-header__sort"><span id="inventory_column_group">Type</span><span id="inventory_sort_group_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_group" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Type" aria-controls="inventory_filter_group_options" aria-expanded="false"/><button id="inventory_filter_group_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Type values" aria-controls="inventory_filter_group_options" aria-expanded="false">v</button><div id="inventory_filter_group_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+            <div class="l-inventory-flat__item c-excel-header__cell"><button id="inventory_sort_item" class="c-excel-header__sort"><span id="inventory_column_item">Item</span><span id="inventory_sort_item_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_item" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Item" aria-controls="inventory_filter_item_options" aria-expanded="false"/><button id="inventory_filter_item_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Item values" aria-controls="inventory_filter_item_options" aria-expanded="false">v</button><div id="inventory_filter_item_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+            <div class="l-inventory-flat__material c-excel-header__cell"><button id="inventory_sort_material" class="c-excel-header__sort"><span id="inventory_column_material">Material</span><span id="inventory_sort_material_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_material" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Material" aria-controls="inventory_filter_material_options" aria-expanded="false"/><button id="inventory_filter_material_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Material values" aria-controls="inventory_filter_material_options" aria-expanded="false">v</button><div id="inventory_filter_material_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+            <div class="l-m6b-inventory__metric-head c-excel-header__cell"><button id="inventory_sort_stock" class="c-excel-header__sort"><span data-l10n="management.inventory.column.stock">In Stock</span><span id="inventory_sort_stock_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_stock" readonly="readonly" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter In Stock" aria-controls="inventory_filter_stock_options" aria-expanded="false"/><button id="inventory_filter_stock_toggle" class="c-excel-filter-combo__toggle" aria-label="Show In Stock values" aria-controls="inventory_filter_stock_options" aria-expanded="false">v</button><div id="inventory_filter_stock_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+            <div class="l-m6b-inventory__metric-head c-excel-header__cell"><button id="inventory_sort_total" class="c-excel-header__sort"><span data-l10n="management.inventory.column.total">Total</span><span id="inventory_sort_total_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_total" readonly="readonly" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Total" aria-controls="inventory_filter_total_options" aria-expanded="false"/><button id="inventory_filter_total_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Total values" aria-controls="inventory_filter_total_options" aria-expanded="false">v</button><div id="inventory_filter_total_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
+          </div>
+          <div id="inventory_rows" class="c-list c-scroll-region l-m6b-inventory" role="grid" aria-labelledby="inventory_column_head" tab-index="0"></div>
         </section>
       </div>
+	  <section id="inventory_detail" class="l-m6b-item-detail is-hidden" aria-labelledby="inventory_detail_name">
+	    <div class="l-m6b-item-detail__toolbar"><button id="inventory_detail_back" class="c-button" data-l10n="management.inventory.detail_back">Back to inventory</button><h2 id="inventory_detail_name">Item</h2></div>
+	    <div id="inventory_detail_summary" class="l-m6b-item-detail__summary"></div>
+	    <div class="l-m6b-item-detail__grid">
+	      <div class="l-m6b-item-detail__row">
+	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.made_by">How to make it</h3><div id="inventory_detail_made_by"></div></section>
+	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.used_in">What it makes</h3><div id="inventory_detail_used_in"></div></section>
+	      </div>
+	      <div class="l-m6b-item-detail__row">
+	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.stored_at">Stored in stockpiles</h3><div id="inventory_detail_locations"></div></section>
+	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.history">History</h3><div id="inventory_detail_history"></div></section>
+	      </div>
+	    </div>
+	  </section>
 
     </div>
-    <span class="c-window__resize-grip" aria-hidden="true"></span>
+
   </main>
+  </template>
 </body>
 </rml>

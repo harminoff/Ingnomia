@@ -206,11 +206,11 @@ void GameManager::startTutorial()
 	m_eventConnector->emitWorldTransitionStarted( true );
 	auto* settings = new NewGameSettings( this );
 	settings->setKingdomName( "Tutorial Valley" );
-	settings->setSeed( "ingnomia-tutorial-v1" );
+	settings->setSeed( "133693463" );
 	settings->setWorldSize( 64 );
 	settings->setZLevels( 100 );
 	settings->setGround( 70 );
-	settings->setFlatness( 20 );
+	settings->setFlatness( 0 );
 	settings->setOceanSize( 0 );
 	settings->setRivers( 0 );
 	settings->setRiverSize( 0 );
@@ -224,7 +224,7 @@ void GameManager::startTutorial()
 	settings->addStartingItem( "FellingAxe", "Pine", "Pine", 1 );
 	settings->addStartingItem( "RawWood", "Pine", QString(), 32 );
 	settings->addStartingItem( "RawStone", "Granite", QString(), 16 );
-	settings->addStartingItem( "Bed", "Pine", "Pine", 5 );
+	settings->addStartingItem( "Bed", "Pine", QString(), 5 );
 	settings->addStartingItem( "Chair", "Pine", QString(), 1 );
 	settings->addStartingItem( "Table", "Pine", QString(), 1 );
 	settings->addStartingItem( "Knife", "Granite", QString(), 1 );
@@ -252,30 +252,10 @@ void GameManager::setUpNewGame()
 /** @brief Loads the most recently saved game, sorted by modification time. */
 void GameManager::continueLastGame()
 {
-	//get last save
-	QString folder = IO::getDataFolder() + "/save/";
-
-	QDir dir( folder );
-	dir.setFilter( QDir::Dirs | QDir::NoDotAndDotDot );
-	dir.setSorting( QDir::Time );
-	if ( !dir.entryList().isEmpty() )
+	if( const auto save = IO::newestCompatibleSave() )
 	{
-		auto kingdomDir = dir.entryList().first();
-
-		folder = IO::getDataFolder() + "/save/" + kingdomDir + "/";
-		QDir dir2( folder );
-		dir2.setFilter( QDir::Dirs | QDir::NoDotAndDotDot );
-		dir2.setSorting( QDir::Time );
-		if ( !dir2.entryList().isEmpty() )
-		{
-			auto gameDir = dir2.entryList().first();
-
-			if ( IO::saveCompatible( folder + gameDir + "/" ) )
-			{
-				loadGame( folder + gameDir + "/" );
-				return;
-			}
-		}
+		loadGame( save->folder );
+		return;
 	}
 	m_eventConnector->sendLoadGameDone( false );
 }
@@ -422,6 +402,7 @@ void GameManager::postCreationInit()
 	connect( m_game, &Game::signalSimulationTick, m_eventConnector->aggregatorRenderer(), &AggregatorRenderer::onSimulationTick, Qt::QueuedConnection );
 	connect( m_game, &Game::signalUpdateTileInfo,  m_eventConnector->aggregatorTileInfo(), &AggregatorTileInfo::onUpdateAnyTileInfo );
 	connect( m_game, &Game::signalUpdateStockpile, m_eventConnector->aggregatorStockpile(), &AggregatorStockpile::onUpdateAfterTick );
+	connect( m_game, &Game::signalUpdateStockpile, m_eventConnector->aggregatorWorkshop(), &AggregatorWorkshop::onUpdateAfterTick );
 	connect( m_game, &Game::signalUpdateTileInfo,  m_eventConnector->aggregatorRenderer(), &AggregatorRenderer::onUpdateAnyTileInfo );
 	connect( m_game, &Game::signalTimeAndDate,     m_eventConnector, &EventConnector::onTimeAndDate );
 	connect( m_game, &Game::signalHudSettlement,  m_eventConnector, &EventConnector::onHudSettlement );
@@ -514,10 +495,11 @@ void GameManager::setPaused( bool value )
 	lifecycleTrace( QString( "setPaused request=%1 before=%2" ).arg( value ? "true" : "false", paused() ? "true" : "false" ) );
 	if( m_game )
 	{
-		if( m_game->paused() != value )
-		{
-			m_game->setPaused( value );
-			lifecycleTrace( QString( "setPaused applied=%1" ).arg( value ? "true" : "false" ) );
+			if( m_game->paused() != value )
+			{
+				m_game->setPaused( value );
+				if( !value && m_game->tutorial() ) m_game->tutorial()->observeFact( TutorialFact::PauseResume );
+				lifecycleTrace( QString( "setPaused applied=%1" ).arg( value ? "true" : "false" ) );
 		}
 		else
 		{

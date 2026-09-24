@@ -20,6 +20,9 @@ struct UpstreamSettingsSnapshot
 	std::int32_t keyboardPanSpeed{ 20 };
 	std::int32_t minimumLightPercent{ 30 };
 	bool wheelChangesLevel{};
+	std::int32_t masterVolumePercent{ 50 };
+	std::int32_t autoSaveInterval{ 3 };
+	bool autoSaveContinue{};
 };
 
 class ShellDataAdapter

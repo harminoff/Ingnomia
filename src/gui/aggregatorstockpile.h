@@ -25,6 +25,7 @@
 #include "../game/stockpile.h"
 
 #include <QObject>
+#include <QStringList>
 
 class Game;
 
@@ -36,6 +37,7 @@ struct ItemsSummary
 	QString itemName;      ///< Localised item name.
 	QString materialName;  ///< Localised material name.
 	int count;             ///< Count in this stockpile.
+	int total = 0;         ///< Count across the colony inventory.
 	//QList<unsigned int> ids;
 };
 
@@ -57,6 +59,7 @@ struct GuiStockpileInfo
 	Filter filter;                 ///< Item filter tree (category → group → item → material).
 
 	QList<ItemsSummary> summary;   ///< Aggregated per-line content rows.
+	QStringList templateNames;     ///< Persisted allow-list templates available to every stockpile.
 };
 
 Q_DECLARE_METATYPE( GuiStockpileInfo )
@@ -92,6 +95,9 @@ public slots:
 
 	void onSetBasicOptions( unsigned int stockpileID, QString name, int priority, bool suspended, bool pull, bool allowPull );
 	void onSetActive( unsigned int stockpileID, bool active, QString category, QString group, QString item, QString material );
+	void onSetActiveBatch( unsigned int stockpileID, bool active, const QList<QStringList>& paths );
+	void onSaveFilterTemplate( unsigned int stockpileID, QString name );
+	void onApplyFilterTemplate( unsigned int stockpileID, QString name );
 
 	void onCloseWindow();
 signals:

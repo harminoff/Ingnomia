@@ -34,6 +34,7 @@
 #include "../game/farmingmanager.h"
 #include "../game/inventory.h"
 #include "../game/plant.h"
+#include "../game/tutorialmanager.h"
 #include "../game/world.h"
 
 #include "../gfx/spritefactory.h"
@@ -55,6 +56,9 @@ AggregatorAgri::AggregatorAgri( QObject* parent ) :
 	qRegisterMetaType<GuiGroveInfo>();
 	qRegisterMetaType<QList<GuiPlant>>();
 	qRegisterMetaType<QList<GuiAnimal>>();
+	m_liveFarmTimer = new QTimer( this );
+	m_liveFarmTimer->setInterval( 1500 );
+	connect( m_liveFarmTimer, &QTimer::timeout, this, [this] { if ( m_farmInfo.ID ) onUpdateFarm( m_farmInfo.ID ); } );
 }
 
 /// @brief Binds the aggregator to a specific Game instance and pre-builds the global plant,
@@ -63,6 +67,8 @@ AggregatorAgri::AggregatorAgri( QObject* parent ) :
 /// @param game Game instance to bind to.
 void AggregatorAgri::init( Game* game )
 {
+	m_liveFarmTimer->stop();
+	m_farmInfo.ID = 0;
 	g = game;
 	m_globalPlantInfo.clear();
 	QStringList keys = DB::ids( "Plants" );
@@ -144,6 +150,7 @@ AggregatorAgri::~AggregatorAgri()
 /// @brief Clears the cached farm/pasture/grove IDs when the Agriculture window closes.
 void AggregatorAgri::onCloseWindow()
 {
+	m_liveFarmTimer->stop();
 	m_farmInfo.ID    = 0;
 	m_pastureInfo.ID = 0;
 	m_groveInfo.ID   = 0;
@@ -158,62 +165,78 @@ void AggregatorAgri::onCloseWindow()
 void AggregatorAgri::onOpen( TileFlag designation, unsigned int tileID )
 {
 	if( !g ) return;
-	if ( m_currentTileID != tileID )
+	m_liveFarmTimer->stop();
+	m_currentTileID = tileID;
+	// The UI handles both signals through queued connections. Open/loading must be
+	// delivered before the snapshot, or the loading state replaces ready data.
+	emit signalShowAgri( tileID );
+	switch ( designation )
 	{
-		m_currentTileID = tileID;
-
-		switch ( designation )
+		case TileFlag::TF_FARM:
 		{
-			case TileFlag::TF_FARM:
+			auto farm = g->fm()->getFarmAtPos( Position( tileID ) );
+			if ( farm )
 			{
-				auto farm = g->fm()->getFarmAtPos( Position( tileID ) );
-				if ( farm )
-				{
-					m_farmInfo.ID    = farm->id();
-					m_pastureInfo.ID = 0;
-					m_groveInfo.ID   = 0;
-					onUpdateFarm( m_farmInfo.ID );
-				}
-				break;
+				m_farmInfo.ID    = farm->id();
+				m_pastureInfo.ID = 0;
+				m_groveInfo.ID   = 0;
+				onUpdateFarm( m_farmInfo.ID );
+				m_liveFarmTimer->start();
 			}
-			case TileFlag::TF_PASTURE:
+			break;
+		}
+		case TileFlag::TF_PASTURE:
+		{
+			auto pasture = g->fm()->getPastureAtPos( Position( tileID ) );
+			if ( pasture )
 			{
-				auto pasture = g->fm()->getPastureAtPos( Position( tileID ) );
-				if ( pasture )
-				{
-					m_pastureInfo.ID = pasture->id();
-					m_farmInfo.ID    = 0;
-					m_groveInfo.ID   = 0;
-					onUpdatePasture( m_pastureInfo.ID );
-				}
-				break;
+				m_pastureInfo.ID = pasture->id();
+				m_farmInfo.ID    = 0;
+				m_groveInfo.ID   = 0;
+				onUpdatePasture( m_pastureInfo.ID );
 			}
-			case TileFlag::TF_GROVE:
+			break;
+		}
+		case TileFlag::TF_GROVE:
+		{
+			auto grove = g->fm()->getGroveAtPos( Position( tileID ) );
+			if ( grove )
 			{
-				auto grove = g->fm()->getGroveAtPos( Position( tileID ) );
-				if ( grove )
-				{
-					m_groveInfo.ID   = grove->id();
-					m_farmInfo.ID    = 0;
-					m_pastureInfo.ID = 0;
-					onUpdateGrove( m_groveInfo.ID );
-				}
-				break;
+				m_groveInfo.ID   = grove->id();
+				m_farmInfo.ID    = 0;
+				m_pastureInfo.ID = 0;
+				onUpdateGrove( m_groveInfo.ID );
 			}
+			break;
 		}
 	}
-	emit signalShowAgri( tileID );
 }
 
 /// @brief Emits the cached global plant list for the GUI's farm-product dropdown.
 void AggregatorAgri::onRequestGlobalPlantInfo()
 {
+	if ( g && g->inv() )
+	{
+		for ( auto& plant : m_globalPlantInfo )
+		{
+			plant.seedCount = g->inv()->itemCount( plant.seedID, plant.materialID );
+			plant.itemCount = g->inv()->itemCount( plant.harvestedItem, plant.materialID );
+		}
+	}
 	emit signalGlobalPlantInfo( m_globalPlantInfo );
 }
 
 /// @brief Emits the cached global tree list for the GUI's grove-product dropdown.
 void AggregatorAgri::onRequestGlobalTreeInfo()
 {
+	if ( g && g->inv() )
+	{
+		for ( auto& tree : m_globalTreeInfo )
+		{
+			tree.seedCount = g->inv()->itemCount( tree.seedID, tree.materialID );
+			tree.itemCount = g->inv()->itemCount( tree.harvestedItem, tree.materialID );
+		}
+	}
 	emit signalGlobalTreeInfo( m_globalTreeInfo );
 }
 
@@ -255,12 +278,24 @@ void AggregatorAgri::onUpdateFarm( unsigned int id )
 		if ( farm )
 		{
 			farm->getInfo( m_farmInfo.numPlots, m_farmInfo.tilled, m_farmInfo.planted, m_farmInfo.cropReady );
-			/*
-			for( auto& gp : m_globalPlantInfo )
+			m_farmInfo.fields.clear();
+			for ( const auto& field : farm->m_fields )
 			{
-				gp.seedCount = m_inv->itemCount( gp.seedID, gp.materialID );
+				GuiFarmPlot row;
+				row.x = field.pos.x; row.y = field.pos.y; row.z = field.pos.z;
+				row.assignedCrop = field.crop;
+				row.tilled = ( g->w()->getTile( field.pos ).flags & TileFlag::TF_TILLED );
+				row.busy = !field.job.toStrongRef().isNull();
+				const auto plant = g->w()->plants().constFind( field.pos.toInt() );
+				if ( plant != g->w()->plants().cend() && plant->isPlant() )
+				{
+					row.planted = true;
+					row.plantedCrop = plant->plantID();
+					row.ready = plant->harvestable();
+				}
+				for ( const auto& order : field.orders ) row.orders.append( { order.id, order.crop, order.remaining, order.repeat } );
+				m_farmInfo.fields.append( row );
 			}
-			*/
 			m_farmInfo.suspended   = farm->suspended();
 			m_farmInfo.name        = farm->name();
 			m_farmInfo.priority    = g->fm()->farmPriority( id );
@@ -268,14 +303,11 @@ void AggregatorAgri::onUpdateFarm( unsigned int id )
 			m_farmInfo.harvest     = farm->harvest();
 			m_farmInfo.plantType   = farm->plantType();
 
-			if ( m_farmInfo.product.plantID != m_farmInfo.plantType )
-			{
-				onRequestProductInfo( AgriType::Farm, m_farmInfo.ID );
-			}
-			else
-			{
-				emit signalUpdateFarm( m_farmInfo );
-			}
+			// The product picker and its availability are live inventory data.
+			// Send the catalog before the snapshot so the view can render both
+			// on its first ready frame and on subsequent refreshes.
+			onRequestGlobalPlantInfo();
+			onRequestProductInfo( AgriType::Farm, m_farmInfo.ID );
 		}
 	}
 }
@@ -352,6 +384,7 @@ void AggregatorAgri::onUpdatePasture( unsigned int id )
 				m_pastureInfo.foodCurrent= 0;
 			}
 
+			onRequestGlobalAnimalInfo();
 			onRequestProductInfo( AgriType::Pasture, m_pastureInfo.ID );
 		}
 	}
@@ -374,12 +407,6 @@ void AggregatorAgri::onUpdateGrove( unsigned int id )
 		if ( grove )
 		{
 			//grove->getInfo( m_farmInfo.numPlots, m_farmInfo.tilled, m_farmInfo.planted, m_farmInfo.cropReady );
-			/*
-			for( auto& gp : m_globalPlantInfo )
-			{
-				gp.seedCount = m_inv->itemCount( gp.seedID, gp.materialID );
-			}
-			*/
 			m_groveInfo.suspended   = grove->suspended();
 			m_groveInfo.name        = grove->name();
 			m_groveInfo.priority    = g->fm()->farmPriority( id );
@@ -393,14 +420,8 @@ void AggregatorAgri::onUpdateGrove( unsigned int id )
 			m_groveInfo.planted	   = grove->numTrees();
 			m_groveInfo.numPlots   = grove->numPlots();
 
-			if ( m_groveInfo.product.plantID != m_groveInfo.treeType )
-			{
-				onRequestProductInfo( AgriType::Grove, m_groveInfo.ID );
-			}
-			else
-			{
-				emit signalUpdateGrove( m_groveInfo );
-			}
+			onRequestGlobalTreeInfo();
+			onRequestProductInfo( AgriType::Grove, m_groveInfo.ID );
 		}
 	}
 }
@@ -478,6 +499,7 @@ void AggregatorAgri::onSelectProduct( AgriType type, unsigned designationID, QSt
 				{
 					farm->setPlantType( productSID );
 					m_farmInfo.plantType = productSID;
+					if ( !productSID.isEmpty() && g->tutorial() ) g->tutorial()->observeFact( TutorialFact::CropSelected );
 				}
 			}
 			break;
@@ -596,7 +618,7 @@ void AggregatorAgri::onRequestProductInfo( AgriType type, unsigned int designati
 						gp.seedCount  = g->inv()->itemCount( gp.seedID, gp.materialID );
 
 						gp.harvestedItem = DB::select( "ItemID", "Plants_OnHarvest_HarvestedItem", m_farmInfo.plantType ).toString();
-						gp.itemCount     = g->inv()->itemCount( gp.plantID, gp.materialID );
+						gp.itemCount     = g->inv()->itemCount( gp.harvestedItem, gp.materialID );
 
 						gp.name = S::s( "$MaterialName_" + gp.materialID );
 
@@ -776,4 +798,36 @@ void AggregatorAgri::onSetFoodItemChecked( unsigned int pastureID, QString itemS
 			}
 		}
 	}
+}
+
+void AggregatorAgri::onSetFarmPlotCrop( unsigned int farmID, QList<Position> plots, QString crop )
+{
+	if ( !g || m_farmInfo.ID != farmID ) return;
+	if ( auto* farm = g->fm()->getFarm( farmID ); farm && farm->setPlotCrop( plots, crop ) )
+	{
+		if ( !crop.isEmpty() && g->tutorial() ) g->tutorial()->observeFact( TutorialFact::CropSelected );
+		onUpdateFarm( farmID );
+	}
+}
+
+void AggregatorAgri::onQueueFarmPlotCrop( unsigned int farmID, QList<Position> plots, QString crop, int count, bool repeat )
+{
+	if ( !g || m_farmInfo.ID != farmID ) return;
+	if ( auto* farm = g->fm()->getFarm( farmID ); farm && farm->queuePlotCrop( plots, crop, count, repeat ) )
+	{
+		if ( g->tutorial() ) g->tutorial()->observeFact( TutorialFact::CropQueued );
+		onUpdateFarm( farmID );
+	}
+}
+
+void AggregatorAgri::onRemoveFarmPlotOrder( unsigned int farmID, Position plot, unsigned int orderID )
+{
+	if ( !g || m_farmInfo.ID != farmID ) return;
+	if ( auto* farm = g->fm()->getFarm( farmID ); farm && farm->removePlotOrder( plot, orderID ) ) onUpdateFarm( farmID );
+}
+
+void AggregatorAgri::onMoveFarmPlotOrder( unsigned int farmID, Position plot, unsigned int orderID, bool earlier )
+{
+	if ( !g || m_farmInfo.ID != farmID ) return;
+	if ( auto* farm = g->fm()->getFarm( farmID ); farm && farm->movePlotOrder( plot, orderID, earlier ) ) onUpdateFarm( farmID );
 }

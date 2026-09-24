@@ -446,7 +446,8 @@ void AggregatorTileInfo::onUpdateTileInfo( unsigned int tileID )
 			}
 		}
 
-		emit signalUpdateTileInfo( m_tileInfo );
+		if ( m_liveInspection ) emit signalUpdateLiveTileInfo( m_tileInfo );
+		else emit signalUpdateTileInfo( m_tileInfo );
 	}
 }
 

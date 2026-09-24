@@ -215,7 +215,7 @@ bool WorkshopManager::craftJobExists( const QString& itemSID, const QString& mat
 /// @param prio       Target zero-based index (clamped to valid range).
 void WorkshopManager::setPriority( unsigned int workshopID, int prio )
 {
-	if( prio > 0 && prio < m_workshops.size() )
+	if( prio >= 0 && prio < m_workshops.size() )
 	{
 		int current = 0;
 		for ( const auto& w : m_workshops )
@@ -226,7 +226,7 @@ void WorkshopManager::setPriority( unsigned int workshopID, int prio )
 			}
 			++current;
 		}
-		m_workshops.move( current, prio );
+		if ( current < m_workshops.size() ) m_workshops.move( current, prio );
 	}
 }
 

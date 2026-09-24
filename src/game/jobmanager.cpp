@@ -20,6 +20,7 @@
  *         phase transitions, atomic item claiming, haul sub-jobs, and sprite management.
  */
 #include "jobmanager.h"
+#include "workshop.h"
 
 #include "../base/db.h"
 #include "../base/enums.h"
@@ -32,6 +33,7 @@
 #include "../game/inventory.h"
 #include "../game/mechanismmanager.h"
 #include "../game/stockpilemanager.h"
+#include "../game/tutorialmanager.h"
 #include "../game/workshopmanager.h"
 #include "../game/world.h"
 #include "../gfx/sprite.h"
@@ -876,6 +878,7 @@ void JobManager::finishJob( unsigned int jobID )
 
 		QString type = job->type();
 		setJobSprites( jobID, false, true );
+		if( g->tutorial() ) g->tutorial()->observeCompletedJob( type );
 
 		std::vector<Position> neighs;
 		Position pos = job->pos();
@@ -1382,6 +1385,18 @@ bool JobManager::tryAtomicClaimItems( QSharedPointer<Job> job, QList<unsigned in
 
 	for ( const auto& req : job->requiredItems() )
 	{
+        if(job->type()=="CraftAtWorkshop") {
+            auto* ws=g->wsm()->workshopAt(job->pos());
+            const auto items=g->inv()->getWorkshopItems(ws?ws->inputPos():job->pos(),req.itemSID,req.materialSID,
+                req.count,req.requireSame,req.materialRestriction,ws?ws->linkedStockpiles():QList<unsigned int>{});
+            if(items.size()!=req.count) {
+                for(auto id : claimedItemIDs) g->inv()->setInJob(id,0);
+                claimedItemIDs.clear(); return false;
+            }
+            for(auto id : items) { g->inv()->setInJob(id,job->id()); claimedItemIDs.append(id); }
+            continue;
+        }
+
 		for ( int i = 0; i < req.count; ++i )
 		{
 			unsigned int itemID = g->inv()->getClosestItem( job->pos(), true, req.itemSID, req.materialSID );

@@ -44,8 +44,13 @@ public:
 	[[nodiscard]] bool dispatchStockpileFilterKeyForProbe( int keyIdentifier );
 	[[nodiscard]] Management6AController* controller() const noexcept
 	{
-		return controller_.get();
+		return controller(activeView_);
 	}
+	[[nodiscard]] Management6AController* controller(ManagementView view) const noexcept
+    {
+        return view == ManagementView::Stockpile ? stockpileController_.get()
+            : view == ManagementView::Agriculture ? agricultureController_.get() : controller_.get();
+    }
 	[[nodiscard]] Management6ARmlBinding* binding() const noexcept { return binding_.get(); }
 
 private:
@@ -54,7 +59,11 @@ private:
 	Rml::Context& context_;
 	std::unique_ptr<Management6ARmlBinding> binding_;
 	std::unique_ptr<Management6AQtCommandPort> commands_;
+	std::unique_ptr<Management6AQtCommandPort> stockpileCommands_, agricultureCommands_;
 	std::unique_ptr<Management6AController> controller_;
+    std::unique_ptr<Management6ARmlBinding> stockpileBinding_, agricultureBinding_;
+    std::unique_ptr<Management6AController> stockpileController_, agricultureController_;
+    ManagementView activeView_{ManagementView::Workshop};
 	std::optional<WorldPosition> selectedPosition_;
 	std::vector<AgricultureCatalogRow> plants_, animals_, trees_;
 	Revision workshopRevision_, stockpileRevision_, agricultureRevision_;

@@ -150,6 +150,7 @@ public:
 
 	void emitStartGame();
 	void emitStopGame();
+	void shutdownAudio();
 	void emitInitView();
 	void emitInMenu( bool value );
 	/// Announces an authoritative world transition before generation/loading starts.
@@ -210,6 +211,7 @@ public slots:
 	void onBuild();
 
 	void onTerrainCommand( unsigned int tileID, QString cmd );
+	void onSelectTile(unsigned int tileID);
 	void onManageCommand( unsigned int tileID );
 
 	void onSetRenderOptions( bool designations, bool jobs, bool walls, bool axles );

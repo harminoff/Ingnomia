@@ -72,10 +72,11 @@ public:
 	{
 		return m_isMushroom;
 	}
-	bool isPlant()
+	bool isPlant() const
 	{
 		return m_isPlant;
 	}
+	QString plantID() const { return m_plantID; }
 	bool isFruitTree();
 
 	bool fullGrown()
@@ -86,7 +87,7 @@ public:
 	{
 		return m_producesHarvest;
 	}
-	bool harvestable();
+	bool harvestable() const;
 	bool matureWood()
 	{
 		return m_isTree && m_matureWood;

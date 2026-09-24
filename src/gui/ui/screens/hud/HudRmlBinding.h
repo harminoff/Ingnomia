@@ -23,6 +23,7 @@ public:
 		ToolPanel toolPanel = ToolPanel::Mine );
 	~HudRmlBinding() override;
 	bool initialize( HudController& controller );
+	bool reloadDocument();
 	[[nodiscard]] bool activateElement( std::string_view id );
 	[[nodiscard]] Rml::ElementDocument* document() const noexcept { return document_; }
 	void shutdown();
@@ -33,6 +34,8 @@ public:
 	void setCloseHandler( CloseHandler handler );
 	void setDocumentLoader( DocumentLoader loader );
 	void setPauseHandler(PauseHandler pause);
+	void setInspectionHandler( CloseHandler handler ) { inspect_ = std::move(handler); }
+	void setInspectionActive( bool active );
 	void restoreWorkbenchFocus(FocusToken);
 private:
 	class Callback final : public Rml::EventListener { public: Callback( std::function<void()> fn ):fn_(std::move(fn)){} Callback( std::function<void(Rml::Event&)> fn ):eventFn_(std::move(fn)){} void ProcessEvent(Rml::Event&) override; private: std::function<void()> fn_; std::function<void(Rml::Event&)> eventFn_; };
@@ -58,7 +61,8 @@ private:
 	localization::UiText textCatalog_;
 	WorkbenchHandler openPopulation_,openInventory_,openMilitary_,openDiplomacy_;
 	OrdersToolsHandler openOrdersTools_;
-	CloseHandler close_;
+	CloseHandler close_, inspect_;
+	bool inspectionActive_{};
 	DocumentLoader documentLoader_;
 	PauseHandler openPause_;
 	bool mineMenuOpen_{};

@@ -102,6 +102,7 @@
 .c-window__body { padding: 16dp; }
 
 .c-window__resize-grip {
+    display: none;
     position: absolute;
     right: 2dp;
     bottom: 2dp;

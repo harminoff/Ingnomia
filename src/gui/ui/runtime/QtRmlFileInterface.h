@@ -9,7 +9,7 @@ namespace ingnomia::ui
 class QtRmlFileInterface final : public Rml::FileInterface
 {
 public:
-    explicit QtRmlFileInterface( QString assetRoot );
+    explicit QtRmlFileInterface( QString assetRoot, QString fallbackAssetRoot = {} );
 
     bool valid() const noexcept;
     const QString& assetRoot() const noexcept;
@@ -25,5 +25,6 @@ private:
     QString resolve( const Rml::String& logicalPath ) const;
 
     QString m_assetRoot;
+    QString m_fallbackAssetRoot;
 };
 } // namespace ingnomia::ui
