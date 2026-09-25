@@ -4,10 +4,12 @@
 #include "Management6CController.h"
 #include "Management6CDomWindow.h"
 #include "Management6CText.h"
+#include "../../runtime/ModalDialog.h"
 
 #include <RmlUi/Core/EventListener.h>
 
 #include <array>
+#include <map>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -116,6 +118,20 @@ private:
 	bool detailOpen_{};
 	bool filtersOpen_{};
 	std::optional<View> renderedView_;
+	enum class MilitaryPage : std::uint8_t { Squads, Members, Roles, Uniforms, Targets };
+	MilitaryPage militaryPage_{ MilitaryPage::Squads };
+	std::map<std::string, std::string> renderedMilitaryOptions_;
+	ModalDialog dialog_{ context_ };
+	ModalInstanceId shownDestructive_{};
+	// Send Mission wizard: 0 closed, 1 Mission, 2 Citizen, 3 Review.
+	int wizardPage_{};
+	std::optional<NeighborId> wizardNeighbor_;
+	MissionDraft reviewedDraft_;
+	std::string wizardNote_;
+	void openWizard();
+	void closeWizard();
+	void wizardNext();
+	void finishWizard();
 	WorldEpoch renderedWorld_;
 	DestructiveKind lastDestructiveKind_{ DestructiveKind::Squad };
 	std::array<WindowState, static_cast<std::size_t>( RowSurface::Count )> windows_{};

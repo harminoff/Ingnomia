@@ -104,6 +104,8 @@ public:
 	void requestRemoveSelectedSquad();
 	void removeSelectedMember();
 	void assignSelectedMemberToSelectedSquad();
+	/// Moves a citizen to a named squad (from any squad, or from none).
+	void assignMemberToSquad( CreatureId, SquadId );
 	void moveSelectedMember( MoveDirection );
 	void setSelectedAttitude( MilitaryAttitude );
 	void moveSelectedPriority( MoveDirection );

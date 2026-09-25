@@ -1,21 +1,29 @@
 <rml>
 <head>
-    <title>Paused</title>
-    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+    <title>Pause</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered is-blocking">
-    <main class="c-shell-chamber c-shell-chamber--compact">
-        <header class="c-shell-masthead"><h1>Paused</h1></header>
-        <p id="pause-authoritative-state" class="c-shell-pause-state">Waiting for simulation pause state</p>
-        <nav class="c-shell-actions">
-            <button id="pause-resume" class="c-button c-button--primary">Resume</button>
-            <button id="pause-save">Save game</button>
-            <span id="pause-save-status" class="c-field__help"></span>
-            <button id="pause-load">Load game</button>
-            <button id="pause-settings">Settings</button>
-            <button id="pause-menu" class="c-button c-button--danger">Return to main menu</button>
-        </nav>
-        <section id="pause-error" class="c-alert-row c-alert-row--danger c-shell-status u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Action could not be completed</span><span id="pause-error-detail" class="c-alert-row__detail"></span></span></section>
-    </main>
+<body class="l-shell-screen l-shell-desktop is-in-game">
+  <!-- Pause (Stage 19). The book has no pause screen; the nearest documented form is a dialog box captioned with the
+       command name, commands in one column with the default first (PDF p.169). Esc resumes, as Esc is Cancel. -->
+  <section id="pause-dialog" class="w98-sheet l-shell-dialog l-pause-dialog" role="dialog" aria-labelledby="pause-caption">
+    <div class="w98-caption"><h1 id="pause-caption" class="c-title-bar__title" data-l10n="win98.pause.caption">Pause</h1></div>
+    <div class="w98-sheet__body">
+      <p id="pause-authoritative-state" class="w98-text" role="status"></p>
+      <p id="pause-save-status" class="w98-text" role="status"></p>
+      <div class="w98-separator"></div>
+      <div class="w98-line l-menu-row"><button id="pause-resume" class="w98-button l-menu-command" data-l10n="win98.pause.resume">Resume</button><p class="w98-text w98-grow" data-l10n="win98.pause.returns_to_the_game">Returns to the game.</p></div>
+      <div class="w98-line l-menu-row"><button id="pause-save" class="w98-button l-menu-command" data-l10n="win98.pause.save">Save Game</button><p class="w98-text w98-grow" data-l10n="win98.pause.saves_the_kingdom">Saves the kingdom.</p></div>
+      <div class="w98-line l-menu-row"><button id="pause-load" class="w98-button l-menu-command" data-l10n="win98.pause.load">Load Game...</button><p class="w98-text w98-grow" data-l10n="win98.pause.opens_another_saved_kingdom">Opens another saved kingdom.</p></div>
+      <div class="w98-line l-menu-row"><button id="pause-settings" class="w98-button l-menu-command" data-l10n="win98.pause.settings">Settings</button><p class="w98-text w98-grow" data-l10n="win98.pause.changes_display_controls_sound_and">Changes display, controls, sound and saving.</p></div>
+      <div class="w98-separator"></div>
+      <div class="w98-line l-menu-row"><button id="pause-menu" class="w98-button l-menu-command" data-l10n="win98.pause.menu">Main Menu</button><p class="w98-text w98-grow" data-l10n="win98.pause.leaves_this_kingdom_for_the">Leaves this kingdom for the main menu.</p></div>
+      <p id="pause-error" class="w98-text u-hidden">The command could not be completed. <span id="pause-error-detail"></span></p>
+    </div>
+  </section>
 </body>
 </rml>

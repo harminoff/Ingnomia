@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6AController.h"
+#include <charconv>
 #include "../InventoryTableSchema.h"
 
 #include <algorithm>
@@ -82,12 +83,14 @@ void Management6AController::notify()
 void Management6AController::beginWorld( WorldEpoch world )
 {
 	state_                     = {};
+    stockpileDrafts_.clear();workshopDrafts_.clear();agricultureDrafts_.clear();
 	state_.world               = world;
 	state_.acceptsWorldActions = static_cast<bool>( world );
 	notify();
 }
 void Management6AController::endWorld()
 {
+    stockpileDrafts_.clear();workshopDrafts_.clear();agricultureDrafts_.clear();
 	state_ = {};
 	notify();
 }
@@ -117,19 +120,191 @@ void Management6AController::showError( ManagementView view, std::string message
 	notify();
 }
 
+namespace
+{
+StockpileDraft freshStockpileDraft( const StockpileSnapshot& value )
+{
+	const auto options = stockpileOptionsOf( value );
+	return StockpileDraft { value.name, std::to_string( value.priority + 1 ), value.name, value.priority, false, false, options, options, {} };
+}
+// Drops rule changes the game already shows (applied here or elsewhere) and rules that no longer exist.
+void settleStockpileRules( StockpileDraft& draft, const StockpileSnapshot& value )
+{
+	if ( draft.rules.empty() ) return;
+	std::map<std::string, bool> current;
+	for ( const auto& row : value.filters )
+		if ( row.id.depth == FilterDepth::Material ) current[stockpileRuleKey( row.id )] = row.state == TriState::On;
+	for ( auto it = draft.rules.begin(); it != draft.rules.end(); )
+	{
+		const auto found = current.find( it->first );
+		if ( found == current.end() || found->second == it->second.allowed ) it = draft.rules.erase( it );
+		else ++it;
+	}
+}
+bool stockpileDraftDiffers( const StockpileDraft& draft, const StockpileSnapshot& value )
+{
+	return draft.name != value.name || draft.priority != std::to_string( value.priority + 1 ) || draft.options != stockpileOptionsOf( value ) || !draft.rules.empty();
+}
+// A field conflicts when the game's value is neither the applied draft nor the value it replaced.
+bool stockpileDraftConflicts( const StockpileDraft& draft, const StockpileSnapshot& value )
+{
+	const auto now = stockpileOptionsOf( value );
+	const auto bad = [] ( auto current, auto wanted, auto base ) { return current != wanted && current != base; };
+	return bad( value.name, draft.name, draft.baseName ) || bad( std::to_string( value.priority + 1 ), draft.priority, std::to_string( draft.basePriority + 1 ) )
+		|| bad( now.suspended, draft.options.suspended, draft.baseOptions.suspended ) || bad( now.pull, draft.options.pull, draft.baseOptions.pull )
+		|| bad( now.allowPull, draft.options.allowPull, draft.baseOptions.allowPull );
+}
+WorkshopDraft freshWorkshopDraft( const WorkshopSnapshot& value )
+{
+	const auto options = workshopOptionsOf( value );
+	return WorkshopDraft { value.name, std::to_string( value.priority + 1 ), value.name, value.priority, false, false, options, options };
+}
+// Links to stockpiles missing from the snapshot (deleted) cannot be applied; ignore them.
+std::vector<std::uint32_t> presentLinks( const std::vector<std::uint32_t>& links, const WorkshopSnapshot& value )
+{
+	std::vector<std::uint32_t> out;
+	for ( auto id : links )
+		if ( std::any_of( value.stockpiles.begin(), value.stockpiles.end(), [&]( const auto& row ) { return row.id.value == id; } ) ) out.push_back( id );
+	return out;
+}
+bool workshopDraftDiffers( const WorkshopDraft& draft, const WorkshopSnapshot& value )
+{
+	auto wanted   = draft.options;
+	wanted.linked = presentLinks( wanted.linked, value );
+	return draft.name != value.name || draft.priority != std::to_string( value.priority + 1 ) || wanted != workshopOptionsOf( value );
+}
+// A field conflicts when the authoritative value is neither the applied draft nor the value it replaced.
+bool workshopDraftConflicts( const WorkshopDraft& draft, const WorkshopSnapshot& value )
+{
+	const auto now  = workshopOptionsOf( value );
+	const auto& a   = draft.options;
+	const auto& b   = draft.baseOptions;
+	const auto bad  = [] ( auto current, auto wanted, auto base ) { return current != wanted && current != base; };
+	if ( bad( value.name, draft.name, draft.baseName ) || bad( std::to_string( value.priority + 1 ), draft.priority, std::to_string( draft.basePriority + 1 ) ) ) return true;
+	if ( bad( now.suspended, a.suspended, b.suspended ) || bad( now.acceptGenerated, a.acceptGenerated, b.acceptGenerated ) || bad( now.autoCraftMissing, a.autoCraftMissing, b.autoCraftMissing )
+		|| bad( now.butcherCorpses, a.butcherCorpses, b.butcherCorpses ) || bad( now.butcherExcess, a.butcherExcess, b.butcherExcess )
+		|| bad( now.catchFish, a.catchFish, b.catchFish ) || bad( now.processFish, a.processFish, b.processFish ) ) return true;
+	for ( const auto& row : value.stockpiles )
+	{
+		const auto in = []( const auto& list, auto id ) { return std::find( list.begin(), list.end(), id ) != list.end(); };
+		if ( bad( row.linked, in( a.linked, row.id.value ), in( b.linked, row.id.value ) ) ) return true;
+	}
+	return false;
+}
+
+AgricultureDraft freshAgricultureDraft( const AgricultureSnapshot& value )
+{
+	const auto options = agricultureOptionsOf( value );
+	return AgricultureDraft { value.name, value.name, options, options, false, false };
+}
+// Butchering marks and food rules for records missing from the snapshot cannot be applied.
+AgricultureOptions presentAgricultureOptions( AgricultureOptions o, const AgricultureSnapshot& value )
+{
+	std::erase_if( o.butcher, [&]( auto id ) { return std::none_of( value.animals.begin(), value.animals.end(), [&]( const auto& a ) { return a.id.value == id; } ); } );
+	std::erase_if( o.foods, [&]( const auto& key ) { return std::none_of( value.foods.begin(), value.foods.end(), [&]( const auto& f ) { return pastureFoodKey( f.item, f.material ) == key; } ); } );
+	return o;
+}
+bool agricultureDraftDiffers( const AgricultureDraft& draft, const AgricultureSnapshot& value )
+{
+	return draft.name != value.name || presentAgricultureOptions( draft.options, value ) != agricultureOptionsOf( value );
+}
+// A field conflicts when the authoritative value is neither the applied draft nor the value it replaced.
+bool agricultureDraftConflicts( const AgricultureDraft& draft, const AgricultureSnapshot& value )
+{
+	const auto now = agricultureOptionsOf( value );
+	const auto& a  = draft.options;
+	const auto& b  = draft.baseOptions;
+	const auto bad = []( const auto& current, const auto& wanted, const auto& base ) { return current != wanted && current != base; };
+	if ( bad( value.name, draft.name, draft.baseName ) || bad( now.suspended, a.suspended, b.suspended ) || bad( now.harvest, a.harvest, b.harvest )
+		|| bad( now.harvestHay, a.harvestHay, b.harvestHay ) || bad( now.tame, a.tame, b.tame ) || bad( now.pick, a.pick, b.pick ) || bad( now.plant, a.plant, b.plant )
+		|| bad( now.fell, a.fell, b.fell ) || bad( now.product, a.product, b.product ) ) return true;
+	// A type change resets type-dependent pasture values in the game; those are not conflicts.
+	const bool typeChanged = value.target.kind == AgricultureKind::Pasture && a.product != b.product;
+	if ( typeChanged ) return false;
+	if ( bad( now.maxMale, a.maxMale, b.maxMale ) || bad( now.maxFemale, a.maxFemale, b.maxFemale ) ) return true;
+	const auto in = []( const auto& list, const auto& id ) { return std::find( list.begin(), list.end(), id ) != list.end(); };
+	for ( const auto& row : value.animals )
+		if ( bad( row.butcher, in( a.butcher, row.id.value ), in( b.butcher, row.id.value ) ) ) return true;
+	for ( const auto& row : value.foods )
+	{
+		const auto key = pastureFoodKey( row.item, row.material );
+		if ( bad( row.allowed, in( a.foods, key ), in( b.foods, key ) ) ) return true;
+	}
+	return false;
+}
+std::pair<int, std::uint32_t> agricultureKey( const AgricultureTarget& t ) { return { static_cast<int>( t.kind ), t.designation.value }; }
+// Live updates refresh every field the user has not changed; the user's own edits stay pending and keep
+// the value they replaced, so Apply can still detect a conflicting change made elsewhere.
+void rebaseAgricultureDraft( AgricultureDraft& d, const AgricultureSnapshot& value )
+{
+	const auto now = agricultureOptionsOf( value );
+	auto& o = d.options;
+	auto& b = d.baseOptions;
+	const auto field = [&]( auto member ) {
+		if ( o.*member == b.*member ) o.*member = now.*member;
+		if ( o.*member == now.*member || b.*member == o.*member ) b.*member = now.*member;
+	};
+	if ( d.name == d.baseName ) d.name = value.name;
+	if ( d.name == value.name ) d.baseName = value.name;
+	field( &AgricultureOptions::suspended );
+	field( &AgricultureOptions::harvest );
+	field( &AgricultureOptions::harvestHay );
+	field( &AgricultureOptions::tame );
+	field( &AgricultureOptions::pick );
+	field( &AgricultureOptions::plant );
+	field( &AgricultureOptions::fell );
+	field( &AgricultureOptions::product );
+	field( &AgricultureOptions::maxMale );
+	field( &AgricultureOptions::maxFemale );
+	const auto members = []( auto& draft, auto& base, const auto& current, const auto& ids ) {
+		std::decay_t<decltype( draft )> nd, nb;
+		const auto in = []( const auto& list, const auto& id ) { return std::find( list.begin(), list.end(), id ) != list.end(); };
+		for ( const auto& id : ids )
+		{
+			const bool changed = in( draft, id ) != in( base, id );
+			if ( changed ? in( draft, id ) : in( current, id ) ) nd.push_back( id );
+			if ( changed ? in( base, id ) : in( current, id ) ) nb.push_back( id );
+		}
+		std::sort( nd.begin(), nd.end() );
+		std::sort( nb.begin(), nb.end() );
+		draft = std::move( nd );
+		base  = std::move( nb );
+	};
+	std::vector<std::uint32_t> animals;
+	for ( const auto& a : value.animals ) animals.push_back( a.id.value );
+	std::vector<std::string> foods;
+	for ( const auto& f : value.foods ) foods.push_back( pastureFoodKey( f.item, f.material ) );
+	members( o.butcher, b.butcher, now.butcher, animals );
+	members( o.foods, b.foods, now.foods, foods );
+	d.dirty = agricultureDraftDiffers( d, value );
+}
+}
+
 void Management6AController::showWorkshop( WorkshopSnapshot value, Revision revision, std::optional<WorldPosition> position )
 {
 	if ( !state_.acceptsWorldActions || !value.id || ( state_.workshop.value.id == value.id && revision.value <= state_.workshop.revision.value ) )
 		return;
 	const bool sameWorkshop = state_.workshop.value.id == value.id;
+ auto& ws=state_.workshop;
+ if(!sameWorkshop) {
+  if(ws.value.id) workshopDrafts_[ws.value.id.value]=ws.draft;
+  ws.draft=workshopDrafts_.contains(value.id.value)?workshopDrafts_[value.id.value]:WorkshopDraft{};
+  ws.traderRows.clear();ws.playerRows.clear();ws.selectedTradeRow.reset();ws.tradeLoaded=false;ws.tradePending=false;ws.traderId=0;ws.tradeRevision=0;ws.feedback.clear();
+ }
+ if(ws.draft.pending && !workshopDraftDiffers(ws.draft,value)) ws.draft.dirty=ws.draft.pending=false;
+ else if(ws.draft.pending && workshopDraftConflicts(ws.draft,value)) {ws.draft.pending=false;ws.feedback="The workshop returned different values. Review the changes or press Cancel.";}
+ if(!ws.draft.dirty) ws.draft=freshWorkshopDraft(value);
 	if ( !sameWorkshop )
 	{
 		state_.workshop.tradeConfirmationRequired = false;
 		state_.workshop.orderPending=false;
 		state_.workshop.orderFeedback.clear();
 		state_.workshop.search.clear();
-		state_.workshop.pane = value.products.empty() ? WorkshopPane::Settings : WorkshopPane::Craft;
+		state_.workshop.pane = workshopSupportsTrade( value ) ? WorkshopPane::Trade : !value.products.empty() ? WorkshopPane::Craft : WorkshopPane::Settings;
 	}
+	else if ( ( ( state_.workshop.pane == WorkshopPane::Craft || state_.workshop.pane == WorkshopPane::Queue ) && !workshopSupportsCrafting( value ) )
+		|| ( state_.workshop.pane == WorkshopPane::Stockpiles && !workshopSupportsStockpileLinks( value ) ) )
+		state_.workshop.pane = WorkshopPane::Settings;
 	const auto previousProduct      = state_.workshop.selectedProduct;
 	const auto product              = state_.workshop.value.id == value.id ? state_.workshop.selectedProduct : std::optional<CatalogId> {};
 	const auto job                  = state_.workshop.value.id == value.id ? state_.workshop.selectedJob : std::optional<CraftJobId> {};
@@ -139,7 +314,7 @@ void Management6AController::showWorkshop( WorkshopSnapshot value, Revision revi
 	state_.workshop.position        = position;
 	state_.workshop.request         = { RequestStatus::Ready, {}, {}, false };
 	state_.workshop.selectedProduct = product && hasRow( state_.workshop.value.products, *product ) ? product : ( state_.workshop.value.products.empty() ? std::optional<CatalogId> {} : std::optional<CatalogId> { state_.workshop.value.products.front().id } );
-	state_.workshop.selectedJob     = job && hasRow( state_.workshop.value.queue, *job ) ? job : ( state_.workshop.value.queue.empty() ? std::optional<CraftJobId> {} : std::optional<CraftJobId> { state_.workshop.value.queue.front().id } );
+	state_.workshop.selectedJob     = job && hasRow( state_.workshop.value.queue, *job ) ? job : std::optional<CraftJobId> {};
 	if ( !sameWorkshop || previousProduct != state_.workshop.selectedProduct )
 		resetWorkshopOrderDraft();
 	else
@@ -147,6 +322,8 @@ void Management6AController::showWorkshop( WorkshopSnapshot value, Revision revi
 	state_.pendingAction.reset();
 	state_.status.clear();
 	rebuildWorkshop();
+	if ( !sameWorkshop && state_.workshop.pane == WorkshopPane::Trade && !state_.workshop.tradeLoaded )
+		refreshTrade();
 	notify();
 }
 void Management6AController::showStockpile( StockpileSnapshot value, Revision revision, std::optional<WorldPosition> position )
@@ -154,6 +331,18 @@ void Management6AController::showStockpile( StockpileSnapshot value, Revision re
 	if ( !state_.acceptsWorldActions || !value.id || ( state_.stockpile.value.id == value.id && revision.value <= state_.stockpile.revision.value ) )
 		return;
 	const bool same                  = state_.stockpile.value.id == value.id;
+    auto& sp = state_.stockpile;
+    if(!same && sp.value.id) stockpileDrafts_[sp.value.id.value] = {sp.draft,sp.templateName};
+    if(!same) {
+        auto found=stockpileDrafts_.find(value.id.value);
+        sp.draft=found==stockpileDrafts_.end()?StockpileDraft{}:found->second.first;
+    }
+    settleStockpileRules(sp.draft,value);
+    if(sp.draft.pending && !stockpileDraftDiffers(sp.draft,value)) sp.draft.dirty=sp.draft.pending=false;
+    else if(sp.draft.pending && stockpileDraftConflicts(sp.draft,value)) {sp.draft.pending=false;sp.feedback="The stockpile returned different values. Review the changes or press Cancel.";}
+    if(!sp.draft.dirty) sp.draft=freshStockpileDraft(value);
+    else sp.draft.dirty=stockpileDraftDiffers(sp.draft,value);
+
 	const auto filter                = same ? state_.stockpile.selectedFilter : std::optional<StockpileFilterRowId> {};
 	const auto content               = same ? state_.stockpile.selectedContent : std::optional<StockpileContentRowId> {};
 	const auto expanded              = same ? state_.stockpile.expandedFilters : std::vector<StockpileFilterRowId> {};
@@ -164,7 +353,7 @@ void Management6AController::showStockpile( StockpileSnapshot value, Revision re
 		state_.stockpile.filterCategory = {};
 	state_.stockpile.revision        = revision;
 	state_.stockpile.position        = position;
-	state_.stockpile.request         = { state_.stockpile.value.filters.empty() && state_.stockpile.value.contents.empty() ? RequestStatus::Empty : RequestStatus::Ready, {}, {}, false };
+	state_.stockpile.request         = { RequestStatus::Ready, {}, {}, false };
 	const auto firstListRow = std::find_if( state_.stockpile.value.filters.begin(), state_.stockpile.value.filters.end(), []( const auto& row ) { return row.id.depth != FilterDepth::Category; } );
 	state_.stockpile.selectedFilter  = filter && hasRow( state_.stockpile.value.filters, *filter ) && filter->depth != FilterDepth::Category ? filter : ( firstListRow == state_.stockpile.value.filters.end() ? std::optional<StockpileFilterRowId> {} : std::optional<StockpileFilterRowId> { firstListRow->id } );
 	state_.stockpile.selectedContent = content && hasRow( state_.stockpile.value.contents, *content ) ? content : ( state_.stockpile.value.contents.empty() ? std::optional<StockpileContentRowId> {} : std::optional<StockpileContentRowId> { state_.stockpile.value.contents.front().id } );
@@ -174,7 +363,10 @@ void Management6AController::showStockpile( StockpileSnapshot value, Revision re
 			state_.stockpile.filterSearch.clear();
 			state_.stockpile.contentSearch.clear();
 		state_.stockpile.filterSearchBeforeReveal.clear();
-		state_.stockpile.templateName.clear();
+        const auto retained=stockpileDrafts_.find(sp.value.id.value);
+        sp.templateName=retained==stockpileDrafts_.end()?std::string{}:retained->second.second;
+        sp.feedback.clear();
+
 		state_.stockpile.pendingTemplateOverwrite.clear();
 		state_.stockpile.filterCategory = {};
 		state_.stockpile.filterSearchRevealed = false;
@@ -199,7 +391,41 @@ void Management6AController::showAgriculture( AgricultureSnapshot value, Revisio
 	if ( !state_.acceptsWorldActions || !value.target.designation || ( state_.agriculture.value.target == value.target && revision.value <= state_.agriculture.revision.value ) )
 		return;
 	const bool same                    = state_.agriculture.value.target == value.target;
-	if ( !same ) state_.agriculture.pane = AgriculturePane::Overview;
+	auto& ag                           = state_.agriculture;
+	if ( !same )
+	{
+		if ( ag.value.target.designation ) agricultureDrafts_[agricultureKey( ag.value.target )] = ag.draft;
+		const auto saved = agricultureDrafts_.find( agricultureKey( value.target ) );
+		ag.draft         = saved != agricultureDrafts_.end() ? saved->second : AgricultureDraft {};
+		ag.feedback.clear();
+		ag.pane = value.target.kind == AgricultureKind::Farm ? AgriculturePane::Plots : AgriculturePane::General;
+		ag.plotAnchor.reset();
+		ag.focusedPlot.reset();
+		ag.selectedFood.reset();
+	}
+	if ( ag.draft.dirty && !ag.draft.pending ) rebaseAgricultureDraft( ag.draft, value );
+	// A confirmed pasture type change brings that type's own limits, food rules and (empty) roster.
+	if ( value.target.kind == AgricultureKind::Pasture && ag.draft.options.product != ag.draft.baseOptions.product && value.product == ag.draft.options.product )
+	{
+		const auto now = agricultureOptionsOf( value );
+		for ( auto* o : { &ag.draft.options, &ag.draft.baseOptions } )
+		{
+			o->maxMale   = now.maxMale;
+			o->maxFemale = now.maxFemale;
+			o->foods     = now.foods;
+			o->butcher   = now.butcher;
+		}
+		ag.draft.baseOptions.product = value.product;
+		ag.draft.dirty               = agricultureDraftDiffers( ag.draft, value );
+	}
+	if ( ag.draft.pending && !agricultureDraftDiffers( ag.draft, value ) ) ag.draft.dirty = ag.draft.pending = false;
+	else if ( ag.draft.pending && agricultureDraftConflicts( ag.draft, value ) )
+	{
+		ag.draft.pending = false;
+		ag.feedback      = "This designation returned different values. Review the changes or press Cancel.";
+	}
+
+	if ( !ag.draft.dirty ) ag.draft = freshAgricultureDraft( value );
 	const auto product                 = same ? state_.agriculture.selectedProduct : std::optional<CatalogId> {};
 	const auto selectedPlots = same ? state_.agriculture.selectedPlots : std::vector<WorldPosition> {};
 	const auto animal                  = same ? state_.agriculture.selectedAnimal : std::optional<CreatureId> {};
@@ -213,7 +439,13 @@ void Management6AController::showAgriculture( AgricultureSnapshot value, Revisio
 	for ( const auto& plot : selectedPlots )
 		if ( std::ranges::any_of( state_.agriculture.value.fields, [&]( const auto& field ) { return field.position == plot; } ) )
 			state_.agriculture.selectedPlots.push_back( plot );
-	state_.agriculture.selectedAnimal  = animal && hasRow( state_.agriculture.value.animals, *animal ) ? animal : ( state_.agriculture.value.animals.empty() ? std::optional<CreatureId> {} : std::optional<CreatureId> { state_.agriculture.value.animals.front().id } );
+	// A record that disappeared is never replaced by whatever now occupies its row.
+	state_.agriculture.selectedAnimal  = animal && hasRow( state_.agriculture.value.animals, *animal ) ? animal : std::optional<CreatureId> {};
+	const auto hasPlot                 = [&]( const std::optional<WorldPosition>& p ) { return p && std::ranges::any_of( ag.value.fields, [&]( const auto& f ) { return f.position == *p; } ); };
+	if ( !hasPlot( ag.plotAnchor ) ) ag.plotAnchor.reset();
+	if ( !hasPlot( ag.focusedPlot ) ) ag.focusedPlot.reset();
+	if ( ag.selectedFood && std::none_of( ag.value.foods.begin(), ag.value.foods.end(), [&]( const auto& f ) { return pastureFoodKey( f.item, f.material ) == *ag.selectedFood; } ) ) ag.selectedFood.reset();
+	if ( !agricultureSupportsPane( ag.value.target.kind, ag.pane ) ) ag.pane = AgriculturePane::General;
 	state_.pendingAction.reset();
 	state_.status.clear();
 	rebuildAgriculture();
@@ -221,10 +453,198 @@ void Management6AController::showAgriculture( AgricultureSnapshot value, Revisio
 }
 void Management6AController::setAgriculturePane( AgriculturePane pane )
 {
-	if ( state_.view != ManagementView::Agriculture || state_.agriculture.pane == pane )
+	if ( state_.view != ManagementView::Agriculture || state_.agriculture.pane == pane || !agricultureSupportsPane( state_.agriculture.value.target.kind, pane ) )
 		return;
 	state_.agriculture.pane = pane;
 	notify();
+}
+void Management6AController::selectFarmPlot( WorldPosition plot, PlotSelect mode )
+{
+	auto& s = state_.agriculture;
+	const auto has = [&]( const WorldPosition& p ) { return std::ranges::any_of( s.value.fields, [&]( const auto& f ) { return f.position == p; } ); };
+	if ( s.value.target.kind != AgricultureKind::Farm || !has( plot ) ) return;
+	s.focusedPlot = plot;
+	if ( mode == PlotSelect::Range && s.plotAnchor && s.plotAnchor->z == plot.z )
+	{
+		// Shift+click selects the rectangle between the anchor and this plot (list view / Excel 97 range model).
+		const auto a = *s.plotAnchor;
+		s.selectedPlots.clear();
+		for ( const auto& f : s.value.fields )
+			if ( f.position.z == plot.z && f.position.x >= std::min( a.x, plot.x ) && f.position.x <= std::max( a.x, plot.x ) && f.position.y >= std::min( a.y, plot.y ) && f.position.y <= std::max( a.y, plot.y ) )
+				s.selectedPlots.push_back( f.position );
+	}
+	else if ( mode == PlotSelect::Toggle )
+	{
+		auto found = std::find( s.selectedPlots.begin(), s.selectedPlots.end(), plot );
+		if ( found == s.selectedPlots.end() ) s.selectedPlots.push_back( plot );
+		else s.selectedPlots.erase( found );
+		s.plotAnchor = plot;
+	}
+	else
+	{
+		s.selectedPlots = { plot };
+		s.plotAnchor    = plot;
+	}
+	notify();
+}
+void Management6AController::moveFarmPlotFocus( std::int32_t dx, std::int32_t dy, bool extend )
+{
+	auto& s = state_.agriculture;
+	if ( s.value.target.kind != AgricultureKind::Farm || s.value.fields.empty() ) return;
+	if ( !s.focusedPlot )
+	{
+		s.focusedPlot = s.value.fields.front().position;
+		notify();
+		return;
+	}
+	// Move to the nearest plot in the pressed direction on the same level; gaps in the field are skipped.
+	const auto from         = *s.focusedPlot;
+	const FarmPlotRow* best = nullptr;
+	int bestScore           = 0;
+	for ( const auto& f : s.value.fields )
+	{
+		const auto& p = f.position;
+		if ( p.z != from.z ) continue;
+		const int along  = dx ? ( p.x - from.x ) * dx : ( p.y - from.y ) * dy;
+		const int across = dx ? std::abs( p.y - from.y ) : std::abs( p.x - from.x );
+		if ( along <= 0 ) continue;
+		const int score = along + across * 1000;
+		if ( !best || score < bestScore )
+		{
+			best      = &f;
+			bestScore = score;
+		}
+	}
+	if ( !best ) return;
+	if ( extend ) selectFarmPlot( best->position, PlotSelect::Range );
+	else
+	{
+		s.focusedPlot = best->position;
+		notify();
+	}
+}
+void Management6AController::selectPastureFood( std::string key )
+{
+	auto& s = state_.agriculture;
+	if ( std::none_of( s.value.foods.begin(), s.value.foods.end(), [&]( const auto& f ) { return pastureFoodKey( f.item, f.material ) == key; } ) ) return;
+	s.selectedFood = std::move( key );
+	notify();
+}
+void Management6AController::editAgricultureName( std::string name )
+{
+	auto& s = state_.agriculture;
+	if ( s.draft.pending || !s.value.target.designation ) return;
+	s.draft.name  = std::move( name );
+	s.draft.dirty = agricultureDraftDiffers( s.draft, s.value );
+	notify();
+}
+void Management6AController::editAgricultureOptions( AgricultureOptions options )
+{
+	auto& s = state_.agriculture;
+	if ( s.draft.pending || !s.value.target.designation ) return;
+	std::sort( options.butcher.begin(), options.butcher.end() );
+	options.butcher.erase( std::unique( options.butcher.begin(), options.butcher.end() ), options.butcher.end() );
+	std::sort( options.foods.begin(), options.foods.end() );
+	options.foods.erase( std::unique( options.foods.begin(), options.foods.end() ), options.foods.end() );
+	options.maxMale   = std::max( 0, options.maxMale );
+	options.maxFemale = std::max( 0, options.maxFemale );
+	if ( !options.product.value.empty() && !hasRow( s.value.catalog, options.product ) ) options.product = s.draft.options.product;
+	// The game keeps pasture limits and food rules per animal type and resets them when the type changes,
+	// so a pending type change carries no limit or food edits; they are set after the type is applied.
+	if ( s.value.target.kind == AgricultureKind::Pasture && options.product != s.value.product )
+	{
+		const auto current = agricultureOptionsOf( s.value );
+		options.maxMale    = current.maxMale;
+		options.maxFemale  = current.maxFemale;
+		options.foods      = current.foods;
+	}
+	s.draft.options = std::move( options );
+	s.draft.dirty   = agricultureDraftDiffers( s.draft, s.value );
+	notify();
+}
+void Management6AController::revertAgricultureDraft()
+{
+	auto& s = state_.agriculture;
+	if ( s.draft.pending ) return;
+	s.draft = freshAgricultureDraft( s.value );
+	s.feedback.clear();
+	notify();
+}
+void Management6AController::agricultureFeedback( std::string text )
+{
+	state_.agriculture.feedback = std::move( text );
+	notify();
+}
+bool Management6AController::applyAgricultureDraft()
+{
+	auto& s = state_.agriculture;
+	if ( !s.value.target.designation || s.draft.pending || state_.pendingAction ) return false;
+	if ( !s.draft.dirty ) return true;
+	if ( trimmed( s.draft.name ).empty() )
+	{
+		agricultureFeedback( "Enter a name for this designation." );
+		return false;
+	}
+	const auto current = agricultureOptionsOf( s.value );
+	if ( s.draft.baseName != s.value.name || s.draft.baseOptions != current )
+	{
+		agricultureFeedback( "This designation was changed elsewhere. Press Cancel to see the latest values, then make your changes again." );
+		return false;
+	}
+	s.draft.name  = trimmed( s.draft.name );
+	const auto o  = presentAgricultureOptions( s.draft.options, s.value );
+	const auto& t = s.value.target;
+	bool sent = false, ok = true;
+	const auto send = [&]( std::string_view id, UiActionPayload payload ) {
+		if ( !ok ) return;
+		sent = true;
+		ok   = dispatch( id, std::move( payload ) );
+	};
+	// Priority is not implemented by FarmingManager, so the authoritative value is passed through unchanged.
+	if ( s.draft.name != s.value.name || o.suspended != current.suspended )
+		send( "agriculture.set_basics", SetAgricultureBasicsPayload { t, s.draft.name, s.value.priority, o.suspended } );
+	if ( t.kind != AgricultureKind::Grove && ( o.harvest != current.harvest || o.harvestHay != current.harvestHay || o.tame != current.tame ) )
+		send( "agriculture.set_harvest_options", SetHarvestOptionsPayload { t, o.harvest, o.harvestHay, o.tame } );
+	if ( t.kind == AgricultureKind::Grove && ( o.pick != current.pick || o.plant != current.plant || o.fell != current.fell ) )
+		send( "agriculture.set_grove_options", SetGroveOptionsPayload { t.designation, o.pick, o.plant, o.fell } );
+	if ( o.product != current.product && !o.product.value.empty() )
+		send( "agriculture.select_product", SetAgricultureProductPayload { t, o.product } );
+	if ( t.kind == AgricultureKind::Pasture )
+	{
+		if ( o.maxMale != current.maxMale ) send( "agriculture.set_population_caps", SetPastureCapPayload { t.designation, Gender::Male, static_cast<std::uint32_t>( o.maxMale ) } );
+		if ( o.maxFemale != current.maxFemale ) send( "agriculture.set_population_caps", SetPastureCapPayload { t.designation, Gender::Female, static_cast<std::uint32_t>( o.maxFemale ) } );
+		for ( const auto& a : s.value.animals )
+		{
+			const bool wanted = std::binary_search( o.butcher.begin(), o.butcher.end(), a.id.value );
+			if ( wanted != a.butcher ) send( "agriculture.set_butchering", SetButcheringPayload { a.id, wanted } );
+		}
+		for ( const auto& f : s.value.foods )
+		{
+			const bool wanted = std::binary_search( o.foods.begin(), o.foods.end(), pastureFoodKey( f.item, f.material ) );
+			if ( wanted != f.allowed ) send( "agriculture.set_food_allowed", SetPastureFoodPayload { t.designation, f.item, f.material, wanted } );
+		}
+	}
+	if ( !sent )
+	{
+		s.draft = freshAgricultureDraft( s.value );
+		notify();
+		return true;
+	}
+	// Most agriculture setters do not publish a new snapshot, so ask for one after the queued changes.
+	if ( ok ) send( "agriculture.refresh", AgricultureTargetPayload { t } );
+	s.draft.pending = ok;
+	if ( !ok ) s.feedback = "The change could not be applied (" + state_.status + ").";
+	notify();
+	return ok;
+}
+void Management6AController::setTradeSnapshot(WorkshopId id,std::uint32_t trader,std::uint64_t revision,std::vector<TradeRow> seller,std::vector<TradeRow> buyer,int sellerValue,int buyerValue)
+{
+ auto& s=state_.workshop;if(s.value.id!=id || !state_.acceptsWorldActions || revision<=s.tradeRevision)return;
+ s.tradeRevision=revision;s.traderId=trader;s.tradePending=false;state_.pendingAction.reset();
+ if(s.tradeConfirmationRequired) {s.tradeConfirmationRequired=false;s.feedback="Trade offers changed. Review the current offers again.";}
+ s.traderOfferValue=sellerValue;s.playerOfferValue=buyerValue;
+ setTradeRows(TradeParty::Trader,std::move(seller));setTradeRows(TradeParty::Player,std::move(buyer));
+ s.tradeLoaded=trader!=0;notify();
 }
 void Management6AController::setTradeRows( TradeParty party, std::vector<TradeRow> rows )
 {
@@ -727,7 +1147,12 @@ void Management6AController::normalizeWorkshopOrderDraft()
 }
 void Management6AController::setWorkshopPane( WorkshopPane pane )
 {
-	state_.workshop.pane = pane;
+	if(pane==WorkshopPane::Trade && !workshopSupportsTrade(state_.workshop.value)) return;
+	if((pane==WorkshopPane::Craft || pane==WorkshopPane::Queue) && !workshopSupportsCrafting(state_.workshop.value)) return;
+	if(pane==WorkshopPane::Stockpiles && !workshopSupportsStockpileLinks(state_.workshop.value)) return;
+ state_.workshop.pane = pane;
+	// The ledger is loaded on first view; Refresh trade stays available for a later re-read.
+	if(pane==WorkshopPane::Trade && !state_.workshop.tradeLoaded) refreshTrade();
 	notify();
 }
 void Management6AController::setWorkshopOrderMaterial( std::size_t index, CatalogId material )
@@ -808,7 +1233,7 @@ void Management6AController::toggleStockpileContentExpansion( StockpileContentRo
 }
 void Management6AController::setStockpileTemplateName( std::string name )
 {
-	state_.stockpile.templateName = trimmed( std::move( name ) );
+	state_.stockpile.templateName = std::move( name );
 	notify();
 }
 void Management6AController::toggleStockpileTemplateMenu()
@@ -825,20 +1250,84 @@ void Management6AController::selectStockpileTemplate( std::string name )
 	state_.stockpile.templateMenuOpen = false;
 	applyStockpileTemplate( std::move( name ) );
 }
+void Management6AController::rejectStockpile(StockpileId id,std::string message)
+{
+    if(state_.stockpile.value.id!=id)return;
+    state_.stockpile.draft.pending=false;state_.pendingAction.reset();
+    if(message=="This stockpile no longer exists.") state_.stockpile.request={RequestStatus::Error,{},message,false};
+    state_.stockpile.feedback=std::move(message);notify();
+}
+void Management6AController::stockpileFeedback(std::string message)
+{
+    state_.stockpile.feedback=std::move(message); notify();
+}
 void Management6AController::saveStockpileTemplate()
 {
-	if ( !state_.stockpile.value.id || state_.stockpile.templateName.empty() ) return;
-	const auto requested = folded( state_.stockpile.templateName );
-	const auto existing = std::ranges::find_if( state_.stockpile.value.templateNames, [&]( const auto& name ) { return folded( name ) == requested; } );
-	state_.stockpile.templateMenuOpen = false;
-	if ( existing != state_.stockpile.value.templateNames.end() )
-	{
-		state_.stockpile.pendingTemplateOverwrite = *existing;
-		state_.stockpile.templateOverwriteConfirmationRequired = true;
-		notify();
-		return;
-	}
-	dispatch( "stockpile.save_template", StockpileTemplatePayload { state_.stockpile.value.id, state_.stockpile.templateName } );
+    auto& s=state_.stockpile;
+    s.templateName=trimmed(s.templateName);
+    if(!s.value.id || s.templateName.empty()) {stockpileFeedback("Enter a template name.");return;}
+    if(std::ranges::any_of(s.value.templateNames,[&](const auto& n){return folded(n)==folded(s.templateName);})) {
+        stockpileFeedback("A template named '"+s.templateName+"' already exists. Type a different name.");return;
+    }
+    dispatch("stockpile.save_template",StockpileTemplatePayload{s.value.id,s.templateName});
+}
+void Management6AController::updateStockpileTemplate()
+{
+    auto& s=state_.stockpile;
+    const auto found=std::ranges::find_if(s.value.templateNames,[&](const auto& n){return folded(n)==folded(s.templateName);});
+    if(found==s.value.templateNames.end()) {stockpileFeedback("Choose an existing template to update.");return;}
+    s.pendingTemplateOverwrite=*found; s.templateOverwriteConfirmationRequired=true;s.templateMenuOpen=false;
+    templateReviewId_=s.value.id;templateReviewRevision_=s.revision;notify();
+}
+void Management6AController::editStockpileDraft(std::string name,std::string priority)
+{
+    auto& s=state_.stockpile;
+    if(s.draft.pending) return;
+    s.draft.name=std::move(name);s.draft.priority=std::move(priority);
+    s.draft.dirty=stockpileDraftDiffers(s.draft,s.value);
+    notify();
+}
+void Management6AController::editStockpileOptions(StockpileOptions options)
+{
+    auto& s=state_.stockpile;
+    if(s.draft.pending || !s.value.id) return;
+    s.draft.options=options;
+    s.draft.dirty=stockpileDraftDiffers(s.draft,s.value);
+    notify();
+}
+void Management6AController::revertStockpileDraft()
+{
+    auto& s=state_.stockpile;if(s.draft.pending)return;
+    s.draft=freshStockpileDraft(s.value);
+    s.feedback.clear();notify();
+}
+bool Management6AController::applyStockpileDraft()
+{
+    auto& s=state_.stockpile;
+    if(!s.value.id || s.draft.pending || state_.pendingAction)return false;
+    if(!s.draft.dirty)return true;
+    int priority=0;const auto& raw=s.draft.priority;auto parsed=std::from_chars(raw.data(),raw.data()+raw.size(),priority);
+    if(trimmed(s.draft.name).empty() || parsed.ec!=std::errc{} || parsed.ptr!=raw.data()+raw.size() || priority<1 || priority>std::max(1,s.value.maxPriority)) {
+        stockpileFeedback("Enter a name and a whole priority from 1 to "+std::to_string(std::max(1,s.value.maxPriority))+".");return false;
+    }
+    if(s.draft.baseName!=s.value.name || s.draft.basePriority!=s.value.priority || s.draft.baseOptions!=stockpileOptionsOf(s.value)) {
+        stockpileFeedback("This stockpile was changed elsewhere. Press Cancel to see the latest values, then make your changes again.");return false;
+    }
+    s.draft.name=trimmed(s.draft.name);
+    const auto& o=s.draft.options;
+    bool sent=false,ok=true;
+    const auto send=[&](std::string_view id,UiActionPayload payload){if(!ok)return;sent=true;ok=dispatch(id,std::move(payload));};
+    if(s.draft.name!=s.value.name || priority-1!=s.value.priority || o!=stockpileOptionsOf(s.value))
+        send("stockpile.set_basics",SetStockpileBasicsPayload{s.value.id,s.draft.name,priority-1,o.suspended,o.pull,o.allowPull});
+    // Rule changes go as at most two batches: the rules to allow and the rules to block.
+    for(const bool allowed:{true,false}) {
+        std::vector<StockpileFilterRowId> rows;
+        for(const auto& [key,change]:s.draft.rules) if(change.allowed==allowed) rows.push_back(change.id);
+        if(!rows.empty()) send("stockpile.set_filters",SetStockpileFiltersPayload{s.value.id,std::move(rows),allowed});
+    }
+    if(!sent){s.draft=freshStockpileDraft(s.value);notify();return true;}
+    s.draft.pending=ok;
+    notify();return ok;
 }
 void Management6AController::applyStockpileTemplate( std::string name )
 {
@@ -849,8 +1338,12 @@ void Management6AController::applyStockpileTemplate( std::string name )
 void Management6AController::confirmStockpileTemplateOverwrite()
 {
 	if ( !state_.stockpile.templateOverwriteConfirmationRequired || !state_.stockpile.value.id || state_.stockpile.pendingTemplateOverwrite.empty() ) return;
-	const auto name = state_.stockpile.pendingTemplateOverwrite;
-	if ( dispatch( "stockpile.save_template", StockpileTemplatePayload { state_.stockpile.value.id, name }, DispatchOrigin::DestructiveConfirmation ) )
+    if(templateReviewId_!=state_.stockpile.value.id || templateReviewRevision_!=state_.stockpile.revision) {
+        cancelStockpileTemplateOverwrite();stockpileFeedback("The allow list changed. Review the template update again.");return;
+    }
+    const auto name = state_.stockpile.pendingTemplateOverwrite;
+    state_.stockpile.templateOverwriteConfirmationRequired=false;
+	if ( dispatch( "stockpile.save_template", StockpileTemplatePayload { state_.stockpile.value.id, name, true }, DispatchOrigin::DestructiveConfirmation ) )
 	{
 		state_.stockpile.templateOverwriteConfirmationRequired = false;
 		state_.stockpile.pendingTemplateOverwrite.clear();
@@ -891,6 +1384,7 @@ void Management6AController::setStockpilePane( StockpilePane pane )
 	if ( state_.view != ManagementView::Stockpile )
 		return;
 	state_.stockpile.pane = pane;
+    if(pane!=StockpilePane::AllowList)state_.stockpile.templateMenuOpen=false;
 	notify();
 }
 void Management6AController::selectAgricultureProduct( CatalogId id )
@@ -1010,7 +1504,10 @@ bool Management6AController::dispatch( std::string_view id, UiActionPayload payl
 		notify();
 		return false;
 	}
-	UiActionEnvelope action { ActionId { id }, RequestId { nextRequest_++ }, state_.world, std::nullopt, std::move( payload ) };
+	if(id.starts_with("stockpile.") && id!="stockpile.refresh" && state_.stockpile.request.status==RequestStatus::Error) {
+        state_.status="ui.error.target_missing";notify();return false;
+    }
+    UiActionEnvelope action { ActionId { id }, RequestId { nextRequest_++ }, state_.world, std::nullopt, std::move( payload ) };
 	auto result = commands_.dispatch( action, origin );
 	if ( result.status == CommandStatus::Rejected )
 	{
@@ -1059,29 +1556,88 @@ void Management6AController::close()
 {
 	if ( dispatch( "nav.close", NoPayload {} ) )
 	{
+		state_.stockpile.templateMenuOpen=false;
 		state_.view = ManagementView::None;
 		notify();
 	}
 }
+void Management6AController::editWorkshopDraft(std::string name,std::string priority)
+{
+    auto& s=state_.workshop;
+    if(s.draft.pending) return;
+    s.draft.name=std::move(name);s.draft.priority=std::move(priority);
+    s.draft.dirty=workshopDraftDiffers(s.draft,s.value);
+    notify();
+}
+void Management6AController::editWorkshopOptions(WorkshopOptions options)
+{
+    auto& s=state_.workshop;
+    if(s.draft.pending || !s.value.id) return;
+    std::sort(options.linked.begin(),options.linked.end());
+    options.linked.erase(std::unique(options.linked.begin(),options.linked.end()),options.linked.end());
+    s.draft.options=std::move(options);
+    s.draft.dirty=workshopDraftDiffers(s.draft,s.value);
+    notify();
+}
+void Management6AController::revertWorkshopDraft()
+{
+    auto& s=state_.workshop;if(s.draft.pending)return;
+    s.draft=freshWorkshopDraft(s.value);
+    s.feedback.clear();notify();
+}
+bool Management6AController::applyWorkshopDraft()
+{
+    auto& s=state_.workshop;
+    if(!s.value.id || s.draft.pending || state_.pendingAction)return false;
+    if(!s.draft.dirty)return true;
+    int priority=0;const auto& raw=s.draft.priority;auto parsed=std::from_chars(raw.data(),raw.data()+raw.size(),priority);
+    if(trimmed(s.draft.name).empty() || parsed.ec!=std::errc{} || parsed.ptr!=raw.data()+raw.size() || priority<1 || priority>std::max(1,s.value.maxPriority)) {
+        workshopFeedback("Enter a name and a whole priority from 1 to "+std::to_string(std::max(1,s.value.maxPriority))+".");return false;
+    }
+    const auto current=workshopOptionsOf(s.value);
+    if(s.draft.baseName!=s.value.name || s.draft.basePriority!=s.value.priority || s.draft.baseOptions!=current) {
+        workshopFeedback("This workshop was changed elsewhere. Press Cancel to see the latest values, then make your changes again.");return false;
+    }
+    s.draft.name=trimmed(s.draft.name);
+    const auto& o=s.draft.options;
+    bool sent=false,ok=true;
+    const auto send=[&](std::string_view id,UiActionPayload payload){if(!ok)return;sent=true;ok=dispatch(id,std::move(payload));};
+    if(s.draft.name!=s.value.name || priority-1!=s.value.priority || o.suspended!=current.suspended || o.acceptGenerated!=current.acceptGenerated || o.autoCraftMissing!=current.autoCraftMissing)
+        send("workshop.set_basics",SetWorkshopBasicsPayload{s.value.id,s.draft.name,priority-1,o.suspended,o.acceptGenerated,o.autoCraftMissing});
+    if(s.value.subtype=="Butcher" && (o.butcherCorpses!=current.butcherCorpses || o.butcherExcess!=current.butcherExcess))
+        send("workshop.set_butcher_options",SetButcherOptionsPayload{s.value.id,o.butcherCorpses,o.butcherExcess});
+    if((s.value.subtype=="Fisher" || s.value.subtype=="Fishery") && (o.catchFish!=current.catchFish || o.processFish!=current.processFish))
+        send("workshop.set_fisher_options",SetFisherOptionsPayload{s.value.id,o.catchFish,o.processFish});
+    if(s.value.canLinkStockpile)
+        for(const auto& row:s.value.stockpiles) {
+            const bool wanted=std::find(o.linked.begin(),o.linked.end(),row.id.value)!=o.linked.end();
+            if(wanted!=row.linked) send("workshop.set_stockpile_link",SetWorkshopStockpileLinkPayload{s.value.id,row.id,wanted});
+        }
+    if(!sent){s.draft=freshWorkshopDraft(s.value);notify();return true;}
+    s.draft.pending=ok;
+    notify();return ok;
+}
+void Management6AController::workshopFeedback(std::string text) {state_.workshop.feedback=std::move(text);notify();}
+void Management6AController::rejectWorkshop(WorkshopId id,std::string text) {if(id!=state_.workshop.value.id)return;state_.workshop.draft.pending=false;state_.workshop.tradePending=false;state_.pendingAction.reset();state_.workshop.tradeConfirmationRequired=false;workshopFeedback(std::move(text));}
 void Management6AController::setWorkshopBasics( std::string name, std::int32_t priority, bool suspended, bool generated, bool autoMissing, std::optional<bool> linkStockpile )
 {
 	const auto& id = state_.workshop.value.id;
-	if ( id )
+	if ( id && !state_.workshop.draft.pending && !state_.pendingAction )
 		dispatch( "workshop.set_basics", SetWorkshopBasicsPayload { id, std::move( name ), priority, suspended, generated, autoMissing, std::nullopt, linkStockpile } );
 }
 void Management6AController::setButcherOptions( bool corpses, bool excess )
 {
-	if ( state_.workshop.value.id )
+	if ( state_.workshop.value.id && state_.workshop.value.subtype=="Butcher" )
 		dispatch( "workshop.set_butcher_options", SetButcherOptionsPayload { state_.workshop.value.id, corpses, excess } );
 }
 void Management6AController::setFisherOptions( bool catchFish, bool processFish )
 {
-	if ( state_.workshop.value.id )
+	if ( state_.workshop.value.id && (state_.workshop.value.subtype=="Fisher" || state_.workshop.value.subtype=="Fishery") )
 		dispatch( "workshop.set_fisher_options", SetFisherOptionsPayload { state_.workshop.value.id, catchFish, processFish } );
 }
 void Management6AController::setWorkshopStockpileLink(StockpileId stockpile, bool linked)
 {
-    if(state_.workshop.value.id && stockpile)
+    if(state_.workshop.value.id && state_.workshop.value.canLinkStockpile && hasRow(state_.workshop.value.stockpiles,stockpile))
         dispatch("workshop.set_stockpile_link",SetWorkshopStockpileLinkPayload{state_.workshop.value.id,stockpile,linked});
 }
 void Management6AController::onWorkshopOrderResult(WorkshopId workshop, bool accepted)
@@ -1095,7 +1651,7 @@ void Management6AController::onWorkshopOrderResult(WorkshopId workshop, bool acc
 }
 void Management6AController::queueSelectedCraft( CraftRepeatMode mode, std::uint32_t count, std::vector<CatalogId> materials )
 {
-    if(state_.workshop.orderPending) return;
+    if(state_.workshop.orderPending || count==0 || count>999) return;
     if(state_.workshop.value.id && state_.workshop.selectedProduct && count>0) {
         if(dispatch("workshop.queue_craft",QueueCraftPayload{state_.workshop.value.id,*state_.workshop.selectedProduct,mode,count,std::move(materials)})) {
             state_.workshop.orderPending=true;
@@ -1116,7 +1672,7 @@ void Management6AController::queueSelectedCraftOrder()
 }
 void Management6AController::setSelectedJob( CraftRepeatMode mode, std::uint32_t count, bool suspended, bool moveBack )
 {
-	if ( state_.workshop.value.id && state_.workshop.selectedJob && count > 0 )
+	if ( state_.workshop.value.id && state_.workshop.selectedJob && hasRow(state_.workshop.value.queue,*state_.workshop.selectedJob) && count > 0 && count<=999 )
 		dispatch( "workshop.set_job", SetCraftJobPayload { state_.workshop.value.id, *state_.workshop.selectedJob, mode, count, suspended, moveBack } );
 }
 void Management6AController::moveSelectedJob( MoveDirection direction )
@@ -1136,8 +1692,12 @@ void Management6AController::refreshTrade()
 }
 void Management6AController::setTradeOffer( TradeRowId row, std::uint32_t count )
 {
-	if ( state_.workshop.value.id )
-		dispatch( "trade.set_offer_count", SetTradeOfferPayload { state_.workshop.value.id, std::move( row ), count } );
+	auto& s=state_.workshop;
+ auto& rows=row.party==TradeParty::Trader?s.traderRows:s.playerRows;
+ auto it=findRow(rows,row);
+ if(!s.value.id || !s.tradeLoaded || s.tradePending || s.tradeConfirmationRequired || it==rows.end() || count>it->stock)return;
+ s.tradePending=true;
+ if(!dispatch("trade.set_offer_count",SetTradeOfferPayload{s.value.id,row,count,s.tradeRevision,s.traderId}))s.tradePending=false;
 }
 void Management6AController::adjustSelectedTradeOffer( std::int32_t delta )
 {
@@ -1152,11 +1712,16 @@ void Management6AController::adjustSelectedTradeOffer( std::int32_t delta )
 			row = &v;
 	if ( !row )
 		return;
-	const auto desired = std::clamp<std::int64_t>( static_cast<std::int64_t>( row->offered ) + delta, 0, static_cast<std::int64_t>( row->stock ) + row->offered );
+	const auto desired = std::clamp<std::int64_t>( static_cast<std::int64_t>( row->offered ) + delta, 0, static_cast<std::int64_t>( row->stock ) );
 	setTradeOffer( row->id, static_cast<std::uint32_t>( desired ) );
 }
 void Management6AController::executeTrade()
 {
+ auto& s=state_.workshop;
+ if(!s.tradeLoaded || s.tradePending || s.tradeConfirmationRequired)return;
+ bool offered=false;for(const auto& row:s.traderRows)offered|=row.offered>0;for(const auto& row:s.playerRows)offered|=row.offered>0;
+ if(!offered){workshopFeedback("Choose items and quantities before reviewing trade.");return;}
+ s.tradeReviewRevision=s.tradeRevision;
 	if ( state_.workshop.playerOfferValue < state_.workshop.traderOfferValue )
 	{
 		state_.status = "ui.trade.offer_value_too_low";
@@ -1169,14 +1734,16 @@ void Management6AController::executeTrade()
 }
 void Management6AController::confirmTrade()
 {
-	if ( state_.workshop.tradeConfirmationRequired && state_.workshop.value.id && state_.workshop.playerOfferValue >= state_.workshop.traderOfferValue )
+	if ( state_.workshop.tradeConfirmationRequired && !state_.workshop.tradePending && state_.workshop.tradeReviewRevision==state_.workshop.tradeRevision && state_.workshop.value.id && state_.workshop.playerOfferValue >= state_.workshop.traderOfferValue )
 	{
 		const auto workshop = state_.workshop.value.id;
-		if ( dispatch( "trade.execute", WorkshopTargetPayload { workshop }, DispatchOrigin::DestructiveConfirmation ) )
+        state_.workshop.tradePending=true;
+        state_.workshop.tradeConfirmationRequired=false;
+		if ( dispatch( "trade.execute", WorkshopTargetPayload { workshop,state_.workshop.tradeRevision,state_.workshop.traderId }, DispatchOrigin::DestructiveConfirmation ) )
 		{
 			state_.workshop.tradeConfirmationRequired = false;
 			notify();
-		}
+		} else {state_.workshop.tradePending=false;notify();}
 	}
 }
 void Management6AController::cancelTrade()
@@ -1187,27 +1754,41 @@ void Management6AController::cancelTrade()
 	state_.status.clear();
 	notify();
 }
-void Management6AController::setStockpileBasics( std::string name, std::int32_t priority, bool suspended, bool pull, bool allow )
+bool Management6AController::stockpileRuleAllowed( const StockpileFilterRow& row ) const
 {
-	if ( state_.stockpile.value.id )
-		dispatch( "stockpile.set_basics", SetStockpileBasicsPayload { state_.stockpile.value.id, std::move( name ), priority, suspended, pull, allow } );
+	const auto& rules = state_.stockpile.draft.rules;
+	const auto found  = rules.find( stockpileRuleKey( row.id ) );
+	return found != rules.end() ? found->second.allowed : row.state == TriState::On;
+}
+void Management6AController::toggleStockpileRule( const StockpileFilterRowId& id )
+{
+	auto& s = state_.stockpile;
+	if ( s.draft.pending || id.depth != FilterDepth::Material ) return;
+	const auto it = findRow( s.value.filters, id );
+	if ( it == s.value.filters.end() ) return;
+	const bool wanted = !stockpileRuleAllowed( *it );
+	const auto key    = stockpileRuleKey( id );
+	if ( wanted == ( it->state == TriState::On ) ) s.draft.rules.erase( key );
+	else s.draft.rules[key] = { it->id, wanted };
+	s.draft.dirty = stockpileDraftDiffers( s.draft, s.value );
+	notify();
 }
 void Management6AController::toggleSelectedStockpileFilter()
 {
-	if ( !state_.stockpile.selectedFilter )
-		return;
-	auto it = findRow( state_.stockpile.value.filters, *state_.stockpile.selectedFilter );
-	if ( it != state_.stockpile.value.filters.end() )
-		dispatch( "stockpile.set_filter", SetStockpileFilterPayload { it->id, it->state != TriState::On } );
+	if ( state_.stockpile.selectedFilter ) toggleStockpileRule( *state_.stockpile.selectedFilter );
 }
-void Management6AController::setStockpileFilterMatches( bool active )
+void Management6AController::setStockpileRulesShown( bool allowed )
 {
-	if ( !state_.stockpile.value.id )
-		return;
-	std::vector<StockpileFilterRowId> matches;
-	matches = state_.stockpile.matchingFilterLeaves;
-	if ( !matches.empty() )
-		dispatch( "stockpile.set_filters", SetStockpileFiltersPayload { state_.stockpile.value.id, std::move( matches ), active } );
+	auto& s = state_.stockpile;
+	if ( s.draft.pending || !s.value.id ) return;
+	for ( const auto& row : s.visibleFilters )
+	{
+		const auto key = stockpileRuleKey( row.id );
+		if ( allowed == ( row.state == TriState::On ) ) s.draft.rules.erase( key );
+		else s.draft.rules[key] = { row.id, allowed };
+	}
+	s.draft.dirty = stockpileDraftDiffers( s.draft, s.value );
+	notify();
 }
 void Management6AController::setAgricultureBasics( std::string name, std::int32_t priority, bool suspended )
 {
@@ -1310,6 +1891,12 @@ void Management6AController::onActionFinished( RequestId id, CommandResult resul
 		return;
 	state_.pendingAction.reset();
 	state_.status = result.status == CommandStatus::Rejected ? result.error : std::string {};
+    if(result.status==CommandStatus::Rejected) state_.stockpile.draft.pending=false;
+	if ( result.status == CommandStatus::Rejected && state_.agriculture.draft.pending )
+	{
+		state_.agriculture.draft.pending = false;
+		state_.agriculture.feedback      = result.error.empty() ? std::string( "The designation rejected the change." ) : result.error;
+	}
 	notify();
 }
 } // namespace ingnomia::ui::management6a

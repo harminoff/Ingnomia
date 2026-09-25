@@ -167,6 +167,7 @@ namespace ingnomia::ui::management6c
 		{"management.uniform.LeftHandHeld","Left hand"},
 		{"management.uniform.RightHandHeld","Right hand"},
 		{"management.uniform.Back","Back"},
+#include "../../localization/UiTextWin98Entries.inc"
 	} );
 }
 } // namespace ingnomia::ui::management6c

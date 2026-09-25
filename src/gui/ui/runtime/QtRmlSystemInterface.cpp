@@ -35,6 +35,14 @@ void QtRmlSystemInterface::setWindow( QWindow* window )
     m_window = window;
 }
 
+void QtRmlSystemInterface::setMapCursor( QWindow* window, Qt::CursorShape shape )
+{
+    const bool changed = m_mapWindow != window || m_mapCursor != shape;
+    m_mapWindow = window;
+    m_mapCursor = shape;
+    if ( changed && m_overMap && window ) window->setCursor( QCursor( shape ) );
+}
+
 double QtRmlSystemInterface::GetElapsedTime()
 {
     return static_cast<double>( m_elapsed.nsecsElapsed() ) / 1'000'000'000.0;
@@ -74,9 +82,13 @@ void QtRmlSystemInterface::SetMouseCursor( const Rml::String& cursorName )
     if ( !m_window ) return;
     const QString name = fromRml( cursorName );
     Qt::CursorShape cursor = Qt::ArrowCursor;
+    if ( m_window == m_mapWindow ) m_overMap = name.isEmpty();
+    if ( name.isEmpty() && m_window == m_mapWindow ) cursor = m_mapCursor;
     if ( name == "pointer" ) cursor = Qt::PointingHandCursor;
     else if ( name == "text" ) cursor = Qt::IBeamCursor;
     else if ( name == "cross" ) cursor = Qt::CrossCursor;
+    else if ( name == "wait" ) cursor = Qt::WaitCursor;
+    else if ( name == "progress" ) cursor = Qt::BusyCursor;
     else if ( name == "move" || name.startsWith( "rmlui-scroll-" ) ) cursor = Qt::SizeAllCursor;
     else if ( name == "ew-resize" || name == "e-resize" || name == "w-resize" ) cursor = Qt::SizeHorCursor;
     else if ( name == "ns-resize" || name == "n-resize" || name == "s-resize" ) cursor = Qt::SizeVerCursor;

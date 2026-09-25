@@ -96,11 +96,12 @@ public slots:
 	void onSetBasicOptions( unsigned int stockpileID, QString name, int priority, bool suspended, bool pull, bool allowPull );
 	void onSetActive( unsigned int stockpileID, bool active, QString category, QString group, QString item, QString material );
 	void onSetActiveBatch( unsigned int stockpileID, bool active, const QList<QStringList>& paths );
-	void onSaveFilterTemplate( unsigned int stockpileID, QString name );
+	void onSaveFilterTemplate( unsigned int stockpileID, QString name, bool replaceExisting = false );
 	void onApplyFilterTemplate( unsigned int stockpileID, QString name );
 
 	void onCloseWindow();
 signals:
+    void signalStockpileRejected(unsigned int stockpileID, const QString& reason);
 	void signalOpenStockpileWindow( unsigned int stockpileID );
 	void signalUpdateInfo( const GuiStockpileInfo& info );
 	void signalUpdateContent( const GuiStockpileInfo& info );

@@ -3,8 +3,8 @@
   <title>UI Designer</title>
   <link type="text/rcss" href="/styles/base.rcss" />
   <link type="text/rcss" href="/styles/components.rcss" />
-  <link type="text/rcss" href="/styles/accessibility.rcss" />
   <link type="text/rcss" href="/developer_ui/designer_overlay.rcss" />
+  <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
 <body id="designer_overlay" class="designer-overlay">
   <div id="designer_toolbar" class="designer-toolbar" role="toolbar" aria-label="UI Designer">

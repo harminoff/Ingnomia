@@ -5,6 +5,8 @@
 #include <RmlUi/Core/EventListener.h>
 #include <memory>
 #include <functional>
+#include <optional>
+#include <string>
 #include <vector>
 namespace Rml { class Context; class Element; class ElementDocument; class Event; }
 namespace ingnomia::ui::hud
@@ -36,6 +38,8 @@ public:
 	void setPauseHandler(PauseHandler pause);
 	void setInspectionHandler( CloseHandler handler ) { inspect_ = std::move(handler); }
 	void setInspectionActive( bool active );
+	/// Called with true while a tool is armed, so the game window can show the mode in its pointer (PDF p.154, p.355).
+	void setToolCursorHandler( std::function<void( bool )> handler ) { toolCursor_ = std::move( handler ); }
 	void restoreWorkbenchFocus(FocusToken);
 private:
 	class Callback final : public Rml::EventListener { public: Callback( std::function<void()> fn ):fn_(std::move(fn)){} Callback( std::function<void(Rml::Event&)> fn ):eventFn_(std::move(fn)){} void ProcessEvent(Rml::Event&) override; private: std::function<void()> fn_; std::function<void(Rml::Event&)> eventFn_; };
@@ -44,11 +48,11 @@ private:
 	void text( const char* id, const std::string& value );
 	void visible( const char* id, bool value );
 	void toggleActionMenu( std::string_view menu );
-	void backToSidebar();
-	void bindSidebarTooltip( const char* id, const char* textKey );
-	void showSidebarTooltip( const char* textKey, Rml::Element* source );
-	void hideSidebarTooltip();
-	void selectMineMode( std::string_view tool );
+	void closeMenus();
+	void bindStatusMessage( const char* id );
+	[[nodiscard]] std::string statusMessage( const HudState& ) const;
+	void renderStatus( const HudState& );
+	void renderBuild( const HudState&, bool showBuild );
 	void selectBuildCategory( const char* elementId, BuildSelection selection, std::string_view category );
 	void backToBuildCategories();
 	Rml::Context& context_;
@@ -65,12 +69,11 @@ private:
 	bool inspectionActive_{};
 	DocumentLoader documentLoader_;
 	PauseHandler openPause_;
-	bool mineMenuOpen_{};
-	bool agricultureMenuOpen_{};
-	bool designationMenuOpen_{};
-	bool jobsMenuOpen_{};
+	std::string openMenu_;
+	std::string hoverStatus_;
+	std::string renderedWatch_;
+	std::function<void( bool )> toolCursor_;
 	bool buildMenuOpen_{};
-	bool kingdomPanelOpen_{};
 	std::string selectedBuild_;
 	std::string selectedBuildCategory_;
 	std::string selectedBuildType_;
@@ -79,6 +82,7 @@ private:
 	std::vector<BuildCatalogRow> renderedBuildCatalog_;
 	std::string renderedSelectedBuild_;
 	std::string renderedSelectedBuildType_;
+	std::string renderedBuildList_, renderedBuildDetails_;
 	bool updatingBuildCatalog_{};
 	std::optional<PromptInstanceId> focusedPrompt_;
 };

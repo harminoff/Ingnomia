@@ -1,45 +1,72 @@
 <rml>
 <head>
-  <title>Inventory and Resources</title>
+  <title>Inventory</title>
   <link type="text/template" href="/templates/management_window.rml" />
   <link type="text/rcss" href="/windows/management6b.rcss" />
+  <link type="text/rcss" href="/screens/win98_classic.rcss"/><link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
 <body id="inventory_root" class="c-fixture-page l-m6b-root is-hidden">
   <template src="management-window">
-  <main id="inventory_workbench" class="c-window l-m6b-window" role="dialog" aria-labelledby="inventory_heading">
-    <header class="c-title-bar"><handle class="c-title-bar__drag-handle" move_target="inventory_workbench" edge_margin="76dp 12dp 58dp 12dp"><span class="c-title-bar__mark l-m6b-title-icon" aria-hidden="true"></span><h1 id="inventory_heading" class="c-title-bar__title" tab-index="-1" data-l10n="management.inventory.title">Inventory &amp; Resources</h1></handle><button id="inventory_close" class="c-button" data-l10n="common.close">Close</button></header>
-    <div class="c-window__body l-m6b-body">
-      <div id="inventory_list" class="l-m6b-inventory-layout">
-        <section class="l-m6b-inventory-main l-m6b-inventory-main--full">
-          <div id="inventory_column_head" class="l-m6b-column-head l-inventory-flat-header c-excel-header" role="row">
-            <div class="l-inventory-flat__category c-excel-header__cell"><button id="inventory_sort_category" class="c-excel-header__sort"><span id="inventory_column_category">Category</span><span id="inventory_sort_category_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_category" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Category" aria-controls="inventory_filter_category_options" aria-expanded="false"/><button id="inventory_filter_category_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Category values" aria-controls="inventory_filter_category_options" aria-expanded="false">v</button><div id="inventory_filter_category_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-            <div class="l-inventory-flat__group c-excel-header__cell"><button id="inventory_sort_group" class="c-excel-header__sort"><span id="inventory_column_group">Type</span><span id="inventory_sort_group_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_group" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Type" aria-controls="inventory_filter_group_options" aria-expanded="false"/><button id="inventory_filter_group_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Type values" aria-controls="inventory_filter_group_options" aria-expanded="false">v</button><div id="inventory_filter_group_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-            <div class="l-inventory-flat__item c-excel-header__cell"><button id="inventory_sort_item" class="c-excel-header__sort"><span id="inventory_column_item">Item</span><span id="inventory_sort_item_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_item" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Item" aria-controls="inventory_filter_item_options" aria-expanded="false"/><button id="inventory_filter_item_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Item values" aria-controls="inventory_filter_item_options" aria-expanded="false">v</button><div id="inventory_filter_item_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-            <div class="l-inventory-flat__material c-excel-header__cell"><button id="inventory_sort_material" class="c-excel-header__sort"><span id="inventory_column_material">Material</span><span id="inventory_sort_material_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_material" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Material" aria-controls="inventory_filter_material_options" aria-expanded="false"/><button id="inventory_filter_material_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Material values" aria-controls="inventory_filter_material_options" aria-expanded="false">v</button><div id="inventory_filter_material_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-            <div class="l-m6b-inventory__metric-head c-excel-header__cell"><button id="inventory_sort_stock" class="c-excel-header__sort"><span data-l10n="management.inventory.column.stock">In Stock</span><span id="inventory_sort_stock_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_stock" readonly="readonly" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter In Stock" aria-controls="inventory_filter_stock_options" aria-expanded="false"/><button id="inventory_filter_stock_toggle" class="c-excel-filter-combo__toggle" aria-label="Show In Stock values" aria-controls="inventory_filter_stock_options" aria-expanded="false">v</button><div id="inventory_filter_stock_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-            <div class="l-m6b-inventory__metric-head c-excel-header__cell"><button id="inventory_sort_total" class="c-excel-header__sort"><span data-l10n="management.inventory.column.total">Total</span><span id="inventory_sort_total_direction"></span></button><div class="c-excel-filter-combo"><input id="inventory_filter_total" readonly="readonly" class="text c-excel-header__filter" type="text" placeholder="All" aria-label="Filter Total" aria-controls="inventory_filter_total_options" aria-expanded="false"/><button id="inventory_filter_total_toggle" class="c-excel-filter-combo__toggle" aria-label="Show Total values" aria-controls="inventory_filter_total_options" aria-expanded="false">v</button><div id="inventory_filter_total_options" class="c-excel-filter-combo__options is-hidden" role="listbox"></div></div></div>
-          </div>
-          <div id="inventory_rows" class="c-list c-scroll-region l-m6b-inventory" role="grid" aria-labelledby="inventory_column_head" tab-index="0"></div>
+  <!-- Windows 98 report window (252 x 218 DLU): nothing here is pending, so Close is the only commit button.
+       The check box on each row is the watch state and takes effect at once. -->
+  <main id="inventory_workbench" class="c-window l-m6b-window w98-sheet" role="dialog" aria-labelledby="inventory_heading">
+    <header class="w98-caption"><handle class="c-title-bar__drag-handle" move_target="inventory_workbench"><h1 id="inventory_heading" class="c-title-bar__title" tab-index="-1" data-l10n="win98.inventory.heading">Inventory</h1></handle><button id="inventory_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inventory.close.title" aria-label="Close">&#x00D7;</button></header>
+    <div class="w98-sheet__body">
+      <div id="inventory_scroll" class="w98-page-frame">
+        <section id="inventory_list" class="w98-page w98-col">
+          <div class="w98-line"><label class="w98-label" for="inventory_search" data-l10n="win98.inventory.search">Find:</label><input id="inventory_search" class="w98-field l-sp-find" type="text"/><label class="w98-label" for="inventory_category" data-l10n="win98.inventory.category">Category:</label><select id="inventory_category" class="w98-select l-sp-category"><option value="" data-l10n="win98.inventory.all">(All)</option></select></div>
+          <div class="w98-gap"></div>
+          <label class="w98-label" for="inventory_rows" data-l10n="win98.inventory.rows">Items (check an item to watch it):</label>
+          <div class="w98-listview w98-grow"><div class="w98-listview__header"><button id="inventory_sort_item" class="w98-listview__heading w98-cell--grow">Item<span id="inventory_mark_item" class="w98-sort-mark"></span></button><button id="inventory_sort_material" class="w98-listview__heading l-sp-w-material">Material<span id="inventory_mark_material" class="w98-sort-mark is-hidden"></span></button><button id="inventory_sort_stock" class="w98-listview__heading l-sp-w-number">In Stock<span id="inventory_mark_stock" class="w98-sort-mark is-hidden"></span></button><button id="inventory_sort_total" class="w98-listview__heading l-sp-w-number">Total<span id="inventory_mark_total" class="w98-sort-mark is-hidden"></span></button></div><div id="inventory_rows" class="w98-list" role="listbox" tab-index="0" aria-label="Items"></div></div>
+          <div class="w98-gap"></div>
+          <label class="w98-check" for="inventory_owned_only"><input id="inventory_owned_only" class="checkbox" type="checkbox"/><span data-l10n="win98.inventory.owned_only">Show only items the settlement has</span></label>
+          <div class="w98-line"><p id="inventory_matches" class="w98-text w98-grow" role="status"></p><button id="inventory_open_item" class="w98-button" data-l10n="win98.inventory.open_item">Properties</button></div>
         </section>
       </div>
-	  <section id="inventory_detail" class="l-m6b-item-detail is-hidden" aria-labelledby="inventory_detail_name">
-	    <div class="l-m6b-item-detail__toolbar"><button id="inventory_detail_back" class="c-button" data-l10n="management.inventory.detail_back">Back to inventory</button><h2 id="inventory_detail_name">Item</h2></div>
-	    <div id="inventory_detail_summary" class="l-m6b-item-detail__summary"></div>
-	    <div class="l-m6b-item-detail__grid">
-	      <div class="l-m6b-item-detail__row">
-	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.made_by">How to make it</h3><div id="inventory_detail_made_by"></div></section>
-	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.used_in">What it makes</h3><div id="inventory_detail_used_in"></div></section>
-	      </div>
-	      <div class="l-m6b-item-detail__row">
-	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.stored_at">Stored in stockpiles</h3><div id="inventory_detail_locations"></div></section>
-	      <section class="l-m6b-item-detail__card"><h3 data-l10n="management.inventory.history">History</h3><div id="inventory_detail_history"></div></section>
-	      </div>
-	    </div>
-	  </section>
-
+      <div class="w98-buttonbar"><button id="inventory_close_button" class="w98-button w98-button--default" data-l10n="win98.common.close">Close</button></div>
     </div>
-
   </main>
+
+  <!-- Item Properties: a subordinate property sheet over the Inventory window (PDF p.147, p.163). Close only. -->
+  <section id="inventory_detail" class="c-window l-m6b-window w98-sheet l-inv-detail is-hidden" role="dialog" aria-labelledby="inventory_detail_title">
+    <header class="w98-caption"><handle class="c-title-bar__drag-handle" move_target="inventory_detail"><h2 id="inventory_detail_title" class="c-title-bar__title"></h2></handle><button id="inventory_detail_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inventory.detail_close.title" aria-label="Close">&#x00D7;</button></header>
+    <div class="w98-sheet__body">
+      <nav id="inventory_detail_tabs" class="c-tabs c-connected-tabs w98-tabs" role="tablist"><button id="inventory_detail_tab_general" class="c-tabs__tab" role="tab" aria-controls="inventory_detail_general" data-l10n="win98.inventory.detail_tab_general">General</button><button id="inventory_detail_tab_stockpiles" class="c-tabs__tab" role="tab" aria-controls="inventory_detail_stockpiles" data-l10n="win98.inventory.detail_tab_stockpiles">Stockpiles</button><button id="inventory_detail_tab_recipes" class="c-tabs__tab" role="tab" aria-controls="inventory_detail_recipes" data-l10n="win98.inventory.detail_tab_recipes">Recipes</button><button id="inventory_detail_tab_history" class="c-tabs__tab" role="tab" aria-controls="inventory_detail_history_page" data-l10n="win98.inventory.detail_tab_history">History</button></nav>
+      <div id="inventory_detail_frame" class="w98-page-frame">
+        <section id="inventory_detail_general" class="w98-page w98-col" role="tabpanel" aria-labelledby="inventory_detail_tab_general">
+          <p id="inventory_detail_name" class="w98-text"></p>
+          <div class="w98-separator"></div>
+          <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inventory.total">Total:</span><p id="inventory_detail_total" class="w98-text"></p></div>
+          <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inventory.in_stockpiles">In stockpiles:</span><p id="inventory_detail_stock" class="w98-text"></p></div>
+          <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inventory.lying_loose">Lying loose:</span><p id="inventory_detail_loose" class="w98-text"></p></div>
+          <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inventory.equipped">Equipped:</span><p id="inventory_detail_equipped" class="w98-text"></p></div>
+          <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inventory.in_use_by_jobs">In use by jobs:</span><p id="inventory_detail_jobs" class="w98-text"></p></div>
+          <div class="w98-separator"></div>
+          <label class="w98-check" for="inventory_detail_watch"><input id="inventory_detail_watch" class="checkbox" type="checkbox"/><span data-l10n="win98.inventory.detail_watch">Watch this item</span></label>
+        </section>
+        <section id="inventory_detail_stockpiles" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="inventory_detail_tab_stockpiles">
+          <label class="w98-label" for="inventory_detail_locations" data-l10n="win98.inventory.detail_locations">Stored in these stockpiles:</label>
+          <div class="w98-listview w98-grow"><div class="w98-listview__header"><span class="w98-cell--grow" style="flex: 1 1 auto;" data-l10n="win98.inventory.stockpile">Stockpile</span><span class="l-sp-w-number" style="text-align: right;" data-l10n="win98.inventory.items">Items</span></div><div id="inventory_detail_locations" class="w98-list" role="listbox" aria-label="Stockpiles"></div></div>
+          <div class="w98-gap"></div>
+          <div class="w98-line w98-line--end"><button id="inventory_detail_open_stockpile" class="w98-button" data-l10n="win98.inventory.detail_open_stockpile">Properties</button></div>
+        </section>
+        <section id="inventory_detail_recipes" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="inventory_detail_tab_recipes">
+          <label class="w98-label" for="inventory_detail_made_by" data-l10n="win98.inventory.detail_made_by">Made by:</label>
+          <div id="inventory_detail_made_by" class="w98-list w98-grow" role="listbox" aria-label="Made by"></div>
+          <div class="w98-gap"></div>
+          <label class="w98-label" for="inventory_detail_used_in" data-l10n="win98.inventory.detail_used_in">Used to make:</label>
+          <div id="inventory_detail_used_in" class="w98-list w98-grow" role="listbox" aria-label="Used to make"></div>
+          <div class="w98-gap"></div>
+          <div class="w98-line w98-line--end"><button id="inventory_detail_open_product" class="w98-button" data-l10n="win98.inventory.detail_open_product">Properties</button></div>
+        </section>
+        <section id="inventory_detail_history_page" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="inventory_detail_tab_history">
+          <label class="w98-label" for="inventory_detail_history" data-l10n="win98.inventory.detail_history">Count at the end of each day:</label>
+          <div class="w98-listview w98-grow"><div class="w98-listview__header"><span class="w98-cell--grow" style="flex: 1 1 auto;" data-l10n="win98.inventory.day">Day</span><span class="l-sp-w-number" style="text-align: right;" data-l10n="win98.inventory.total_2">Total</span><span class="l-sp-w-number" style="text-align: right;" data-l10n="win98.inventory.made">Made</span><span class="l-sp-w-number" style="text-align: right;" data-l10n="win98.inventory.used">Used</span></div><div id="inventory_detail_history" class="w98-list" role="listbox" aria-label="History"></div></div>
+        </section>
+      </div>
+      <div class="w98-buttonbar"><button id="inventory_detail_close_button" class="w98-button w98-button--default" data-l10n="win98.common.close">Close</button></div>
+    </div>
+  </section>
   </template>
 </body>
 </rml>

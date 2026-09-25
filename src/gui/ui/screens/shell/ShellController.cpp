@@ -111,6 +111,9 @@ void ShellController::setLifecycleProgress( std::string progress )
 void ShellController::finishWorldTransition( bool success )
 {
 	state_.lifecycle.blocksWorldInput = false;
+	// The request that started the transition (continue, load, start) is answered by the transition itself; left
+	// pending, it kept every Pause command unavailable in the loaded game (Stage 19).
+	if( state_.pendingRequest && state_.pendingRequest != pendingPauseRequest_ && state_.pendingRequest != pendingSaveRequest_ ) state_.pendingRequest.reset();
 	state_.lifecycle.progressText.clear();
 	if( success )
 	{
@@ -135,6 +138,7 @@ void ShellController::finishWorldTransition( bool success )
 
 void ShellController::endWorld()
 {
+    if(confirmation_) activate(ShellControl::CancelDestructive);
 	state_.lifecycle = LifecycleView{};
 	state_.route = RouteId{ "shell.main_menu" };
 	state_.pendingRequest.reset();
@@ -200,6 +204,12 @@ bool ShellController::handleEscape()
 		activate( ShellControl::CancelDestructive );
 		return true;
 	}
+    if(state_.route.value == "shell.new_game" || state_.route.value == "shell.load_game" ||
+        state_.route.value == "shell.settings" || state_.route.value == "game.settings")
+    {
+        back();
+        return true;
+    }
 	if( state_.route.value == "game.hud" )
 	{
 		const bool pauseAlreadyRequested = state_.authoritativePaused ||
@@ -284,6 +294,7 @@ void ShellController::back()
 void ShellController::requestConfirmation( UiActionEnvelope pending, Message title, Message detail,
 	FocusToken returnFocus, std::optional<RouteId> routeAfterAccepted )
 {
+	if(confirmation_) return;
 	confirmation_ = PendingConfirmation{ std::move( pending ), std::move( title ), std::move( detail ),
 		returnFocus, std::move( routeAfterAccepted ) };
 	view_.showConfirmation( confirmation_->title, confirmation_->detail, returnFocus );

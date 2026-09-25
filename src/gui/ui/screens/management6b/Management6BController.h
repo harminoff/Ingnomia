@@ -58,13 +58,14 @@ public:
 	void inventoryChanged();
 	void setPopulationFilter( std::string );
 	void setInventoryFilter( std::string );
+	void clearInventoryFilters();
 	void setInventoryColumnFilter( std::size_t column, std::string );
 	void toggleInventoryColumnSelection( std::size_t column, std::string );
 	void setInventoryOwnedOnly( bool );
 	void setInventoryCategory( std::string );
 	void toggleInventoryExpanded( InventoryRowId );
 	[[nodiscard]] bool inventoryExpanded( const InventoryRowId& ) const;
-	void setPopulationSort( Sort );
+	void setPopulationSort( Sort, bool descending = false );
 	void setInventorySort( Sort );
 	[[nodiscard]] std::vector<PopulationRow> visiblePopulation() const;
 	[[nodiscard]] std::vector<InventoryRow> visibleInventory() const;
@@ -73,6 +74,7 @@ public:
 	void changePopulationPage( std::int32_t );
 	void changeInventoryPage( std::int32_t );
 	void selectCreature( CreatureId );
+	void highlightCreature( CreatureId );
 	void selectSkill( CatalogId );
 	void selectProfession( ProfessionId );
 	void selectProfessionSkill( CatalogId );
@@ -83,6 +85,8 @@ public:
 	void moveProfessionSkill( std::int32_t );
 	void createProfession( std::string );
 	void saveProfession();
+    void discardProfessionDraft();
+    void deleteReviewedProfession(WorldEpoch, const ProfessionRow&);
 	void deleteProfession();
 	void setScheduleActivity( ManagedScheduleActivity );
 	void selectInventory( InventoryRowId );
@@ -93,7 +97,14 @@ public:
 	void movePopulationSelection( std::int32_t );
 	void moveInventorySelection( std::int32_t );
 	void selectScheduleCell( ScheduleCellId );
-	void moveScheduleFocus( std::int32_t hourDelta, std::int32_t rowDelta );
+	void extendScheduleSelection( ScheduleCellId );
+	void selectScheduleCitizen( CreatureId );
+	void selectScheduleHour( std::uint8_t );
+	void selectAllSchedule();
+	void moveScheduleFocus( std::int32_t hourDelta, std::int32_t rowDelta, bool extend = false );
+	[[nodiscard]] ScheduleScope scheduleScope() const;
+	/// Sets every cell in the current scope, using the row and column commands where they match exactly.
+	std::size_t applyScheduleScope( ScheduleActivity, const ScheduleScope& reviewed );
 	bool applyPopulation( Snapshot<std::vector<PopulationRow>> );
 	bool applyPopulationPatch( RowPatch<PopulationRow> );
 	bool applyProfessions( Snapshot<std::vector<ProfessionRow>> );
@@ -107,6 +118,7 @@ public:
 	void setSkill( CreatureId, CatalogId, bool );
 	void setAllSkills( CreatureId, bool );
 	void setSkillForAll( CatalogId, bool );
+    void setSkillForAllReviewed(CatalogId, bool, WorldEpoch, Revision);
 	void setProfession( CreatureId, ProfessionId );
 	void updateProfession( ProfessionId, std::string, std::vector<CatalogId> );
 	void setScheduleCell( CreatureId, std::uint8_t, ScheduleActivity );
@@ -130,7 +142,9 @@ private:
 	CommandPort& commands_;
 	std::vector<ViewPort*> views_;
 	Management6BState state_;
-	bool inventoryExpansionInitialized_ {};
+	std::optional<ProfessionRow> professionBase_, professionSubmitted_;
+    std::optional<RequestId> professionRequest_;
+    bool inventoryExpansionInitialized_ {};
 	std::uint64_t nextRequest_ { 1 };
 };
 } // namespace ingnomia::ui::management6b

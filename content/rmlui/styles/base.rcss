@@ -1,52 +1,39 @@
-/* Generated-value companion to tokens.json. Keep values synchronized through
-   tests/ui-design-system/verify-design-system.cmake. */
+/* Generated from base.rcss.in and tokens.json. Edit the source inputs. */
 
-* {
-    box-sizing: border-box;
+/* Original arrow geometry; transparent 16dp cells keep glyph size stable. */
+@spritesheet win98-chrome {
+    src: /icons/chrome-arrows.tga;
+    resolution: 1x;
+    win98-up: 0px 0px 16px 16px;
+    win98-down: 16px 0px 16px 16px;
+    win98-left: 32px 0px 16px 16px;
+    win98-right: 48px 0px 16px 16px;
 }
+
+* { box-sizing: border-box; }
+
+body, div { display: block; }
 
 body {
     margin: 0;
-    color: #f1eee6;
-    background-color: #101315;
+    color: #000000;
+    background-color: transparent;
     font-family: LatoLatin;
-    font-size: 15dp;
-    line-height: 22dp;
+    font-size: 13dp;
+    line-height: 18dp;
     nav: auto;
 }
 
-h1, h2, h3, p, ul {
-    display: block;
-    margin: 0;
-}
-
-h1 {
-    color: #f1eee6;
-    font-size: 26dp;
-    line-height: 34dp;
-}
-
-h2 {
-    color: #f1eee6;
-    font-size: 20dp;
-    line-height: 28dp;
-}
-
-h3 {
-    color: #c8c7bf;
-    font-size: 17dp;
-    line-height: 24dp;
-}
-
-p {
-    color: #c8c7bf;
-    margin-bottom: 8dp;
-}
+h1, h2, h3, p, ul { display: block; margin: 0; }
+h1 { color: #000000; font-size: 26dp; line-height: 32dp; }
+h2 { color: #000000; font-size: 20dp; line-height: 26dp; }
+h3 { color: #404040; font-size: 17dp; line-height: 22dp; }
+p { color: #404040; margin-bottom: 8dp; }
 
 button, input, select, textarea {
-    color: #f1eee6;
+    color: #000000;
     font-family: LatoLatin;
-    font-size: 14dp;
+    font-size: 13dp;
     tab-index: auto;
     nav: auto;
 }
@@ -54,39 +41,43 @@ button, input, select, textarea {
 button {
     min-height: 40dp;
     padding: 8dp 12dp;
-    background-color: #2d373b;
-    border-width: 1dp;
-    border-color: #596166;
-    border-radius: 4dp;
+    background-color: #c0c0c0;
+    border-width: 2dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #808080;
+    border-bottom-color: #808080;
+    border-radius: 0;
     cursor: pointer;
 }
-
-button:hover {
-    background-color: #344046;
-    border-color: #7a858a;
+button:hover { background-color: #c0c0c0; }
+button:active, button.is-key-pressed {
+    padding: 9dp 13dp 7dp 11dp;
+    background-color: #c0c0c0;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
 }
 
-button:active {
-    background-color: #182024;
-    border-color: #c69456;
-}
-
-button:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible,
-[tab-index]:focus-visible {
+textarea:focus-visible {
     border-width: 2dp;
-    border-color: #ffd27a;
+    border-color: #000000;
 }
 
 button:disabled,
+button[disabled],
 input:disabled,
 select:disabled,
 textarea:disabled {
-    color: #7f8583;
-    background-color: #171b1d;
-    border-color: #30373a;
+    color: #808080;
+    background-color: #c0c0c0;
+    border-top-color: #dfdfdf;
+    border-left-color: #dfdfdf;
+    border-right-color: #808080;
+    border-bottom-color: #808080;
     cursor: unavailable;
 }
 
@@ -96,206 +87,160 @@ textarea,
 select {
     min-height: 40dp;
     padding: 8dp 12dp;
-    color: #f1eee6;
-    background-color: #13191b;
-    border-width: 1dp;
-    border-color: #596166;
-    border-radius: 4dp;
+    color: #000000;
+    background-color: #ffffff;
+    border-width: 2dp;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    border-radius: 0;
 }
-
-textarea {
-    min-height: 96dp;
-    cursor: text;
-}
-
-select {
-    width: 100%;
-}
-
+textarea { min-height: 96dp; cursor: text; }
+select { width: 100%; }
 select selectvalue {
     width: auto;
     height: 38dp;
     margin-right: 36dp;
     padding: 9dp 12dp;
-    background-color: #13191b;
+    background-color: #ffffff;
 }
-
 select selectarrow {
+    decorator: image(win98-down scale-none center center);
     width: 36dp;
     height: 38dp;
-    background-color: #2d373b;
+    background-color: #c0c0c0;
     border-left-width: 1dp;
-    border-left-color: #596166;
+    border-left-color: #808080;
 }
-
 select selectarrow:hover,
-select selectarrow:checked {
-    background-color: #493a2b;
-}
-
+select selectarrow:checked { background-color: #d4d0c8; }
 select selectbox {
     width: 100%;
     margin-top: 2dp;
     padding: 4dp;
-    background-color: #252d31;
+    background-color: #ffffff;
     border-width: 1dp;
-    border-color: #7a858a;
+    border-color: #808080;
 }
-
 select selectbox option {
-    min-height: 36dp;
-    padding: 8dp 12dp;
-    background-color: #252d31;
+    min-height: 30dp;
+    padding: 6dp 8dp;
+    background-color: #ffffff;
 }
-
-select selectbox option:hover {
-    background-color: #344046;
-}
-
+select selectbox option:hover { background-color: #d4d0c8; }
 select selectbox option:checked {
-    color: #f1eee6;
-    background-color: #493a2b;
-    border-left-width: 3dp;
-    border-left-color: #d19a55;
+    color: #ffffff;
+    background-color: #000080;
 }
 
 input.checkbox,
 input.radio {
-    width: 24dp;
-    height: 24dp;
+    width: 20dp;
+    height: 20dp;
     margin-right: 8dp;
-    vertical-align: -6dp;
-    background-color: #13191b;
+    vertical-align: middle;
+    background-color: #ffffff;
     border-width: 2dp;
-    border-color: #7a858a;
+    border-top-color: #808080;
+    border-left-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    border-radius: 0;
 }
-
-input.radio {
-    border-radius: 12dp;
-}
-
+input.radio { border-radius: 10dp; }
 input.checkbox:checked,
 input.radio:checked {
-    background-color: #d19a55;
+    background-color: #000080;
     border-width: 5dp;
-    border-color: #493a2b;
+    border-color: #ffffff;
 }
 
-.u-muted { color: #9fa4a1; }
-.u-secondary { color: #c8c7bf; }
-.u-danger { color: #e27b70; }
-.u-success { color: #77be78; }
+.u-muted { color: #808080; }
+.u-secondary { color: #404040; }
+.u-information { color: #000080; }
+.u-warning { color: #804000; }
+.u-notice { color: #404040; }
+.u-danger { color: #800000; }
+.u-success { color: #006000; }
 .u-row { display: flex; flex-direction: row; align-items: center; gap: 8dp; }
 .u-column { display: flex; flex-direction: column; gap: 8dp; }
 .u-grow { flex: 1; }
 .u-right { text-align: right; }
 .u-hidden { display: none; }
 
-/* Classic park-management skin. This is intentionally centralized: the
-   application keeps the typed routes and action wiring, while the visual
-   language moves toward compact, beveled Windows-era management panels. */
-body {
-    color: #142333;
-    background-color: transparent;
-    font-size: 13dp;
-    line-height: 18dp;
+/* Generated scrollbar parts use the same window bevel and directional glyphs. */
+scrollbarvertical { width: 16dp; }
+scrollbarhorizontal { height: 16dp; }
+scrollbarvertical slidertrack, scrollbarhorizontal slidertrack { background-color: #dfdfdf; }
+scrollbarvertical sliderbar, scrollbarhorizontal sliderbar,
+sliderarrowdec, sliderarrowinc {
+    background-color: #c0c0c0;
+    border-width: 1dp;
+    border-top-color: #ffffff;
+    border-left-color: #ffffff;
+    border-right-color: #000000;
+    border-bottom-color: #000000;
+}
+scrollbarvertical sliderbar { min-height: 24dp; }
+scrollbarhorizontal sliderbar { min-width: 24dp; }
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { height: 16dp; }
+scrollbarhorizontal sliderarrowdec, scrollbarhorizontal sliderarrowinc { width: 16dp; }
+scrollbarvertical sliderarrowdec { decorator: image(win98-up scale-none center center); }
+scrollbarvertical sliderarrowinc { decorator: image(win98-down scale-none center center); }
+scrollbarhorizontal sliderarrowdec { decorator: image(win98-left scale-none center center); }
+scrollbarhorizontal sliderarrowinc { decorator: image(win98-right scale-none center center); }
+sliderarrowdec:active, sliderarrowinc:active {
+    border-top-color: #808080; border-left-color: #808080;
+    border-right-color: #ffffff; border-bottom-color: #ffffff;
 }
 
-h1 { color: #142333; font-size: 24dp; line-height: 30dp; }
-h2 { color: #142333; font-size: 17dp; line-height: 22dp; }
-h3 { color: #24415a; font-size: 14dp; line-height: 19dp; }
-p { color: #2f4659; margin-bottom: 6dp; }
+/* Focus is paint, never a replacement for the raised/pressed bevel. */
+button:focus-visible, [tab-index]:focus-visible { decorator: win98-focus(#000000); }
+button[disabled] { tab-index: none; pointer-events: none; }
 
-button, input, select, textarea {
-    color: #142333;
-    font-size: 13dp;
+button:disabled, button[disabled] { font-effect: shadow(1dp 1dp #ffffff); }
+
+/* Stage 05: fixed geometry, classic marks, and distinct editability. */
+@spritesheet win98-form-marks {
+    src: /icons/form-marks.tga;
+    resolution: 1x;
+    win98-check: 0px 0px 16px 16px;
+    win98-radio: 16px 0px 16px 16px;
+    win98-check-disabled: 32px 0px 16px 16px;
+    win98-radio-disabled: 48px 0px 16px 16px;
 }
-
-button {
-    min-height: 30dp;
-    padding: 5dp 9dp;
-    background-color: #d5dde0;
+input.checkbox, input.radio, input.checkbox:checked, input.radio:checked {
+    width: 20dp; height: 20dp; padding: 0; border-width: 2dp;
+    background-color: #ffffff;
+    border-top-color: #808080; border-left-color: #808080;
+    border-right-color: #ffffff; border-bottom-color: #ffffff;
+}
+input.checkbox { border-radius: 0; }
+input.radio { border-radius: 10dp; }
+input.checkbox:checked { decorator: image(win98-check scale-none center center); }
+input.radio:checked { decorator: image(win98-radio scale-none center center); }
+input.checkbox:focus-visible, input.radio:focus-visible { box-shadow: 0 0 0 1dp #000000; }
+input.checkbox[disabled], input.radio[disabled] { background-color: #c0c0c0; }
+input.checkbox[disabled]:checked { decorator: image(win98-check-disabled scale-none center center); }
+input.radio[disabled]:checked { decorator: image(win98-radio-disabled scale-none center center); }
+input[disabled], select[disabled], textarea[disabled] { tab-index: none; }
+input[readonly], textarea[readonly] { color: #000000; background-color: #c0c0c0; }
+input.text:focus-visible, input.password:focus-visible, textarea:focus-visible, select:focus-visible {
     border-width: 2dp;
-    border-top-color: #f7faf8;
-    border-left-color: #f7faf8;
-    border-right-color: #4d6476;
-    border-bottom-color: #4d6476;
-    border-radius: 2dp;
+    border-top-color: #808080; border-left-color: #808080;
+    border-right-color: #ffffff; border-bottom-color: #ffffff;
 }
+input.is-invalid { border-width: 2dp; border-color: #800000; }
+select selectarrow { border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #808080; border-bottom-color: #808080; }
+select selectarrow:hover { background-color: #c0c0c0; }
+select selectarrow:active { border-top-color: #808080; border-left-color: #808080; border-right-color: #ffffff; border-bottom-color: #ffffff; }
 
-button:hover {
-    color: #142333;
-    background-color: #e9d36e;
-    border-top-color: #fffbe3;
-    border-left-color: #fffbe3;
-    border-right-color: #855d19;
-    border-bottom-color: #855d19;
-}
+select { padding: 0; }
+select selectvalue { height: 36dp; padding: 8dp 12dp; box-sizing: border-box; }
+select selectarrow { height: 36dp; box-sizing: border-box; }
 
-button:active {
-    background-color: #efb648;
-    border-top-color: #4d6476;
-    border-left-color: #4d6476;
-    border-right-color: #f7faf8;
-    border-bottom-color: #f7faf8;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tab-index]:focus-visible {
-    border-width: 2dp;
-    border-color: #d47a20;
-}
-
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled {
-    color: #74818a;
-    background-color: #b9c3c8;
-    border-top-color: #dbe1e2;
-    border-left-color: #dbe1e2;
-    border-right-color: #7b8991;
-    border-bottom-color: #7b8991;
-}
-
-input.text,
-input.password,
-textarea,
-select {
-    min-height: 30dp;
-    padding: 5dp 8dp;
-    color: #142333;
-    background-color: #f3f5ef;
-    border-width: 2dp;
-    border-top-color: #4d6476;
-    border-left-color: #4d6476;
-    border-right-color: #f7faf8;
-    border-bottom-color: #f7faf8;
-    border-radius: 1dp;
-}
-
-input.checkbox {
-    width: 20dp;
-    height: 20dp;
-    margin-right: 7dp;
-    vertical-align: middle;
-    background-color: #f3f5ef;
-    border-width: 2dp;
-    border-top-color: #4d6476;
-    border-left-color: #4d6476;
-    border-right-color: #f7faf8;
-    border-bottom-color: #f7faf8;
-    border-radius: 1dp;
-}
-input.checkbox:checked {
-    background-color: #f1ca4f;
-    border-width: 4dp;
-    border-color: #855d19;
-}
-
-/* Keep the historical token strings discoverable for the migration verifier;
-   active declarations above are the classic-park skin values. */
-/* legacy tokens: #101315 #252d31 #13191b #f1eee6 #ffd27a #d19a55 #71b7d3 #77be78 #e0b45d #e27b70 */
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { width: 16dp; }
+scrollbarhorizontal sliderarrowdec, scrollbarhorizontal sliderarrowinc { height: 16dp; }
+scrollbarvertical sliderbar { width: 16dp; }
+scrollbarhorizontal sliderbar { height: 16dp; }

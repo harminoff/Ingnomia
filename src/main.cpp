@@ -80,6 +80,18 @@ void automationTrace( const QString& message )
 	stream << QDateTime::currentDateTime().toString( Qt::ISODateWithMs ) << " " << message << "\n";
 }
 
+#include "../tests/ui-stage10/runtime_probe.h"
+#include "../tests/ui-stage11/runtime_probe.h"
+#include "../tests/ui-stage12/runtime_probe.h"
+#include "../tests/ui-stage13/runtime_probe.h"
+#include "../tests/ui-stage14/runtime_probe.h"
+#include "../tests/ui-stage15/runtime_probe.h"
+#include "../tests/ui-stage16/runtime_probe.h"
+#include "../tests/ui-stage17/runtime_probe.h"
+#include "../tests/ui-stage18/runtime_probe.h"
+#include "../tests/ui-stage19/runtime_probe.h"
+#include "../tests/ui-stage20/runtime_probe.h"
+#include "../tests/ui-stage21/runtime_probe.h"
 #include "../tests/ui-management6a/runtime_probe.h"
 #include "../tests/ui-inspector/live_tile_probe.h"
 
@@ -89,13 +101,16 @@ void scheduleUiFixture( QApplication& app, const QString& fixture, const QString
 	auto* timer = new QTimer( &app );
 	timer->setInterval( 50 );
 	QObject::connect( timer, &QTimer::timeout, &app,
-		[timer, fixture, capturePath, hold, attempts = 0]() mutable {
+		[timer, appPtr = &app, fixture, capturePath, hold, attempts = 0]() mutable {
 			++attempts;
-			auto& window = MainWindow::getInstance();
+				auto& window = MainWindow::getInstance();
 			bool shown = false;
-			if ( fixture.compare( "inventory", Qt::CaseInsensitive ) == 0 ) shown = window.showInventoryFixture();
+				if ( fixture.compare( "components", Qt::CaseInsensitive ) == 0 ) shown = window.showComponentFixture();
+				else if ( fixture.compare( "shell_confirmation", Qt::CaseInsensitive ) == 0 ) shown = window.shellRouteForProbe() == "shell.main_menu";
+				else if ( fixture.compare( "inventory", Qt::CaseInsensitive ) == 0 ) shown = window.showInventoryFixture();
 			else if ( fixture.compare( "blueprint", Qt::CaseInsensitive ) == 0 ) shown = window.showInspectorBlueprintFixture();
 			else if ( fixture.compare( "stockpile", Qt::CaseInsensitive ) == 0 ) shown = window.showInspectorStockpileFixture();
+			else if ( fixture.compare( "workshop_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementWorkshopFixture();
 			else if ( fixture.compare( "stockpile_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementStockpileFixture();
 			else if ( fixture.compare( "farm_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementFarmFixture();
 			else if ( fixture.compare( "creature_profile", Qt::CaseInsensitive ) == 0
@@ -115,10 +130,57 @@ void scheduleUiFixture( QApplication& app, const QString& fixture, const QString
 			if ( !shown )
 			{
 				if ( !hold && Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
-				return;
+					return;
+				}
+			if ( fixture.compare( "shell_confirmation", Qt::CaseInsensitive ) == 0 )
+			{
+				QObject::connect( appPtr, &QCoreApplication::aboutToQuit, appPtr, [] {
+					automationTrace( "shell_confirmation about_to_quit=true" );
+				} );
+				std::string focused;
+				const bool opened = window.dispatchShellClickForProbe( "shell-exit", &focused );
+				automationTrace( QStringLiteral( "shell_confirmation first_open=%1 focus=%2 route=%3" )
+					.arg( opened ? "true" : "false", QString::fromStdString( focused ), QString::fromStdString( window.shellRouteForProbe() ) ) );
+				QTimer::singleShot( 500, appPtr, [] {
+					auto& shell = MainWindow::getInstance();
+					std::string cancelFocus;
+					const bool cancelled = shell.dispatchShellClickForProbe( "confirm-cancel", &cancelFocus );
+					const auto route = shell.shellRouteForProbe();
+					automationTrace( QStringLiteral( "shell_confirmation cancel=%1 focus=%2 route=%3" )
+						.arg( cancelled ? "true" : "false", QString::fromStdString( cancelFocus ), QString::fromStdString( route ) ) );
+					if ( !cancelled || route != "shell.main_menu" ) return;
+					QTimer::singleShot( 300, qApp, [] {
+						auto& shell = MainWindow::getInstance();
+						std::string focus;
+						const bool reopened = shell.dispatchShellClickForProbe( "shell-exit", &focus );
+						automationTrace( QStringLiteral( "shell_confirmation second_open=%1 focus=%2 route=%3" )
+							.arg( reopened ? "true" : "false", QString::fromStdString( focus ), QString::fromStdString( shell.shellRouteForProbe() ) ) );
+						if ( !reopened ) return;
+						QTimer::singleShot( 300, qApp, [] {
+							std::string acceptFocus;
+						const bool accepted = MainWindow::getInstance().dispatchShellClickForProbe( "confirm-accept", &acceptFocus );
+						automationTrace( QStringLiteral( "shell_confirmation accept=%1 focus=%2 action=app.exit" )
+							.arg( accepted ? "true" : "false", QString::fromStdString( acceptFocus ) ) );
+							if ( !accepted && Global::eventConnector )
+								QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+						} );
+					} );
+				} );
+				QTimer::singleShot( 3000, appPtr, [] {
+					automationTrace( "shell_confirmation fail_safe_exit=true" );
+					if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+				} );
+			}
+			if ( fixture.compare( "components", Qt::CaseInsensitive ) == 0 )
+			{
+				std::string detail;
+				const bool generatedParts = window.verifyComponentFixture( &detail );
+				automationTrace( QStringLiteral( "ui_fixture_components_generated passed=%1 %2" )
+					.arg( generatedParts ? "true" : "false", QString::fromStdString( detail ) ) );
+				if ( !generatedParts ) qCritical() << "Generated component fixture inspection failed:" << QString::fromStdString( detail );
 			}
 
-			if ( fixture.compare( "inventory", Qt::CaseInsensitive ) == 0
+				if ( fixture.compare( "inventory", Qt::CaseInsensitive ) == 0
 				&& qEnvironmentVariable( "INGNOMIA_AUTOMATE_FILTER_COMBO_FIXTURE" ) == "1" )
 			{
 				QElapsedTimer comboTimer;
@@ -151,6 +213,7 @@ void scheduleUiFixture( QApplication& app, const QString& fixture, const QString
 					.arg( inlineGeometry ? "true" : "false", QString::fromStdString( detail ) ) );
 				if ( !inlineGeometry ) qCritical() << "Stockpile fixture item icon geometry failed:" << QString::fromStdString( detail );
 			}
+			else if ( fixture.compare( "workshop_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementWorkshopFixture();
 			else if ( fixture.compare( "stockpile_manager", Qt::CaseInsensitive ) == 0
 				&& qEnvironmentVariable( "INGNOMIA_AUTOMATE_STOCKPILE_SEARCH_FIXTURE" ) == "1" )
 			{
@@ -163,17 +226,8 @@ void scheduleUiFixture( QApplication& app, const QString& fixture, const QString
 				automationTrace( QStringLiteral( "ui_fixture_stockpile_search allow=%1 sequence=%2 elapsed_ms=%3" )
 					.arg( allow ? "true" : "false", sequence ? "true" : "false" ).arg( searchTimer.elapsed() ) );
 			}
-			else if ( fixture.compare( "stockpile_manager", Qt::CaseInsensitive ) == 0
-				&& qEnvironmentVariable( "INGNOMIA_AUTOMATE_FILTER_COMBO_FIXTURE" ) == "1" )
-			{
-				QElapsedTimer comboTimer;
-				comboTimer.start();
-				const bool combo = window.activateManagementElement( "stockpile_content_filter_material_toggle" );
-				const bool first = combo && window.activateManagementElement( "stockpile_content_filter_material_options_option_1" );
-				const bool second = first && window.activateManagementElement( "stockpile_content_filter_material_options_option_2" );
-				automationTrace( QStringLiteral( "ui_fixture_stockpile_combo open=%1 first=%2 second=%3 elapsed_ms=%4" )
-					.arg( combo ? "true" : "false", first ? "true" : "false", second ? "true" : "false" ).arg( comboTimer.elapsed() ) );
-			}
+			else if ( fixture.compare( "workshop_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementWorkshopFixture();
+			else if ( fixture.compare( "workshop_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementWorkshopFixture();
 			else if ( fixture.compare( "stockpile_manager", Qt::CaseInsensitive ) == 0 )
 			{
 				const auto templateFixture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_STOCKPILE_TEMPLATE_FIXTURE" ).trimmed().toLower();
@@ -203,6 +257,20 @@ void scheduleUiFixture( QApplication& app, const QString& fixture, const QString
 				qputenv( "INGNOMIA_UI_CAPTURE_FRAME", "1" );
 				window.armUiCapture();
 				automationTrace( QStringLiteral( "ui_fixture_capture armed=true path=%1" ).arg( capturePath ) );
+			}
+			const auto detachedCapturePath = qEnvironmentVariable( "INGNOMIA_AUTOMATE_UI_FIXTURE_DETACHED_CAPTURE_PATH" );
+			if ( fixture.compare( "inventory", Qt::CaseInsensitive ) == 0 && !detachedCapturePath.isEmpty() )
+			{
+				const bool armed = window.requestManagementCaptureForProbe( "inventory", detachedCapturePath );
+				automationTrace( QStringLiteral( "ui_fixture_detached_capture kind=inventory armed=%1 path=%2" )
+					.arg( armed ? "true" : "false", detachedCapturePath ) );
+			}
+			else if ( fixture.compare( "workshop_manager", Qt::CaseInsensitive ) == 0 ) shown = window.showManagementWorkshopFixture();
+			else if ( fixture.compare( "stockpile_manager", Qt::CaseInsensitive ) == 0 && !detachedCapturePath.isEmpty() )
+			{
+				const bool armed = window.requestManagementCaptureForProbe( "stockpile", detachedCapturePath );
+				automationTrace( QStringLiteral( "ui_fixture_detached_capture kind=stockpile armed=%1 path=%2" )
+					.arg( armed ? "true" : "false", detachedCapturePath ) );
 			}
 			if ( !hold )
 				QTimer::singleShot( capturePath.isEmpty() ? 250 : 1000, qApp, []() {
@@ -466,6 +534,42 @@ int main( int argc, char* argv[] )
 			}
 		} );
 	}
+	// Opt-in route watcher for the transient production Loading surface. Polling
+	// starts shortly before the explicit-load seam so the route is captured even
+	// when a small tutorial world leaves Loading between ordinary capture timers.
+	const QString automatedLoadingCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_LOADING_CAPTURE_PATH" );
+	if ( !automatedLoadingCapture.isEmpty() )
+	{
+		auto* loadingWatcher = new QTimer( &a );
+		loadingWatcher->setInterval( 8 );
+		QObject::connect( loadingWatcher, &QTimer::timeout, &a,
+			[loadingWatcher, automatedLoadingCapture, attempts = 0]() mutable {
+				++attempts;
+				const auto route = MainWindow::getInstance().shellRouteForProbe();
+				if ( route == "shell.loading" )
+				{
+					qputenv( "INGNOMIA_UI_CAPTURE", automatedLoadingCapture.toUtf8() );
+					qputenv( "INGNOMIA_UI_CAPTURE_FRAME", "1" );
+					MainWindow::getInstance().armUiCapture();
+					automationTrace( QStringLiteral( "loading_route_capture armed=true route=%1 path=%2" )
+						.arg( QString::fromStdString( route ), automatedLoadingCapture ) );
+					loadingWatcher->stop();
+					loadingWatcher->deleteLater();
+				}
+				else if ( route == "game.hud" || attempts >= 1500 )
+				{
+					automationTrace( QStringLiteral( "loading_route_capture armed=false route=%1 attempts=%2" )
+						.arg( QString::fromStdString( route ) ).arg( attempts ) );
+					loadingWatcher->stop();
+					loadingWatcher->deleteLater();
+				}
+			} );
+		QTimer::singleShot( 2300, &a, [loadingWatcher] { loadingWatcher->start(); } );
+		if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_LOADING_CAPTURE_EXIT" ) == "1" )
+			QTimer::singleShot( 15000, &a, [] {
+				if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+			} );
+	}
 	const QString automatedInspectorTile = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_TILE_ID" );
 	const QString automatedInspectorCreature = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_CREATURE_ID" );
 	const QString automatedInspectorSecondCreature = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INSPECTOR_SECOND_CREATURE_ID" );
@@ -674,14 +778,33 @@ int main( int argc, char* argv[] )
 	if ( !automatedShellElement.isEmpty() )
 	{
 		QTimer::singleShot( shellElementDelay, &a, [automatedShellElement]() {
-			const bool activated = MainWindow::getInstance().activateShellElement( automatedShellElement.toStdString() );
-			automationTrace( QStringLiteral( "ui_shell_element requested=%1 activated=%2" ).arg( automatedShellElement, activated ? "true" : "false" ) );
+			auto& window = MainWindow::getInstance();
+			const auto before = window.shellRouteForProbe();
+			std::string focusedTarget;
+			const bool activated = window.dispatchShellClickForProbe( automatedShellElement.toStdString(), &focusedTarget );
+			const auto after = window.shellRouteForProbe();
+			const auto focusAfter = window.shellFocusedElementForProbe();
+			automationTrace( QStringLiteral( "ui_shell_element requested=%1 click_dispatched=%2 route_before=%3 route_after=%4 focused_target=%5 focus_after=%6" )
+				.arg( automatedShellElement, activated ? "true" : "false", QString::fromStdString( before ), QString::fromStdString( after ),
+					QString::fromStdString( focusedTarget ), QString::fromStdString( focusAfter ) ) );
 		} );
+        if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_SHELL_TABS" ) == "1" )
+            QTimer::singleShot( shellElementDelay + 500, &a, []() {
+                automationTrace( QStringLiteral("ui_shell_tabs %1").arg(
+                    QString::fromStdString( MainWindow::getInstance().verifyShellTabsForProbe() ) ) );
+            } );
 		if ( !automatedShellSecondElement.isEmpty() )
 		{
 			QTimer::singleShot( shellSecondElementDelay, &a, [automatedShellSecondElement]() {
-				const bool activated = MainWindow::getInstance().activateShellElement( automatedShellSecondElement.toStdString() );
-				automationTrace( QStringLiteral( "ui_shell_second_element requested=%1 activated=%2" ).arg( automatedShellSecondElement, activated ? "true" : "false" ) );
+				auto& window = MainWindow::getInstance();
+				const auto before = window.shellRouteForProbe();
+				std::string focusedTarget;
+				const bool activated = window.dispatchShellClickForProbe( automatedShellSecondElement.toStdString(), &focusedTarget );
+				const auto after = window.shellRouteForProbe();
+				const auto focusAfter = window.shellFocusedElementForProbe();
+				automationTrace( QStringLiteral( "ui_shell_second_element requested=%1 click_dispatched=%2 route_before=%3 route_after=%4 focused_target=%5 focus_after=%6" )
+					.arg( automatedShellSecondElement, activated ? "true" : "false", QString::fromStdString( before ), QString::fromStdString( after ),
+						QString::fromStdString( focusedTarget ), QString::fromStdString( focusAfter ) ) );
 			} );
 		}
 		if ( !automatedShellCapture.isEmpty() )
@@ -693,6 +816,10 @@ int main( int argc, char* argv[] )
 				MainWindow::getInstance().armUiCapture();
 				automationTrace( QStringLiteral( "ui_shell_capture armed=true path=%1" ).arg( automatedShellCapture ) );
 			} );
+			if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_SHELL_EXIT" ) == "1" )
+				QTimer::singleShot( captureDelay + 1500, &a, []() {
+					if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+				} );
 		}
 	}
 	bool automatedHudDelayOk = false;
@@ -718,6 +845,16 @@ int main( int argc, char* argv[] )
 	const QString automatedManagementDetachedCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_MANAGEMENT_DETACHED_CAPTURE_PATH" );
 	scheduleWorkshopOrderProbe( a );
 	scheduleFarmOpenProbe( a );
+	stage12::schedule( a );
+	stage13::schedule( a );
+	stage14::schedule( a );
+	stage15::schedule( a );
+	stage16::schedule( a );
+	stage17::schedule( a );
+	stage18::schedule( a );
+	stage19::schedule( a );
+	stage20::schedule( a );
+	stage21::schedule( a );
 	const QString automatedManagementGlCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_MANAGEMENT_GL_CAPTURE_PATH" );
 	const QString automatedManagementMixedFilter = qEnvironmentVariable( "INGNOMIA_AUTOMATE_MANAGEMENT_MIXED_FILTER" );
 	const QString automatedManagementMixedFilterSearch = qEnvironmentVariable( "INGNOMIA_AUTOMATE_MANAGEMENT_MIXED_FILTER_SEARCH" );
@@ -735,7 +872,7 @@ int main( int argc, char* argv[] )
 		if ( !automatedManagementDetachedCapture.isEmpty() )
 		{
 			QTimer::singleShot( 15000, &a, [automatedManagementElement, automatedManagementDetachedCapture]() {
-				const auto kind = automatedManagementElement.startsWith( "population_" ) || automatedManagementElement.startsWith( "skill_" ) || automatedManagementElement.startsWith( "profession_" ) || automatedManagementElement.startsWith( "schedule_" ) ? "population" : automatedManagementElement.startsWith( "diplomacy_" ) ? "diplomacy" : "military";
+				const auto kind = automatedManagementElement.startsWith( "population_" ) || automatedManagementElement.startsWith( "skill_" ) || automatedManagementElement.startsWith( "profession_" ) || automatedManagementElement.startsWith( "schedule_" ) ? "population" : automatedManagementElement.startsWith( "stockpile_" ) ? "stockpile" : automatedManagementElement.startsWith( "diplomacy_" ) ? "diplomacy" : "military";
 				const bool armed = MainWindow::getInstance().requestManagementCaptureForProbe( kind, automatedManagementDetachedCapture );
 				automationTrace( QStringLiteral( "management_detached_capture kind=%1 armed=%2 path=%3" ).arg( kind, armed ? "true" : "false" ).arg( automatedManagementDetachedCapture ) );
 			} );
@@ -762,7 +899,8 @@ int main( int argc, char* argv[] )
 		} );
 		QTimer::singleShot( 14500, &a, []() {
 			const bool selected = MainWindow::getInstance().activateManagementStockpileMaterialForProbe( "RawWood", "AppleWood" );
-			const bool toggled = selected && MainWindow::getInstance().activateManagementElement( "stockpile_toggle_filter" );
+			const bool toggled = selected && MainWindow::getInstance().activateManagementElement( "stockpile_toggle_filter" )
+				&& MainWindow::getInstance().activateManagementElement( "stockpile_apply" );
 			automationTrace( QStringLiteral( "management_mixed_filter_material selected=%1 toggled=%2" ).arg( selected ? "true" : "false", toggled ? "true" : "false" ) );
 		} );
 		QTimer::singleShot( 16500, &a, []() {
@@ -794,7 +932,8 @@ int main( int argc, char* argv[] )
 		} );
 		QTimer::singleShot( 14500, &a, []() {
 			const bool selected = MainWindow::getInstance().activateManagementStockpileMaterialForProbe( "RawWood", "AppleWood" );
-			const bool toggled = selected && MainWindow::getInstance().activateManagementElement( "stockpile_toggle_filter" );
+			const bool toggled = selected && MainWindow::getInstance().activateManagementElement( "stockpile_toggle_filter" )
+				&& MainWindow::getInstance().activateManagementElement( "stockpile_apply" );
 			automationTrace( QStringLiteral( "management_stockpile_keyboard_material selected=%1 toggled=%2" ).arg( selected ? "true" : "false", toggled ? "true" : "false" ) );
 		} );
 		QTimer::singleShot( 16500, &a, []() {
@@ -1064,7 +1203,7 @@ int main( int argc, char* argv[] )
 				QTimer::singleShot( 13500, &a, []() {
 					const auto desired = qEnvironmentVariable( "INGNOMIA_AUTOMATE_PERSISTENCE_STOCKPILE_PRIORITY" ).trimmed();
 					const bool set = MainWindow::getInstance().setManagementFormValueForProbe( "stockpile_priority", desired.toStdString() );
-					const bool applied = MainWindow::getInstance().activateManagementElement( "stockpile_apply_basics" );
+					const bool applied = MainWindow::getInstance().activateManagementElement( "stockpile_apply" );
 					automationTrace( QStringLiteral( "persistence_stockpile_apply value=%1 set=%2 applied=%3" ).arg( desired, set ? "true" : "false", applied ? "true" : "false" ) );
 				} );
 				const auto beforeCapture = qEnvironmentVariable( "INGNOMIA_AUTOMATE_PERSISTENCE_STOCKPILE_BEFORE_CAPTURE_PATH" );
@@ -1145,7 +1284,9 @@ int main( int argc, char* argv[] )
 					automationTrace( QStringLiteral( "persistence_stockpile_mutation_manage activated=%1" ).arg( activated ? "true" : "false" ) );
 				} );
 				QTimer::singleShot( 13500, &a, [mutationElement]() {
-					const bool activated = MainWindow::getInstance().activateManagementElement( mutationElement );
+					// The sheet keeps the change pending until Apply.
+					const bool activated = MainWindow::getInstance().activateManagementElement( mutationElement )
+						&& MainWindow::getInstance().activateManagementElement( "stockpile_apply" );
 					automationTrace( QStringLiteral( "persistence_stockpile_mutation element=%1 activated=%2" ).arg( mutationElement, activated ? "true" : "false" ) );
 				} );
 				const auto beforeCapture = qEnvironmentVariable( persistenceStockpileAllowPull ? "INGNOMIA_AUTOMATE_PERSISTENCE_STOCKPILE_ALLOW_PULL_BEFORE_CAPTURE_PATH" : persistenceStockpilePull ? "INGNOMIA_AUTOMATE_PERSISTENCE_STOCKPILE_PULL_BEFORE_CAPTURE_PATH" : "INGNOMIA_AUTOMATE_PERSISTENCE_STOCKPILE_FILTER_BEFORE_CAPTURE_PATH" );
@@ -1195,9 +1336,13 @@ int main( int argc, char* argv[] )
 				automationTrace( QStringLiteral( "persistence_inventory_open dispatched=%1" ).arg( opened ? "true" : "false" ) );
 			} );
 			QTimer::singleShot( 7600, &a, []() {
-				const bool selected = MainWindow::getInstance().activateFirstManagementElement( "inventory" );
-				const bool watched = MainWindow::getInstance().activateManagementElement( "inventory_toggle_watch" );
-				automationTrace( QStringLiteral( "persistence_inventory_watch selected=%1 dispatched=%2" ).arg( selected ? "true" : "false", watched ? "true" : "false" ) );
+				const bool focused = MainWindow::getInstance().focusInventoryRowsForProbe();
+				const bool selected = focused && MainWindow::getInstance().dispatchInventoryKeyForProbe( Qt::Key_Down );
+				const auto before = MainWindow::getInstance().inventoryWatchStatusForProbe();
+				const bool sent = selected && MainWindow::getInstance().dispatchInventoryKeyForProbe( Qt::Key_Space );
+				automationTrace( QStringLiteral( "persistence_inventory_watch focus=%1 selected=%2 space_sent=%3 before=%4 immediate=%5" )
+					.arg( focused ? "true" : "false", selected ? "true" : "false", sent ? "true" : "false",
+						QString::fromStdString( before ), QString::fromStdString( MainWindow::getInstance().inventoryWatchStatusForProbe() ) ) );
 			} );
 		}
 		else if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_PERSISTENCE_MUTATION" ).compare( "population", Qt::CaseInsensitive ) == 0 )
@@ -1398,6 +1543,30 @@ int main( int argc, char* argv[] )
 			QCoreApplication::sendEvent( &window, &press );
 			QCoreApplication::sendEvent( &window, &release );
 			qInfo() << "Automated HUD pause mouse click delivered:" << press.isAccepted() << release.isAccepted();
+		} );
+	}
+	// Opt-in pause-route capture. The HUD Pause button only changes simulation
+	// state; Escape follows MainWindow's real shell-navigation path into the
+	// registered game.pause route. This seam is inert unless explicitly enabled.
+	if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_PAUSE_MENU" ) == "1" )
+	{
+		QTimer::singleShot( 7000, &a, []() {
+			QKeyEvent key( QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier );
+			QCoreApplication::sendEvent( &MainWindow::getInstance(), &key );
+			automationTrace( QStringLiteral( "pause_menu_escape accepted=%1" ).arg( key.isAccepted() ? "true" : "false" ) );
+		} );
+		const auto capturePath = qEnvironmentVariable( "INGNOMIA_AUTOMATE_PAUSE_MENU_CAPTURE_PATH" );
+		if ( !capturePath.isEmpty() )
+		{
+			QTimer::singleShot( 8500, &a, [capturePath]() {
+				qputenv( "INGNOMIA_UI_CAPTURE", capturePath.toUtf8() );
+				qputenv( "INGNOMIA_UI_CAPTURE_FRAME", "1" );
+				MainWindow::getInstance().armUiCapture();
+				automationTrace( QStringLiteral( "pause_menu_capture armed=true path=%1" ).arg( capturePath ) );
+			} );
+		}
+		QTimer::singleShot( 11000, &a, []() {
+			if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
 		} );
 	}
 	// Opt-in event-prompt production probe. It asks the authoritative debug
@@ -1707,11 +1876,40 @@ int main( int argc, char* argv[] )
 			else if ( automatedWorkbench == "inventory" )
 			{
 				activate( "inventory_sort_total" );
+				if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_INVENTORY_WATCH" ) == "1" )
+				{
+					QTimer::singleShot( 1000, qApp, []() {
+						const bool focused = MainWindow::getInstance().focusInventoryRowsForProbe();
+						const bool moved = focused && MainWindow::getInstance().dispatchInventoryKeyForProbe( Qt::Key_Down );
+						automationTrace( QStringLiteral( "inventory_watch_focus=%1 down_sent=%2 selected=%3" )
+							.arg( focused ? "true" : "false", moved ? "true" : "false",
+								QString::fromStdString( MainWindow::getInstance().inventoryWatchStatusForProbe() ) ) );
+					} );
+					QTimer::singleShot( 1600, qApp, []() {
+						const auto before = MainWindow::getInstance().inventoryWatchStatusForProbe();
+						const bool sent = MainWindow::getInstance().dispatchInventoryKeyForProbe( Qt::Key_Space );
+						automationTrace( QStringLiteral( "inventory_watch_space_sent=%1 before=%2 immediate=%3" )
+							.arg( sent ? "true" : "false", QString::fromStdString( before ),
+								QString::fromStdString( MainWindow::getInstance().inventoryWatchStatusForProbe() ) ) );
+					} );
+					QTimer::singleShot( 2600, qApp, []() {
+						const auto status = MainWindow::getInstance().inventoryWatchStatusForProbe();
+						automationTrace( QStringLiteral( "inventory_watch_snapshot=%1" ).arg( QString::fromStdString( status ) ) );
+						const auto path = qEnvironmentVariable( "INGNOMIA_AUTOMATE_INVENTORY_WATCH_CAPTURE_PATH" );
+						if ( !path.isEmpty() )
+						{
+							const bool armed = MainWindow::getInstance().requestManagementCaptureForProbe( "inventory", path );
+							automationTrace( QStringLiteral( "inventory_watch_capture_armed=%1 path=%2" ).arg( armed ? "true" : "false", path ) );
+						}
+					} );
+					QTimer::singleShot( 3400, qApp, []() {
+						if ( Global::eventConnector ) QMetaObject::invokeMethod( Global::eventConnector, "onExit", Qt::QueuedConnection );
+					} );
+					return;
+				}
 				QTimer::singleShot( 1000, qApp, []() {
 					const bool selected = MainWindow::getInstance().activateFirstManagementElement( "inventory" );
 					automationTrace( QStringLiteral( "management_first_inventory dispatched=%1" ).arg( selected ? "true" : "false" ) );
-					const bool watched = MainWindow::getInstance().activateManagementElement( "inventory_toggle_watch" );
-					automationTrace( QStringLiteral( "management_inventory_watch dispatched=%1" ).arg( watched ? "true" : "false" ) );
 				} );
 			}
 			else if ( automatedWorkbench == "military" )
@@ -1822,6 +2020,8 @@ int main( int argc, char* argv[] )
 					automationTrace( QStringLiteral( "inventory_pointer_back_from_ingredient clicked=%1 item=%2" ).arg( clicked ? "true" : "false", QString::fromStdString( MainWindow::getInstance().inventoryDetailItemForProbe() ) ) );
 				} );
 				QTimer::singleShot( 4400, qApp, []() {
+                    // Some raw materials have no ingredient link; reopen the original target.
+                    MainWindow::getInstance().requestInventoryHistoryProbe();
 					const bool clicked = MainWindow::getInstance().clickInventoryDetailForProbe( "stockpile" );
 					automationTrace( QStringLiteral( "inventory_pointer_stockpile clicked=%1" ).arg( clicked ? "true" : "false" ) );
 				} );

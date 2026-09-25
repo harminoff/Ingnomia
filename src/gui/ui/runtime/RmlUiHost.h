@@ -56,6 +56,11 @@ private:
 class RmlUiHost final
 {
 public:
+    /// Pointer shape over the map of the owner window (armed tools show a cross).
+    void setMapCursor( Qt::CursorShape shape );
+    /// Windows High Contrast (PDF p.373-374): every document's body carries `is-high-contrast` while it is on.
+    void setHighContrast( bool enabled ) { m_highContrast = enabled; }
+    [[nodiscard]] bool highContrast() const noexcept { return m_highContrast; }
     struct Config
     {
         QWindow* window = nullptr;
@@ -123,6 +128,8 @@ private:
 
     QString m_contextName;
     QPointer<QWindow> m_ownerWindow;
+    bool m_highContrast = false;
+    void applyHighContrast( Rml::Context& context ) const;
     std::unique_ptr<QtRmlSystemInterface> m_system;
     std::unique_ptr<QtRmlFileInterface> m_files;
     std::unique_ptr<IngnomiaRmlUiRenderer> m_renderer;

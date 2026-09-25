@@ -422,7 +422,12 @@ bool IO::load( QString folder )
 
 	QJsonDocument jd;
 
-	loadFile( folder + "game.json", jd );
+	// game.json holds the world size every later step relies on; without it nothing else can be read safely (NEW-004).
+	if ( !loadFile( folder + "game.json", jd ) )
+	{
+		traceLoad( "game.json missing or unreadable" );
+		return false;
+	}
 	IO::loadGame( jd );
 	traceLoad( "game.json" );
 
@@ -795,6 +800,14 @@ bool IO::loadWorld( QString folder )
 		loadWorld( in );
 
 		worldFile.close();
+		// A truncated or mismatched world.dat (for example a save folder deleted while it was read) leaves fewer or
+		// more tiles than the world size; every later tile lookup would then run out of bounds (NEW-004).
+		const auto expected = static_cast<std::size_t>( Global::dimX ) * Global::dimY * Global::dimZ;
+		if ( expected == 0 || g->w()->world().size() != expected || in.status() != QDataStream::Ok )
+		{
+			qWarning() << "world.dat does not match the world size" << g->w()->world().size() << "tiles, expected" << expected;
+			return false;
+		}
 		return true;
 	}
 	return false;

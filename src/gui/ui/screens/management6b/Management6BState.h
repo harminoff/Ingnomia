@@ -155,6 +155,18 @@ struct RowPatch
 	T row;
 };
 
+// The schedule cells a command will change: listed citizens by ID and an inclusive hour range.
+struct ScheduleScope
+{
+	std::vector<CreatureId> citizens;
+	std::uint8_t firstHour {}, lastHour {};
+	bool allCitizens {};
+	[[nodiscard]] bool empty() const { return citizens.empty(); }
+	[[nodiscard]] bool fullDay() const { return firstHour == 0 && lastHour == 23; }
+	[[nodiscard]] std::size_t cells() const { return citizens.size() * static_cast<std::size_t>( lastHour - firstHour + 1 ); }
+	bool operator==( const ScheduleScope& ) const = default;
+};
+
 struct Management6BState
 {
 	WorldEpoch world;
@@ -162,11 +174,12 @@ struct Management6BState
 	bool acceptsWorldActions {}, open {}, populationOpen {}, inventoryOpen {}, loadingPopulation {}, loadingInventory {}, stalePopulation {}, staleInventory {};
 	View view { View::Citizens };
 	View populationView { View::Citizens };
-	Sort populationSort { Sort::Name }, inventorySort { Sort::Category };
+	Sort populationSort { Sort::Name }, inventorySort { Sort::Item };
 	std::string populationFilter, inventoryFilter, inventoryCategory, status;
 	std::array<std::string, 6> inventoryColumnFilters;
 	std::array<std::vector<std::string>, 6> inventoryColumnSelections;
 	bool inventoryOwnedOnly {};
+	bool populationSortDescending {};
 	bool inventorySortDescending {};
 	std::vector<PopulationRow> population;
 	std::vector<SkillCatalogRow> skillCatalog;
@@ -182,7 +195,8 @@ struct Management6BState
 	std::optional<InventoryRowId> selectedInventory;
 	std::optional<InventoryRowId> inventoryDetail;
 	std::vector<InventoryRowId> inventoryDetailBack;
-	std::optional<ScheduleCellId> selectedScheduleCell;
+	std::optional<ScheduleCellId> selectedScheduleCell; // active cell
+	std::optional<ScheduleCellId> scheduleAnchor;       // other corner of the selected range (Excel 97 range model)
 	std::optional<ProfessionId> selectedProfession;
 	std::optional<CatalogId> selectedSkill;
 	std::optional<CatalogId> selectedProfessionSkill;
@@ -190,6 +204,8 @@ struct Management6BState
 	std::string professionDraftName;
 	std::vector<CatalogId> professionDraftSkills;
 	bool professionDraftDirty {};
+    bool professionSavePending {};
+    std::string professionFeedback;
 	ManagedScheduleActivity scheduleActivity { ManagedScheduleActivity::None };
 	std::size_t populationPage {}, inventoryPage {};
 	static constexpr std::size_t pageSize = 64;

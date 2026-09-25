@@ -1,44 +1,35 @@
 <rml>
 <head>
-    <title data-l10n="shell.main_menu.ingnomia_main_menu">Ingnomia main menu</title>
+    <title>Ingnomia</title>
     <link type="text/rcss" href="/styles/base.rcss" />
     <link type="text/rcss" href="/styles/components.rcss" />
-    <link type="text/rcss" href="/styles/accessibility.rcss" />
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
     <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered l-main-menu-screen">
-    <main class="c-shell-chamber l-main-menu-chamber">
-        <header class="l-main-menu-banner">
-            <span class="l-main-menu-eyebrow" data-l10n="shell.main_menu.settlement_simulation">A settlement simulation</span>
-            <h1 class="c-shell-wordmark" data-l10n="shell.main_menu.ingnomia">INGNOMIA</h1>
-            <p id="shell-presentation" data-l10n="shell.main_menu.carve_a_home_beneath_the_mountain_and_guide_a_li">Carve a home beneath the mountain and guide a living settlement.</p>
-            <span id="shell-version" class="c-shell-version" data-l10n="shell.main_menu.shell-version">Version unavailable</span>
-        </header>
-        <div class="l-main-menu-body">
-            <section class="l-main-menu-feature">
-                <h2 data-l10n="shell.main_menu.pick_up_where_you_left_off">Your settlement</h2>
-                <p data-l10n="shell.main_menu.continue_your_latest_world">Return to your latest compatible world, or choose a saved game.</p>
-                <button id="shell-continue" class="c-button c-button--primary" data-l10n="shell.main_menu.shell-continue" disabled="disabled" tab-index="-1">Continue</button>
-                <span id="shell-continue-reason" class="c-field__help">No compatible save found</span>
-                <button id="shell-load" class="c-button" data-l10n="shell.main_menu.shell-load">Load game</button>
-            </section>
-            <nav id="shell-main-actions" class="l-main-menu-options">
-                <h2 data-l10n="shell.main_menu.start_a_new_world">Start a new world</h2>
-                <button id="shell-tutorial" class="c-button" data-l10n="shell.main_menu.shell-tutorial">Interactive tutorial</button>
-                <span class="c-field__help" data-l10n="shell.main_menu.shell-tutorial-help">A guided first settlement: gather, dig, store, craft, farm, and build a dormitory.</span>
-                <button id="shell-new-default" class="c-button" data-l10n="shell.main_menu.shell-new-default">Quick start</button>
-                <span class="c-field__help" data-l10n="shell.main_menu.start_immediately_with_the_accepted_default_setu">Start with the recommended settlement defaults.</span>
-                <button id="shell-new-setup" class="c-button" data-l10n="shell.main_menu.shell-new-setup">Custom game</button>
-                <span class="c-field__help" data-l10n="shell.main_menu.choose_world_and_settlement_details_before_start">Choose world and settlement details before starting.</span>
-            </nav>
-        </div>
-        <footer class="l-main-menu-footer">
-            <button id="shell-settings" class="c-button" data-l10n="shell.main_menu.shell-settings">Settings</button>
-            <button id="shell-exit" class="c-button c-button--danger" data-l10n="shell.main_menu.shell-exit">Exit</button>
-        </footer>
-        <section id="shell-action-error" class="c-alert-row c-alert-row--danger c-shell-status u-hidden">
-            <span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.main_menu.action_could_not_be_completed">Action could not be completed</span><span id="shell-action-error-detail" class="c-alert-row__detail"></span></span>
-        </section>
-    </main>
+<body class="l-shell-screen l-shell-desktop">
+  <!-- Main menu (Stage 18). The book has no title screen; the nearest documented form is a dialog box with its
+       commands in one column, the default first (PDF p.169, p.346). Commands that need more input end in an
+       ellipsis (PDF p.330-331). -->
+  <section id="shell-main-dialog" class="w98-sheet l-shell-dialog l-main-menu-dialog" role="dialog" aria-labelledby="shell-title">
+    <div class="w98-caption"><h1 id="shell-title" class="c-title-bar__title" data-l10n="win98.main_menu.title">Ingnomia</h1></div>
+    <div class="w98-sheet__body">
+      <p id="shell-presentation" class="w98-text" data-l10n="win98.main_menu.presentation">A settlement simulation. Carve a home beneath the mountain and guide a living settlement.</p>
+      <p class="w98-text">Version <span id="shell-version"></span></p>
+      <div class="w98-separator"></div>
+      <nav id="shell-main-actions" class="w98-col">
+        <div class="w98-line l-menu-row"><button id="shell-continue" class="w98-button l-menu-command" disabled="disabled" tab-index="-1" data-l10n="win98.main_menu.continue">Continue</button><p id="shell-continue-reason" class="w98-text w98-grow"></p></div>
+        <div class="w98-line l-menu-row"><button id="shell-load" class="w98-button l-menu-command" data-l10n="win98.main_menu.load">Load Game...</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.opens_a_saved_kingdom">Opens a saved kingdom.</p></div>
+        <div class="w98-separator"></div>
+        <div class="w98-line l-menu-row"><button id="shell-tutorial" class="w98-button l-menu-command" data-l10n="win98.main_menu.tutorial">Tutorial</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.starts_a_guided_first_settlement">Starts a guided first settlement: gather, dig, store, craft, farm and shelter.</p></div>
+        <div class="w98-line l-menu-row"><button id="shell-new-default" class="w98-button l-menu-command" data-l10n="win98.main_menu.new_default">Quick Start</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.starts_a_new_kingdom_with">Starts a new kingdom with the recommended settings.</p></div>
+        <div class="w98-line l-menu-row"><button id="shell-new-setup" class="w98-button l-menu-command" data-l10n="win98.main_menu.new_setup">Custom Game...</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.chooses_the_world_and_the">Chooses the world and the starting settlement first.</p></div>
+        <div class="w98-separator"></div>
+        <div class="w98-line l-menu-row"><button id="shell-settings" class="w98-button l-menu-command" data-l10n="win98.main_menu.settings">Settings</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.changes_display_interface_camera_sound">Changes display, interface, camera, sound and saving.</p></div>
+        <div class="w98-line l-menu-row"><button id="shell-exit" class="w98-button l-menu-command" data-l10n="win98.main_menu.exit">Exit</button><p class="w98-text w98-grow" data-l10n="win98.main_menu.closes_ingnomia">Closes Ingnomia.</p></div>
+      </nav>
+      <p id="shell-action-error" class="w98-text l-shell-error u-hidden">The command could not be completed. <span id="shell-action-error-detail"></span></p>
+    </div>
+  </section>
 </body>
 </rml>

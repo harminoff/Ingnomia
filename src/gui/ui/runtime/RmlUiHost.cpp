@@ -1,4 +1,6 @@
 #include "RmlUiHost.h"
+#include "ClassicFocusDecorator.h"
+#include "ConnectedTabs.h"
 
 #include "IngnomiaRmlUiRenderer.h"
 #include "QtRmlFileInterface.h"
@@ -49,6 +51,30 @@ void traceHotReload( bool success, bool documents, bool styles, bool textures )
 		<< " documents=" << ( documents ? "true" : "false" )
 		<< " styles=" << ( styles ? "true" : "false" )
 		<< " textures=" << ( textures ? "true" : "false" ) << "\n";
+}
+
+// Only truncated captions need an expanded recovery surface. Preserve that
+// decision during hover so wrapping the overlay cannot toggle itself off.
+bool updateTitleOverflow( Rml::Context& context )
+{
+    Rml::ElementList titles;
+    context.GetRootElement()->GetElementsByClassName( titles, "c-title-bar__title" );
+    bool changed = false;
+    for ( auto* title : titles )
+    {
+        if ( !title->IsVisible( true ) ) continue;
+        const auto* parent = title->GetParentNode();
+        if ( title->IsPseudoClassSet( "hover" ) || title->IsPseudoClassSet( "focus" )
+            || ( parent && parent->IsClassSet( "c-title-bar__drag-handle" )
+                && ( parent->IsPseudoClassSet( "hover" ) || parent->IsPseudoClassSet( "focus" ) ) ) ) continue;
+        const bool truncated = title->GetScrollWidth() > title->GetClientWidth() + 1.0f;
+        if ( title->IsClassSet( "is-title-truncated" ) != truncated )
+        {
+            title->SetClass( "is-title-truncated", truncated );
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 RmlUiHost* activeHost = nullptr;
@@ -129,6 +155,8 @@ bool RmlUiHost::initialize( const Config& config )
         return shutdown() && false;
     }
     m_coreInitialized = true;
+    static ClassicFocusInstancer classicFocusInstancer;
+    Rml::Factory::RegisterDecoratorInstancer("win98-focus", &classicFocusInstancer);
 
     const QSize size( std::max( 1, config.physicalSize.width() ), std::max( 1, config.physicalSize.height() ) );
     m_context = Rml::CreateContext( toRml( m_contextName ), {size.width(), size.height()} );
@@ -289,7 +317,7 @@ bool RmlUiHost::destroyDetachedContext( std::unique_ptr<RmlUiDetachedContext>& d
     setSystemWindow( detached->window() );
     if ( detached->context() )
     {
-        detached->input().cancelInteraction();
+        detached->input().setContext(nullptr);
         detached->context()->UnloadAllDocuments();
         if ( !Rml::RemoveContext( toRml( detached->name() ) ) )
             qWarning() << "RmlUi detached context was already absent during shutdown:" << detached->name();
@@ -312,6 +340,14 @@ bool RmlUiHost::resizeDetached( RmlUiDetachedContext& detached, QSize physicalSi
     return true;
 }
 
+// Documents are loaded by many bindings; marking them here keeps every one of them, old or new, in step.
+void RmlUiHost::applyHighContrast( Rml::Context& context ) const
+{
+    for ( int i = 0; i < context.GetNumDocuments(); ++i )
+        if ( auto* document = context.GetDocument( i ); document && document->IsClassSet( "is-high-contrast" ) != m_highContrast )
+            document->SetClass( "is-high-contrast", m_highContrast );
+}
+
 bool RmlUiHost::updateDetached( RmlUiDetachedContext& detached )
 {
     if ( !initialized() || !detached.context() || !requireCurrentContext( "updateDetached" ) ) return false;
@@ -319,7 +355,9 @@ bool RmlUiHost::updateDetached( RmlUiDetachedContext& detached )
     // Context::Update performs layout and input processing, not rasterization.
     // Keep the host's single render/resource boundary untouched here; the
     // native surface is selected explicitly by renderDetached() below.
+    applyHighContrast( *detached.context() );
     const bool result = detached.context()->Update();
+    if ( connected_tabs::reconcile(*detached.context()) | updateTitleOverflow( *detached.context() ) ) (void)detached.context()->Update();
     setSystemWindow( m_ownerWindow.data() );
     return result;
 }
@@ -377,7 +415,10 @@ bool RmlUiHost::update()
 {
     if ( !initialized() ) return false;
     setSystemWindow( m_ownerWindow.data() );
-    return m_context->Update();
+    applyHighContrast( *m_context );
+    const bool result = m_context->Update();
+    if ( connected_tabs::reconcile(*m_context) | updateTitleOverflow( *m_context ) ) (void)m_context->Update();
+    return result;
 }
 
 bool RmlUiHost::render()
@@ -582,5 +623,9 @@ bool RmlUiHost::requireCurrentContext( const char* operation ) const
     if ( QOpenGLContext::currentContext() ) return true;
     qCritical() << "RmlUiHost operation requires the owning Qt OpenGL context to be current:" << operation;
     return false;
+}
+void RmlUiHost::setMapCursor( Qt::CursorShape shape )
+{
+    if ( m_system ) m_system->setMapCursor( m_ownerWindow.data(), shape );
 }
 } // namespace ingnomia::ui
