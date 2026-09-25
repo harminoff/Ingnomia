@@ -1,0 +1,17 @@
+Stage 00 live Stockpile manager probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+Source save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-20260924-003012\copy-data\save\TutorialValley\1
+Probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-stockpile-live-090db7b1f5a44399b21189ba51c7933a\data
+Probe save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-stockpile-live-090db7b1f5a44399b21189ba51c7933a\data\save\TutorialValley\1
+Copied save files: 21
+Copied save hashes before/after launch: equal
+Captures: stage-00-route-stockpile-live-detached.png (Stockpile manager), stage-00-route-stockpile-live-primary.png (world/HUD)
+Trace: stage-00-route-stockpile-live-trace.log
+
+
+Two in-memory attempts selected the real Stockpile tool and dispatched two map clicks: target `(50, 50, 70)` in the first run and `(33, 32, 70)` in the second, adjacent to the tutorial gnome starting positions. Each opened `stockpile_view_settings` and captured the detached production window showing `Stockpile1`. Both traces report `stockpile_empty_open dispatched=false no_valid_field`; therefore these are useful live-manager route captures, but they do not satisfy the legal stockpile-field scenario or prove stockpile designation succeeded. No save command was issued and both copied saves retained all 21 original hashes.
+
+First run: [detached capture](stage-00-route-stockpile-live-detached.png), [trace](stage-00-route-stockpile-live-trace.log).  
+Second run: [detached capture](stage-00-route-stockpile-live-valid-detached.png), [trace](stage-00-route-stockpile-live-valid-trace.log).

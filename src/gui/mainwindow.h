@@ -140,8 +140,26 @@ public:
 	bool showInspectorStockpileFixture();
 	void setTileInspection( bool active );
 	bool showManagementStockpileFixture();
+ bool showManagementWorkshopFixture();
+    std::string stockpileStage09Probe(std::string_view action);
+    /// Stage 21 live probe for the Inventory window (INGNOMIA_AUTOMATE_STAGE21_INVENTORY=1): find:<text>, select-first,
+    /// open, tab:<0-3>, watch, close-detail, click:<id> and state.
+    std::string inventoryStage21Probe(std::string_view action);
+    std::string workshopStage10Probe(std::string_view action);
+    std::string agricultureStage11Probe(std::string_view action);
+    std::string populationStage12Probe(std::string_view action);
+    std::string militaryStage14Probe(std::string_view action);
+    std::string diplomacyStage15Probe(std::string_view action);
+    std::string inspectorStage16Probe(std::string_view action);
+    std::string hudStage17Probe(std::string_view action);
+    std::string shellStage18Probe(std::string_view action);
 	bool showManagementFarmFixture();
 	bool showInventoryFixture();
+	/// @brief Loads the shared component gallery into the primary production RmlUi host.
+	///        This is restricted to the explicit INGNOMIA_AUTOMATE_UI_FIXTURE probe.
+	bool showComponentFixture();
+	/// @brief Confirms that the production engine generated the fixture select and scrollbar parts.
+	bool verifyComponentFixture( std::string* detail = nullptr );
 	/// @brief Validates that the first stockpile item icon and label share one row.
 	bool verifyInspectorStockpileItemGeometry( std::string* detail = nullptr );
 	/// @brief Returns the current typed HUD status for opt-in production probes.
@@ -149,6 +167,10 @@ public:
 	/// @brief Dispatches a diagnostic click through the live shell RmlUi listener.
 	///        This is opt-in and exists only for production route smoke tests.
 	bool activateShellElement( std::string_view id );
+	bool dispatchShellClickForProbe( std::string_view id, std::string* focusedTarget = nullptr );
+	std::string shellRouteForProbe() const;
+	std::string shellFocusedElementForProbe() const;
+	std::string verifyShellTabsForProbe();
 	bool dispatchShellSettingChangeForProbe( std::string_view id, float value, bool checked );
 	/// @brief Dispatches a diagnostic click through a live management document.
 	///        This is opt-in and used only by production save/workbench probes.
@@ -180,6 +202,10 @@ public:
 	/// @brief Sends an opt-in key event through the live selected Stockpile filter row.
 	bool dispatchManagementStockpileFilterKeyForProbe( int keyIdentifier );
 	bool activateFirstManagementElement( std::string_view kind );
+	/// @brief Opt-in runtime probe helpers for the Inventory report keyboard route.
+	bool focusInventoryRowsForProbe();
+	bool dispatchInventoryKeyForProbe( int qtKey );
+	std::string inventoryWatchStatusForProbe() const;
 	/// @brief Opt-in production probe for the authoritative inventory history path.
 	bool requestInventoryHistoryProbe();
 	std::string inventoryHistoryStatus() const;

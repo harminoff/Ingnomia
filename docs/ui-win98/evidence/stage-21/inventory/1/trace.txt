@@ -1,0 +1,21 @@
+2026-09-25T14:17:03.265 PASS Inventory opened from the toolbar
+2026-09-25T14:17:04.656 STATE open=1 rows=2047 find= detail=- watched=0 locations=0
+2026-09-25T14:17:04.656 PASS capture requested list
+2026-09-25T14:17:05.361 PASS Find=wood shown=107
+2026-09-25T14:17:05.961 PASS selected applewood
+2026-09-25T14:17:05.961 PASS capture requested find
+2026-09-25T14:17:06.567 PASS Properties opened Item Properties
+2026-09-25T14:17:07.152 STATE open=1 rows=107 find=wood detail=applewood watched=0 locations=0
+2026-09-25T14:17:07.153 PASS capture requested item-general
+2026-09-25T14:17:07.759 PASS tab inventory_detail_tab_stockpiles
+2026-09-25T14:17:08.249 PASS capture requested item-stockpiles
+2026-09-25T14:17:08.759 PASS tab inventory_detail_tab_recipes
+2026-09-25T14:17:09.249 PASS capture requested item-recipes
+2026-09-25T14:17:09.756 PASS tab inventory_detail_tab_history
+2026-09-25T14:17:10.249 PASS capture requested item-history
+2026-09-25T14:17:10.755 PASS tab inventory_detail_tab_general
+2026-09-25T14:17:10.761 PASS Watch this item changed the watch state
+2026-09-25T14:17:11.554 PASS Watch this item changed the watch state
+2026-09-25T14:17:11.566 PASS Close returned to the Inventory list
+2026-09-25T14:17:12.153 STATE open=1 rows=107 find=wood detail=- watched=0 locations=0
+2026-09-25T14:17:12.153 PASS capture requested list-after

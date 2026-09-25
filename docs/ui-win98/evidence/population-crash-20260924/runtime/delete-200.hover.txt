@@ -1,0 +1,1 @@
+tabs=100 hover_visible=25 rounds=25 density=2

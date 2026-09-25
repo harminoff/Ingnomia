@@ -1,0 +1,16 @@
+# Live Agriculture manager probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The opt-in `scheduleFarmOpenProbe` loaded a fresh copy of Tutorial Valley through `EventConnector::onLoadGame`. The game-thread probe paused the copied world, used `FarmingManager::addFarm` to create one in-memory Farm field at tile 287500, and selected it through `EventConnector::onSelectTile`. The Agriculture manager opened with ready data and remained ready when the same Farm was selected again; both assertions passed.
+
+The capture shows the live manager's Overview for one plot with no product selected and zero tilled/planted/ready plots. This is an actual manager route and an empty production state; the farm was probe-created in a copied tutorial world and was not saved. Other Agriculture pages and crop/plot commands are not covered by this run. No physical input is claimed.
+
+## Isolation and evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-farm-live-20260924-130518`
+- Source save copy: `...\copy-data\save\TutorialValley\1` (21 files)
+- Probe load: `...\data\save\TutorialValley\1` (21 files); all 21 SHA-256 values matched the source copy after the run. No save command was issued.
+- [Farm manager capture](stage-00-route-agriculture-live-farm.png) — SHA-256 `601DA9D6C09375BDF11EC79FA861C0DF8351660A375D68F37B02F95AB924AE17`
+- [Trace](stage-00-route-agriculture-live-trace.log) — SHA-256 `18F22AFE6794B9DA117C636F2CAC121C0113F5A9CE98CB8F6D0C514CF6445FE8`

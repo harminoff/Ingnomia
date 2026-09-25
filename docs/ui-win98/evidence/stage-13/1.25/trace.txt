@@ -1,0 +1,29 @@
+2026-09-25T08:41:41.092 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage13-live-1.25\data\save\TutorialValley\1
+2026-09-25T08:41:47.617 PASS Population opened from the HUD
+2026-09-25T08:41:49.000 PASS activated population_tab_schedules
+2026-09-25T08:41:49.599 hour5=..... row1=........................ hour9=.....
+2026-09-25T08:41:49.599 PASS capture requested grid
+2026-09-25T08:41:50.204 PASS activated schedule_set_sleep
+2026-09-25T08:41:50.208 PASS clicked cell 0:5
+2026-09-25T08:41:50.208 SCOPE citizens=1 hours=5-5 active=5
+2026-09-25T08:41:50.599 PASS capture requested cell-scope
+2026-09-25T08:41:50.601 PASS activated schedule_apply
+2026-09-25T08:41:52.000 PASS one cell changed: hour 5 was ..... now S....
+2026-09-25T08:41:52.401 PASS activated schedule_set_eat
+2026-09-25T08:41:52.403 PASS clicked schedule_names:1
+2026-09-25T08:41:52.403 SCOPE citizens=1 hours=0-23 active=23
+2026-09-25T08:41:52.799 PASS capture requested day-scope
+2026-09-25T08:41:52.800 PASS activated schedule_apply
+2026-09-25T08:41:54.200 PASS citizen's day set to Eat: EEEEEEEEEEEEEEEEEEEEEEEE
+2026-09-25T08:41:54.600 PASS activated schedule_set_training
+2026-09-25T08:41:54.602 PASS clicked schedule_hours:9
+2026-09-25T08:41:55.002 PASS activated schedule_apply
+2026-09-25T08:41:55.499 PASS capture requested hour-review
+2026-09-25T08:41:55.901 PASS dialog confirm-accept
+2026-09-25T08:41:57.302 PASS hour 9 set to Train for all: was ..... now TTTTT
+2026-09-25T08:41:57.706 PASS clicked cell 2:0
+2026-09-25T08:41:57.710 PASS key end
+2026-09-25T08:41:57.710 SCOPE citizens=1 hours=23-23 active=23
+2026-09-25T08:41:58.101 PASS End reached hour 23: SCOPE citizens=1 hours=23-23 active=23
+2026-09-25T08:41:58.101 PASS capture requested keyboard-end
+2026-09-25T08:41:58.789 PASS activated population_close_button

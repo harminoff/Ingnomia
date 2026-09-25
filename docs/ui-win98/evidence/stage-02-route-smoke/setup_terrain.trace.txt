@@ -1,0 +1,3 @@
+2026-09-24T09:51:30.756 ui_shell_element requested=shell-new-setup click_dispatched=true route_before=shell.main_menu route_after=shell.new_game focused_target=shell-new-setup focus_after=new-kingdom-name
+2026-09-24T09:51:33.743 ui_shell_second_element requested=new-tab-terrain click_dispatched=true route_before=shell.new_game route_after=shell.new_game focused_target=new-tab-terrain focus_after=new-tab-terrain
+2026-09-24T09:51:34.747 ui_shell_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke\setup_terrain.png

@@ -1,0 +1,37 @@
+2026-09-25T10:08:29.164 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage16-live-1.5\data\save\TutorialValley\1
+2026-09-25T10:08:35.265 PASS probe placed two citizens on tile 288735 (second citizen 1000125)
+2026-09-25T10:08:35.676 PASS Inspect tool opened the tile inspector
+2026-09-25T10:08:37.265 STATE tile=288735:rows=3:creatures=1000124,1000125, creatures= populationDetail=0 popSelected=-
+2026-09-25T10:08:37.265 PASS the tile lists each creature as its own row: 1000124,1000125
+2026-09-25T10:08:37.265 PASS PASS capture requested tile
+2026-09-25T10:08:37.865 PASS PASS clicked live_tile_creature_1
+2026-09-25T10:08:38.167 PASS PASS capture requested tile
+2026-09-25T10:08:38.567 PASS PASS clicked live_tile_open_creature
+2026-09-25T10:08:40.067 STATE tile=288735:rows=3:creatures=1000124,1000125, creatures=1000125:Cass:Gnomad:creature_preview_camera_panel:role=0; populationDetail=0 popSelected=1000125
+2026-09-25T10:08:40.068 PASS Inspect opened the chosen citizen on the General page
+2026-09-25T10:08:40.068 PASS PASS capture requested creature
+2026-09-25T10:08:40.465 PASS PASS clicked creature_preview_nav_stats
+2026-09-25T10:08:40.865 PASS PASS capture requested creature
+2026-09-25T10:08:41.267 PASS PASS clicked creature_preview_nav_expertise
+2026-09-25T10:08:41.665 PASS PASS capture requested creature
+2026-09-25T10:08:42.065 PASS PASS chose creature_preview_profession:0 value=Farmer
+2026-09-25T10:08:44.065 PASS the game applied the chosen profession at once: Gnomad -> Farmer
+2026-09-25T10:08:44.065 PASS PASS chose creature_preview_profession:Gnomad
+2026-09-25T10:08:46.065 PASS the original profession is restored: Gnomad
+2026-09-25T10:08:46.066 PASS PASS clicked creature_preview_nav_equipment
+2026-09-25T10:08:46.465 PASS PASS capture requested creature
+2026-09-25T10:08:46.866 PASS PASS clicked creature_preview_nav_inventory
+2026-09-25T10:08:47.274 PASS PASS capture requested creature
+2026-09-25T10:08:47.668 PASS PASS clicked creature_preview_close
+2026-09-25T10:08:48.275 PASS Close closed the creature inspector
+2026-09-25T10:08:48.278 PASS Inspect tool closed the tile inspector
+2026-09-25T10:08:48.684 PASS Population opened from the HUD
+2026-09-25T10:08:50.072 PASS PASS clicked row population_rows:0
+2026-09-25T10:08:50.273 PASS PASS clicked row population_rows:1
+2026-09-25T10:08:50.478 PASS PASS clicked population_open_citizen
+2026-09-25T10:08:52.071 STATE tile=- creatures=1000127:Humptyback:Gnomad:creature_preview_camera_panel:role=0; populationDetail=0 popSelected=1000127
+2026-09-25T10:08:52.071 PASS Population has no citizen detail page of its own
+2026-09-25T10:08:52.071 PASS Properties opened the creature inspector for citizen 1000127
+2026-09-25T10:08:52.071 PASS PASS capture requested creature
+2026-09-25T10:08:52.666 PASS PASS clicked creature_preview_close
+2026-09-25T10:08:52.667 PASS PASS clicked population_close_button

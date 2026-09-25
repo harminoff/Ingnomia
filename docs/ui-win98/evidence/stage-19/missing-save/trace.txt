@@ -1,0 +1,7 @@
+2026-09-25T11:52:13.059 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage19m-live-1/data/save/Missing/1
+2026-09-25T11:52:19.564 STATE route=shell.loading focus=loading-heading page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=- finishEnabled=0 pending=0 errors=0 newGameStatus=4 openEnabled=0 settingsPage=- inGame=0 loadingError=1 retry=1 confirm=0 paused=0 cursor=0
+2026-09-25T11:52:19.564 PASS a missing save shows the failure with Retry and Cancel instead of crashing
+2026-09-25T11:52:19.564 PASS the hourglass is gone once the game asks the player
+2026-09-25T11:52:19.564 PASS capture requested loading-failed
+2026-09-25T11:52:20.169 PASS PASS clicked shell-back
+2026-09-25T11:52:20.964 PASS Cancel returns to the main menu

@@ -1,0 +1,15 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage19
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage19
+    Start 1: ui_Stage19
+1/4 Test #1: ui_Stage19 .......................   Passed    0.32 sec
+    Start 2: ui_shell_controller
+2/4 Test #2: ui_shell_controller ..............   Passed    0.01 sec
+    Start 3: ui_shell_rml_contract
+3/4 Test #3: ui_shell_rml_contract ............   Passed    0.02 sec
+    Start 4: ui_shell_integration_contract
+4/4 Test #4: ui_shell_integration_contract ....   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.37 sec
+144 checks passed

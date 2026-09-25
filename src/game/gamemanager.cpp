@@ -291,6 +291,15 @@ void GameManager::init()
 void GameManager::loadGame( QString folder )
 {
 	m_eventConnector->emitWorldTransitionStarted( false );
+	// A save that is gone or incomplete fails at once, before a new game is built around it (NEW-004).
+	const QDir saveFolder( folder );
+	if ( !saveFolder.exists( QStringLiteral( "game.json" ) ) || !saveFolder.exists( QStringLiteral( "world.dat" ) ) )
+	{
+		qWarning() << "save folder is missing required files:" << folder;
+		m_eventConnector->sendLoadGameDone( false );
+		m_eventConnector->emitWorldTransitionFinished( false );
+		return;
+	}
 	init();
 
 	m_game = new Game( this );

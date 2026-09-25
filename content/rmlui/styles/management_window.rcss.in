@@ -1,0 +1,112 @@
+/* Shared, hot-reloadable insertion point for production management-window templates. */
+.c-management-window-template {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0dp;
+    padding: 0;
+    overflow: visible;
+    pointer-events: none;
+}
+.c-management-window-template > * { pointer-events: auto; }
+
+/* Shared navigation frame for the detached management workbenches. */
+.c-management-shell {
+    display: flex;
+    flex: 1 1 0dp;
+    min-width: 0;
+    min-height: 0;
+    gap: 4dp;
+    padding: 6dp;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: {{color.surface.window}};
+}
+.c-management-rail {
+    display: flex;
+    flex: 0 0 112dp;
+    flex-direction: column;
+    width: 112dp;
+    min-width: 112dp;
+    min-height: 0;
+    padding: 4dp;
+    overflow-y: auto;
+    box-sizing: border-box;
+    background-color: {{color.surface.window}};
+    border-width: 2dp;
+    border-top-color: {{color.border.shadow}};
+    border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}};
+    border-bottom-color: {{color.border.highlight}};
+}
+.c-management-rail__heading {
+    display: block;
+    margin: 1dp 1dp 4dp;
+    padding-bottom: 3dp;
+    color: {{color.text.primary}};
+    border-bottom: 1dp {{color.border.shadow}};
+    font-size: {{type.meta}};
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.c-management-rail__nav { display: flex; flex-direction: column; width: 100%; min-width: 0; gap: 2dp; box-sizing: border-box; }
+.c-management-rail__button {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 28dp;
+    padding: 4dp 6dp;
+    color: {{color.text.primary}};
+    background-color: {{color.surface.window}};
+    border-width: 2dp;
+    border-top-color: {{color.border.highlight}};
+    border-left-color: {{color.border.highlight}};
+    border-right-color: {{color.border.dark}};
+    border-bottom-color: {{color.border.dark}};
+    border-radius: 0;
+    text-align: left;
+    white-space: normal;
+}
+.c-management-rail__button:hover { background-color: {{color.interaction.hover}}; }
+.c-management-rail__button.is-selected {
+    color: {{color.text.selection}};
+    background-color: {{color.surface.selection}};
+    border-top-color: {{color.border.dark}};
+    border-left-color: {{color.border.dark}};
+    border-right-color: {{color.border.highlight}};
+    border-bottom-color: {{color.border.highlight}};
+}
+.c-management-rail__button:focus-visible { decorator: win98-focus({{color.interaction.focus}}); }
+.c-management-rail__button.is-selected:focus-visible { decorator: win98-focus({{color.text.selection}}); }
+.c-management-main {
+    display: flex;
+    flex: 1 1 0dp;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background-color: {{color.surface.window}};
+}
+.c-management-views-toggle { display: none; flex: 0 0 auto; align-self: flex-start; min-height: 28dp; }
+.c-fixture-page .c-management-tooltip.is-visible { position: absolute; margin-top: 0; z-index: 50; }
+@media (max-width: 760dp) {
+    .c-management-shell { position: relative; }
+    .c-management-rail { display: none; }
+    .c-management-shell.is-rail-open .c-management-rail {
+        display: flex;
+        position: absolute;
+        z-index: 10;
+        left: 6dp;
+        top: 42dp;
+        bottom: 6dp;
+        width: 148dp;
+        min-width: 148dp;
+        box-shadow: 2dp 2dp 0dp {{color.border.dark}};
+    }
+    .c-management-shell.is-rail-open .c-management-rail__nav,
+    .c-management-shell.is-rail-open .c-management-rail__button { width: 132dp; min-width: 132dp; }
+    .c-management-views-toggle { display: block; }
+}

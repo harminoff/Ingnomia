@@ -1,0 +1,37 @@
+2026-09-25T11:24:59.951 STATE route=shell.main_menu focus=shell-continue page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=- finishEnabled=0 pending=0 errors=0 newGameStatus=2 openEnabled=0
+2026-09-25T11:24:59.951 PASS the main menu is shown
+2026-09-25T11:24:59.951 PASS Continue, the default command, has the focus: shell-continue
+2026-09-25T11:24:59.951 PASS no request is left pending at start
+2026-09-25T11:24:59.952 PASS capture requested main-menu
+2026-09-25T11:25:00.560 PASS PASS clicked shell-new-setup
+2026-09-25T11:25:01.351 PASS the wizard opens on Welcome with Back unavailable
+2026-09-25T11:25:01.351 PASS capture requested wizard-welcome
+2026-09-25T11:25:01.751 PASS PASS clicked new-next
+2026-09-25T11:25:02.151 PASS Next shows World
+2026-09-25T11:25:02.151 PASS capture requested wizard-world
+2026-09-25T11:25:02.551 PASS PASS clicked new-next
+2026-09-25T11:25:02.952 PASS Next shows Settlement
+2026-09-25T11:25:02.952 PASS capture requested wizard-settlement
+2026-09-25T11:25:03.351 PASS PASS clicked new-next
+2026-09-25T11:25:03.752 PASS Next shows Terrain and Life
+2026-09-25T11:25:03.752 PASS capture requested wizard-terrain
+2026-09-25T11:25:04.152 PASS PASS clicked new-next
+2026-09-25T11:25:04.551 STATE route=shell.new_game focus=new-start page=new-panel-review next=0 finish=1 backEnabled=1 kingdoms=1 saves=1 selectedSave=1 fileName=- finishEnabled=1 pending=0 errors=0 newGameStatus=2 openEnabled=0
+2026-09-25T11:25:04.551 PASS Completion shows an available Finish in place of Next
+2026-09-25T11:25:04.551 PASS capture requested wizard-completion
+2026-09-25T11:25:04.952 PASS PASS clicked new-back
+2026-09-25T11:25:05.352 PASS Back returns to the previous page
+2026-09-25T11:25:05.355 PASS PASS clicked shell-back
+2026-09-25T11:25:05.951 PASS Cancel returns to the main menu with the focus on Custom Game (NEW-002)
+2026-09-25T11:25:05.958 PASS PASS clicked shell-load
+2026-09-25T11:25:07.152 STATE route=shell.load_game focus=load-kingdoms page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=Tutorial_Valley finishEnabled=0 pending=0 errors=0 newGameStatus=2 openEnabled=1
+2026-09-25T11:25:07.152 PASS Load Game lists the kingdoms under Look in
+2026-09-25T11:25:07.152 PASS PASS chose load-kingdoms:0 value=0
+2026-09-25T11:25:08.352 PASS choosing a kingdom lists its saves: 1
+2026-09-25T11:25:08.353 PASS PASS clicked row load-saves:0
+2026-09-25T11:25:08.944 STATE route=shell.load_game focus=load-kingdoms page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=Tutorial_Valley finishEnabled=0 pending=0 errors=0 newGameStatus=2 openEnabled=1
+2026-09-25T11:25:08.944 PASS a click selects the save and names it: Tutorial_Valley
+2026-09-25T11:25:08.944 PASS Open is available for a compatible save
+2026-09-25T11:25:08.944 PASS capture requested load-game
+2026-09-25T11:25:09.563 PASS PASS double-clicked save-row-0
+2026-09-25T11:25:17.555 PASS a double-click opened the save

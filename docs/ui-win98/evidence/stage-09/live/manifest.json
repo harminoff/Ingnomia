@@ -1,0 +1,16 @@
+{
+  "source": "C:\\Users\\harmi\\AppData\\Local\\Temp\\Ingnomia-Win98-Stage00-20260924-003012\\copy-data\\save\\TutorialValley\\1",
+  "profile": "C:\\Programming\\Repos\\Ingnomia2\\Ingnomia\\.verification\\stage09-live\\data",
+  "save_files": 21,
+  "source_unchanged": true,
+  "copy_unchanged": true,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"pid\": 59216,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+      }
+    ],
+    "isError": false
+  }
+}

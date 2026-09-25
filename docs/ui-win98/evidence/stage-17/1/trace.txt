@@ -1,0 +1,50 @@
+2026-09-25T10:48:45.351 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage17-live-1\data\save\TutorialValley\1
+2026-09-25T10:48:51.853 STATE selected=hud_pause,hud_speed_normal, menus= tool=- status=Ready activeTool= cursor=0 overlayJobs=0 speed=0 cancelEnabled=0 build=0 buildRows=0 buildRow=- prompt=0 level=Level_100 gameLevel=100
+2026-09-25T10:48:51.853 PASS status bar shows Ready and the level being viewed: Level_100
+2026-09-25T10:48:51.853 PASS Cancel Tool is unavailable while no tool is armed
+2026-09-25T10:48:51.854 PASS capture requested hud
+2026-09-25T10:48:52.452 PASS PASS hovered hud_open_population
+2026-09-25T10:48:52.753 PASS status bar describes the control under the pointer: Opens_the_citizens,_their_skills,_professions_and_schedules.
+2026-09-25T10:48:52.753 PASS PASS hovered hud_tool_cancel
+2026-09-25T10:48:53.053 PASS an unavailable control says why
+2026-09-25T10:48:53.053 PASS PASS unhovered
+2026-09-25T10:48:53.054 PASS PASS clicked hud_tool_mine
+2026-09-25T10:48:53.553 PASS Mine opens its drop-down menu
+2026-09-25T10:48:53.553 PASS capture requested mine-menu
+2026-09-25T10:48:54.158 PASS PASS clicked hud_mine_walls
+2026-09-25T10:48:54.653 STATE selected=hud_pause,hud_speed_normal,hud_tool_mine, menus= tool=mine status=Click_or_drag_on_the_map_to_use_the_tool._Right-click_or_Esc_cancels. activeTool=Mine_Walls cursor=2 overlayJobs=0 speed=0 cancelEnabled=1 build=0 buildRows=0 buildRow=- prompt=0 level=Level_100 gameLevel=100
+2026-09-25T10:48:54.653 PASS Mine Walls arms the tool, closes the menu and sets the Mine button
+2026-09-25T10:48:54.653 PASS status bar names the mode and how to leave it
+2026-09-25T10:48:54.653 PASS the pointer over the map shows the armed tool
+2026-09-25T10:48:54.653 PASS Cancel Tool is available while a tool is armed
+2026-09-25T10:48:54.654 PASS capture requested armed
+2026-09-25T10:48:55.266 PASS PASS clicked hud_tool_cancel
+2026-09-25T10:48:55.757 PASS Cancel Tool leaves the mode and restores the pointer
+2026-09-25T10:48:55.760 PASS PASS clicked hud_tool_view
+2026-09-25T10:48:56.253 PASS View opens its menu
+2026-09-25T10:48:56.253 PASS capture requested view-menu
+2026-09-25T10:48:56.754 PASS PASS clicked hud_overlay_jobs
+2026-09-25T10:48:57.353 PASS the Jobs setting turned on and the menu closed
+2026-09-25T10:48:57.354 PASS PASS clicked hud_tool_view
+2026-09-25T10:48:57.355 PASS PASS clicked hud_overlay_jobs
+2026-09-25T10:48:57.955 PASS the Jobs setting turned off again
+2026-09-25T10:48:57.956 PASS PASS clicked hud_speed_fast
+2026-09-25T10:48:58.457 PASS Fast Speed is set and Normal Speed is not
+2026-09-25T10:48:58.457 PASS PASS clicked hud_speed_normal
+2026-09-25T10:48:58.470 PASS PASS clicked hud_tool_build
+2026-09-25T10:48:59.855 PASS Build opens the Build window
+2026-09-25T10:48:59.855 PASS PASS clicked hud_build_furniture
+2026-09-25T10:49:01.355 STATE selected=hud_pause,hud_speed_normal,hud_tool_inspect, menus= tool=- status=Ready activeTool= cursor=0 overlayJobs=0 speed=0 cancelEnabled=0 build=1 buildRows=7 buildRow=hud_build_Painting prompt=0 level=Level_100 gameLevel=100
+2026-09-25T10:49:01.355 PASS the Furniture list shows items with one chosen: hud_build_Painting
+2026-09-25T10:49:01.355 PASS capture requested build
+2026-09-25T10:49:01.962 PASS PASS clicked hud_build_action_Build_Painting
+2026-09-25T10:49:02.664 PASS Build arms placement and the toolbar shows the mode
+2026-09-25T10:49:02.664 PASS capture requested build-armed
+2026-09-25T10:49:03.267 PASS PASS clicked hud_tool_cancel
+2026-09-25T10:49:03.268 PASS PASS clicked hud_build_close
+2026-09-25T10:49:03.853 PASS Cancel Tool and Close leave Build
+2026-09-25T10:49:03.854 PASS PASS prompt queued
+2026-09-25T10:49:04.459 PASS an event shows one message box
+2026-09-25T10:49:04.459 PASS capture requested message-box
+2026-09-25T10:49:05.057 PASS PASS clicked hud_event_ack
+2026-09-25T10:49:05.556 PASS OK closes the message box

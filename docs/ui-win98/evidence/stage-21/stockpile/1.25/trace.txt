@@ -1,0 +1,35 @@
+2026-09-25T13:52:28.225 PASS created one-field Stockpile at 287500 with item=1000519
+2026-09-25T13:52:30.728 PASS Stockpile manager opened and capture requested
+2026-09-25T13:52:31.613 PASS capture requested general-invalid
+2026-09-25T13:52:31.821 PASS invalid priority blocked authoritative Apply
+2026-09-25T13:52:34.222 PASS form name priority and hauling reached authoritative Stockpile
+2026-09-25T13:52:35.243 PASS activated stockpile_view_allow
+2026-09-25T13:52:35.249 PASS reviewed 107 stable rule IDs
+2026-09-25T13:52:35.251 PASS activated stockpile_block_bulk
+2026-09-25T13:52:35.712 PASS capture requested allow-pending
+2026-09-25T13:52:36.212 PASS activated stockpile_apply
+2026-09-25T13:52:36.716 PASS authoritative blocked scope=107 changed=0
+2026-09-25T13:52:36.723 PASS activated stockpile_template_save
+2026-09-25T13:52:37.213 PASS capture requested allow
+2026-09-25T13:52:37.712 PASS reviewed 107 stable rule IDs
+2026-09-25T13:52:37.715 PASS activated stockpile_allow_bulk
+2026-09-25T13:52:37.720 PASS activated stockpile_apply
+2026-09-25T13:52:38.716 PASS authoritative allowed scope=107 changed=107
+2026-09-25T13:52:38.722 PASS activated stockpile_template_save
+2026-09-25T13:52:39.214 PASS capture requested template-replace
+2026-09-25T13:52:39.716 PASS activated stockpile_review_cancel
+2026-09-25T13:52:40.214 PASS No on the replacement preserved the saved rules
+2026-09-25T13:52:41.218 PASS activated stockpile_template_save
+2026-09-25T13:52:41.223 PASS activated stockpile_review_accept
+2026-09-25T13:52:42.712 PASS inspector opened on authoritative manager snapshot
+2026-09-25T13:52:42.712 PASS confirmed template replacement persisted current rules
+2026-09-25T13:52:43.214 PASS activated stockpile_view_settings
+2026-09-25T13:52:43.217 PASS activated stockpile_toggle_suspended
+2026-09-25T13:52:43.613 PASS capture requested general-pending
+2026-09-25T13:52:44.017 PASS activated stockpile_apply
+2026-09-25T13:52:44.709 PASS inspector manager snapshot agreement suspended=1 name=Stage 05 supplies
+2026-09-25T13:52:44.710 PASS inspector suspension dispatched
+2026-09-25T13:52:46.223 PASS inspector manager snapshot agreement suspended=0 name=Stage 05 supplies
+2026-09-25T13:52:46.820 PASS capture requested general
+2026-09-25T13:52:47.212 PASS activated stockpile_view_contents
+2026-09-25T13:52:47.616 PASS capture requested contents

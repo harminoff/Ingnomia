@@ -187,21 +187,16 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 		const auto* p = std::get_if<SetTradeOfferPayload>( &action.payload );
 		if ( !p )
 			return reject( "ui.error.invalid_payload" );
-		const auto old = rememberedTradeOffer( p->row ), desired = p->count;
-		if ( old == desired )
-			return { CommandStatus::Accepted, false, {} };
-		const int delta = static_cast<int>( desired ) - static_cast<int>( old );
-		rememberTradeOffer( p->row, desired );
-		return queue( [c = connector_, v = *p, delta]
-					  {if(!c)return;auto*a=c->aggregatorWorkshop();const auto item=QString::fromStdString(v.row.item.value),material=QString::fromStdString(v.row.materialOrGender.value);if(v.row.party==TradeParty::Trader){if(delta>0)a->onTraderStocktoOffer(v.workshop.value,item,material,v.row.quality,delta);else a->onTraderOffertoStock(v.workshop.value,item,material,v.row.quality,-delta);}else{if(delta>0)a->onPlayerStocktoOffer(v.workshop.value,item,material,v.row.quality,delta);else a->onPlayerOffertoStock(v.workshop.value,item,material,v.row.quality,-delta);} } );
+        return queue([c=connector_,v=*p]{if(c)c->aggregatorWorkshop()->onSetTradeOffer(v.workshop.value,v.traderId,v.tradeRevision,v.row.party==TradeParty::Trader,QString::fromStdString(v.row.item.value),QString::fromStdString(v.row.materialOrGender.value),v.row.quality,static_cast<int>(v.count));});
+
 	}
 	if ( action.id.value == "trade.execute" )
 	{
 		const auto* p = std::get_if<WorkshopTargetPayload>( &action.payload );
 		if ( !p )
 			return reject( "ui.error.invalid_payload" );
-		return queue( [c = connector_, id = p->workshop.value]
-					  {if(c)c->aggregatorWorkshop()->onTrade(id); } );
+		return queue( [c = connector_, v=*p]
+					  {if(c)c->aggregatorWorkshop()->onReviewedTrade(v.workshop.value,v.traderId,v.tradeRevision); } );
 	}
 
 	if ( action.id.value == "stockpile.refresh" )
@@ -245,8 +240,8 @@ CommandResult Management6AQtCommandPort::dispatch( const UiActionEnvelope& actio
 		const auto* p = std::get_if<StockpileTemplatePayload>( &action.payload );
 		if ( !p ) return reject( "ui.error.invalid_payload" );
 		const bool save = action.id.value == "stockpile.save_template";
-		return queue( [c = connector_, id = p->stockpile.value, name = QString::fromStdString( p->name ), save]
-			{ if ( !c ) return; if ( save ) c->aggregatorStockpile()->onSaveFilterTemplate( id, name ); else c->aggregatorStockpile()->onApplyFilterTemplate( id, name ); } );
+		return queue( [c = connector_, id = p->stockpile.value, name = QString::fromStdString( p->name ), save, replaceExisting=p->replaceExisting]
+			{ if ( !c ) return; if ( save ) c->aggregatorStockpile()->onSaveFilterTemplate( id, name, replaceExisting ); else c->aggregatorStockpile()->onApplyFilterTemplate( id, name ); } );
 	}
 
 	if ( action.id.value == "agriculture.refresh" )

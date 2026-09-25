@@ -25,7 +25,7 @@ inline void scheduleLiveTileProbe(QApplication& app, GameManager* manager)
     };
     auto liveWindow=[]() -> QWindow* {
         for(auto* window:QGuiApplication::topLevelWindows())
-            if(window->title()==QStringLiteral("Tile inspection")) return window;
+            if(window->title()==QStringLiteral("Tile Properties")) return window;
         return nullptr;
     };
     auto capture=[folder,liveWindow](const char* name) {
@@ -142,15 +142,32 @@ inline void scheduleLiveTileProbe(QApplication& app, GameManager* manager)
                                     report(!MainWindow::getInstance().activateInspectorElement("live_tile_delete_stockpile"),"deleted stockpile action disappears automatically");
                                     report(MainWindow::getInstance().activateInspectorElement("live_tile_remove_floor"),"Remove floor dispatches on retained tile");
                                     QTimer::singleShot(400,manager,[manager,state,report,capture,liveWindow,&app] {
-                                        auto job=manager->game()->jm()->getJobAtPos(state->target);
-                                        report(job && job->type()=="RemoveFloor","Remove floor creates the authoritative job at inspected tile");
-                                        QTimer::singleShot(300,&app,[manager,state,report,capture,liveWindow,&app] {
-                                             report(MainWindow::getInstance().activateInspectorElement("live_tile_cancel_job"),"live panel automatically exposes Cancel job");
-                                             capture("live-floor-job");
-                                             QTimer::singleShot(200,&app,[state,report,capture,liveWindow] {
-                                                 auto* w=liveWindow();
-                                                 if(!w) return;
-                                                 const QPoint before=w->position();
+                                         auto job=manager->game()->jm()->getJobAtPos(state->target);
+                                         report(job && job->type()=="RemoveFloor","Remove floor creates the authoritative job at inspected tile");
+                                         QTimer::singleShot(300,&app,[manager,state,report,capture,liveWindow,&app] {
+                                              QSize originalSize;
+                                              if(auto* inspector=liveWindow()) {
+                                                  originalSize=inspector->size();
+                                                  inspector->setMaximumSize(QSize(16777215,16777215));
+                                                  inspector->setMinimumSize(QSize(240,240));
+                                                  inspector->resize(QSize(originalSize.width(),480));
+                                                  const QPointF pointer(200,190);
+                                                  QWheelEvent wheel(pointer,inspector->mapToGlobal(pointer.toPoint()),QPoint(),QPoint(0,480),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
+                                                  QCoreApplication::sendEvent(inspector,&wheel);
+                                              }
+                                              capture("live-floor-job-active");
+                                              QTimer::singleShot(150,&app,[state,report,capture,liveWindow,&app,originalSize] {
+                                                  if(auto* inspector=liveWindow(); inspector && originalSize.isValid()) {
+                                                      inspector->setMinimumSize(originalSize);
+                                                      inspector->setMaximumSize(originalSize);
+                                                      inspector->resize(originalSize);
+                                                  }
+                                                  report(MainWindow::getInstance().activateInspectorElement("live_tile_cancel_job"),"live panel automatically exposes Cancel job");
+                                                  capture("live-after-job-cancel");
+                                                  QTimer::singleShot(200,&app,[state,report,capture,liveWindow] {
+                                                  auto* w=liveWindow();
+                                                  if(!w) return;
+                                                  const QPoint before=w->position();
                                                  const QPointF from(110,18);
                                                  const int beyondCanvas=qMax(250,MainWindow::getInstance().geometry().right()-w->geometry().right()+60);
                                                  const QPointF to(from.x()+beyondCanvas,88);
@@ -162,11 +179,12 @@ inline void scheduleLiveTileProbe(QApplication& app, GameManager* manager)
                                                  QCoreApplication::sendEvent(w,&release);
                                                  report(w->position()!=before,"native title drag moves the inspector window");
                                                  report(w->geometry().right()>MainWindow::getInstance().geometry().right(),"native title drag moves the inspector beyond the game canvas");
-                                                 report(state->tile==state->target.toInt(),"dragging the title keeps the inspected tile selected");
-                                                 capture("live-dragged");
-                                                 QTimer::singleShot(300,w,[w,before] { w->setPosition(before+QPoint(250,70)); });
-                                             });
-                                             QTimer::singleShot(700,&app,[manager,state,report,capture,liveWindow,&app] {
+                                                  report(state->tile==state->target.toInt(),"dragging the title keeps the inspected tile selected");
+                                                  capture("live-dragged");
+                                                  QTimer::singleShot(300,w,[w,before] { w->setPosition(before+QPoint(250,70)); });
+                                              });
+                                              });
+                                              QTimer::singleShot(700,&app,[manager,state,report,capture,liveWindow,&app] {
                                                 report(MainWindow::getInstance().activateHudElement("hud_tool_inspect"),"Inspect closes through the sidebar");
                                                 QTimer::singleShot(350,&app,[manager,state,report,capture,liveWindow,&app] {
                                                     report(liveWindow()&&!liveWindow()->isVisible()&&!state->outlined,"closing hides the native inspector and clears its outline");

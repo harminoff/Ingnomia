@@ -1,0 +1,35 @@
+2026-09-25T11:50:53.295 PASS PASS clicked shell-settings
+2026-09-25T11:50:54.089 PASS Settings opens on Display over the desktop
+2026-09-25T11:50:54.089 PASS capture requested settings-display
+2026-09-25T11:50:54.489 PASS PASS clicked settings-tab-controls
+2026-09-25T11:50:54.889 PASS the Controls tab shows its page
+2026-09-25T11:50:54.889 PASS capture requested settings-controls
+2026-09-25T11:50:55.289 PASS PASS clicked setting-wheel-level
+2026-09-25T11:50:55.889 PASS PASS clicked setting-wheel-level
+2026-09-25T11:50:56.289 PASS PASS clicked settings-tab-sound
+2026-09-25T11:50:56.689 PASS the Sound tab shows its page
+2026-09-25T11:50:56.689 PASS capture requested settings-sound
+2026-09-25T11:50:57.089 PASS PASS clicked settings-tab-saving
+2026-09-25T11:50:57.488 PASS the Saving tab shows its page
+2026-09-25T11:50:57.488 PASS capture requested settings-saving
+2026-09-25T11:50:57.891 PASS PASS clicked shell-back
+2026-09-25T11:50:58.489 PASS Close returns to the main menu with the focus on Settings
+2026-09-25T11:50:58.492 PASS PASS clicked shell-continue
+2026-09-25T11:50:58.548 PASS capture requested loading
+2026-09-25T11:51:08.289 PASS Continue opened the copied save
+2026-09-25T11:51:08.692 PASS PASS Esc handled
+2026-09-25T11:51:09.690 STATE route=game.pause focus=pause-resume page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=- finishEnabled=0 pending=0 errors=0 newGameStatus=2 openEnabled=0 settingsPage=- inGame=1 loadingError=0 retry=0 confirm=0 paused=1 cursor=0
+2026-09-25T11:51:09.691 PASS Esc in the game shows Pause over the paused map
+2026-09-25T11:51:09.691 PASS capture requested pause
+2026-09-25T11:51:10.109 PASS PASS clicked pause-settings
+2026-09-25T11:51:10.904 PASS Settings from Pause sits over the map
+2026-09-25T11:51:10.904 PASS capture requested settings-in-game
+2026-09-25T11:51:10.907 PASS PASS clicked shell-back
+2026-09-25T11:51:11.696 PASS Close returns to Pause
+2026-09-25T11:51:11.698 PASS PASS clicked pause-menu
+2026-09-25T11:51:12.290 PASS Main Menu asks first in a message box
+2026-09-25T11:51:12.290 PASS capture requested leave-confirmation
+2026-09-25T11:51:12.697 PASS PASS dialog confirm-cancel
+2026-09-25T11:51:13.195 PASS Cancel keeps the kingdom open
+2026-09-25T11:51:13.195 PASS PASS Esc handled
+2026-09-25T11:51:14.289 PASS Esc on Pause resumes the game

@@ -1,0 +1,6 @@
+2026-09-24T15:46:22.648 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50
+2026-09-24T15:46:22.649 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\delete-primary.png
+2026-09-24T15:46:22.649 ui_fixture_detached_capture kind=inventory armed=false path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\delete.png
+2026-09-24T15:51:15.143 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50
+2026-09-24T15:51:15.144 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\delete-primary.png
+2026-09-24T15:51:15.144 ui_fixture_detached_capture kind=inventory armed=false path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\delete.png

@@ -1,0 +1,17 @@
+2026-09-24T16:47:44.172 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage08-live-location\data\save\TutorialValley\1
+2026-09-24T16:47:50.674 PASS created one-field Stockpile at 287500 with item=1000519
+2026-09-24T16:47:51.720 workbench_inventory dispatched=true
+2026-09-24T16:47:53.169 PASS Stockpile manager opened and capture requested
+2026-09-24T16:47:53.685 management_element_inventory_sort_total dispatched=true
+2026-09-24T16:47:54.691 management_first_inventory dispatched=false
+2026-09-24T16:47:55.199 inventory_history_request dispatched=true
+2026-09-24T16:47:57.668 inventory_history_status=1:ready
+2026-09-24T16:47:57.668 inventory_detail_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-08\live-location\detail.png
+2026-09-24T16:47:58.074 inventory_pointer_product clicked=true item=Plank
+2026-09-24T16:47:58.673 inventory_pointer_back_item clicked=true item=RawWood
+2026-09-24T16:47:59.296 inventory_pointer_back_previous clicked=true item=
+2026-09-24T16:47:59.569 inventory_pointer_back_list clicked=false item=
+2026-09-24T16:48:00.185 inventory_pointer_reopen opened=true item=RawWood
+2026-09-24T16:48:00.869 inventory_pointer_ingredient clicked=false item=RawWood
+2026-09-24T16:48:01.498 inventory_pointer_back_from_ingredient clicked=true item=
+2026-09-24T16:48:02.090 inventory_pointer_stockpile clicked=true

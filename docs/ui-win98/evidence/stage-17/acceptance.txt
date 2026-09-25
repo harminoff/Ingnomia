@@ -1,0 +1,21 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage17
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage17
+    Start 1: ui_Stage17
+1/7 Test #1: ui_Stage17 .......................   Passed    0.39 sec
+    Start 2: ui_hud_controller
+2/7 Test #2: ui_hud_controller ................   Passed    0.03 sec
+    Start 3: ui_hud_fifo
+3/7 Test #3: ui_hud_fifo ......................   Passed    0.24 sec
+    Start 4: ui_hud_build_actions
+4/7 Test #4: ui_hud_build_actions .............   Passed    0.68 sec
+    Start 5: ui_hud_unavailable
+5/7 Test #5: ui_hud_unavailable ...............   Passed    0.27 sec
+    Start 6: ui_hud_rml_contract
+6/7 Test #6: ui_hud_rml_contract ..............   Passed    0.03 sec
+    Start 7: ui_hud_integration_contract
+7/7 Test #7: ui_hud_integration_contract ......   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =   1.68 sec
+222 checks passed

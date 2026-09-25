@@ -1,0 +1,25 @@
+2026-09-25T09:33:33.249 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage15-live-2\data\save\TutorialValley\1
+2026-09-25T09:33:39.343 PASS probe discovered the first neighboring kingdom in memory
+2026-09-25T09:33:39.777 PASS Diplomacy opened from the HUD
+2026-09-25T09:33:41.244 STATE neighbors=1000000:The_Clingy_Kingdom,__a_gnome_kingdom+E;1000001:undiscovered;1000002:undiscovered;1000003:undiscovered;1000004:undiscovered;1000005:undiscovered;1000006:undiscovered;1000007:undiscovered;1000008:undiscovered;1000009:undiscovered; missions= selected=1000000 draft=3/1/1000124 gnomes=5 wizard=0 view=4 open=1
+2026-09-25T09:33:41.244 PASS a discovered kingdom allows a mission (row 0)
+2026-09-25T09:33:41.291 PASS clicked diplomacy_tab_neighbors
+2026-09-25T09:33:41.305 PASS clicked row diplomacy_neighbor_rows:1
+2026-09-25T09:33:41.647 PASS capture requested neighbor-undiscovered
+2026-09-25T09:33:42.089 PASS clicked row diplomacy_neighbor_rows:0
+2026-09-25T09:33:42.444 PASS capture requested neighbor
+2026-09-25T09:33:42.853 PASS clicked mission_wizard_open
+2026-09-25T09:33:43.244 PASS Send Mission opened the wizard: draft 3/1/1000124
+2026-09-25T09:33:43.244 PASS capture requested wizard-mission
+2026-09-25T09:33:43.651 PASS clicked wizard_next
+2026-09-25T09:33:44.344 PASS citizens who can go: 5 draft 3/1/1000124
+2026-09-25T09:33:44.344 PASS capture requested wizard-citizen
+2026-09-25T09:33:44.751 PASS clicked wizard_next
+2026-09-25T09:33:45.144 PASS capture requested wizard-review
+2026-09-25T09:33:45.609 PASS clicked mission_start
+2026-09-25T09:33:46.744 PASS Finish closed the wizard and showed Missions
+2026-09-25T09:33:46.744 PASS the game reports exactly one new mission: 1000518:3/1@1000000;
+2026-09-25T09:33:46.749 PASS clicked row diplomacy_mission_rows:0
+2026-09-25T09:33:47.343 PASS capture requested missions
+2026-09-25T09:33:47.752 PASS clicked diplomacy_close_button
+2026-09-25T09:33:48.353 PASS Close closed the Diplomacy window

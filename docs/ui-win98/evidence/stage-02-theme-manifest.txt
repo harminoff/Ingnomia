@@ -1,0 +1,25 @@
+Stage 02 theme and cascade evidence
+Date: 2026-09-24
+Source: nested checkout Ingnomia, branch feat/separate-ui-windows
+Build: build-wave8-root-msvc-link-priority2, RelWithDebInfo, rebuilt after final stylesheet load-order changes
+
+Static gate
+- PASS: cmake -DSOURCE_ROOT="$PWD" -P tests/ui-design-system/verify-design-system.cmake
+- PASS: the CMake 3.16-compatible theme generator staged generated RCSS into runtime content
+
+Production runtime
+- PASS: component gallery `stage-02-components-final-v3.png` and trace `stage-02-components-final-v3-trace.log`
+- PASS: Settings route `stage-02-settings-route.png` and trace `stage-02-settings-route-trace.log`
+- PASS: detached Stockpile frame `stage-02-stockpile-detached.png` and trace `stage-02-stockpile-fixture-trace.log`
+- PASS: production matrix captured all 21 supported surfaces; screenshots and traces are in `stage-02-route-smoke-final/`. Each process was stopped after capture. The creature-profile process-stop helper reported a PID mismatch after capture; a process check found no remaining Ingnomia process.
+- LIMIT: an additional `kingdom_panel` plan could not activate its configured `hud_open_kingdom` element ID. That probe returned 21/22; the final supported-surface run excluded the unsupported action and returned 21/21.
+
+Theme output
+- Shared color tokens and generated styles: `content/rmlui/styles/tokens.json`, `base.rcss`, `components.rcss`, `accessibility.rcss`, and `management_window.rcss`.
+- Authoring templates and generator: the four `.rcss.in` files and `cmake/GenerateUiTheme.cmake`.
+- Route-specific colors remain assigned to stages 8–19 and 21 as mapped in `stages/02-theme.md`.
+- No gameplay command, controller, or action-port contract changed in Stage 02.
+
+Limits
+- CTest remains at the Stage 01 baseline of 11/13; the same two unrelated source-contract mismatches are recorded in `00-status.md`.
+- No physical mouse/keyboard interaction is claimed. Accessibility preference wiring was not implemented in Stage 02.

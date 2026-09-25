@@ -1,0 +1,145 @@
+
+************* Preparing the environment for Debugger Extensions Gallery repositories **************
+   ExtensionRepository : Implicit
+   UseExperimentalFeatureForNugetShare : true
+   AllowNugetExeUpdate : true
+   NonInteractiveNuget : true
+   AllowNugetMSCredentialProviderInstall : true
+   AllowParallelInitializationOfLocalRepositories : true
+   EnableRedirectToChakraJsProvider : false
+
+   -- Configuring repositories
+      ----> Repository : LocalInstalled, Enabled: true
+      ----> Repository : UserExtensions, Enabled: true
+
+>>>>>>>>>>>>> Preparing the environment for Debugger Extensions Gallery repositories completed, duration 0.000 seconds
+
+************* Waiting for Debugger Extensions Gallery to Initialize **************
+
+>>>>>>>>>>>>> Waiting for Debugger Extensions Gallery to Initialize completed, duration 0.016 seconds
+   ----> Repository : UserExtensions, Enabled: true, Packages count: 0
+   ----> Repository : LocalInstalled, Enabled: true, Packages count: 30
+
+Microsoft (R) Windows Debugger Version 10.0.28000.2270 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+
+Loading Dump File [C:\Users\harmi\AppData\Local\CrashDumps\Ingnomia.exe.25448.dmp]
+User Mini Dump File: Only registers, stack and portions of memory are available
+
+
+************* Path validation summary **************
+Response                         Time (ms)     Location
+OK                                             C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2
+Symbol search path is: C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2
+Executable search path is: 
+Windows 10 Version 26100 MP (20 procs) Free x64
+Product: WinNt, suite: SingleUserTS
+Edition build lab: 26100.1.amd64fre.ge_release.240331-1435
+Debug session time: Thu Sep 24 15:57:49.000 2026 (UTC - 5:00)
+System Uptime: 3 days 14:57:22.220
+Process Uptime: 0 days 0:02:57.000
+................................................................
+..........................................
+Loading unloaded module list
+............
+This dump file has an exception of interest stored in it.
+The stored exception information can be accessed via .ecxr
+(6368.11f18): Stack overflow - code c00000fd (first/second chance not available)
+
++------------------------------------------------------------------------+
+| This target supports Hardware-enforced Stack Protection. A HW based    |
+| "Shadow Stack" may be available to assist in debugging and analysis.   |
+| See aka.ms/userhsp for more info.                                      |
+|                                                                        |
+| dps @ssp                                                               |
+|                                                                        |
++------------------------------------------------------------------------+
+
+For analysis of this file, run !analyze -v
+ucrtbase!free_base+0x48e5:
+00007ffe`63ce7645 4889442430      mov     qword ptr [rsp+30h],rax ss:0000000f`8ea03ee0=0000000000000000
+0:000> cdb: Reading initial command '.exr -1; .ecxr; kn 35; q'
+ExceptionAddress: 00007ffe63ce7645 (ucrtbase!free_base+0x00000000000048e5)
+   ExceptionCode: c00000fd (Stack overflow)
+  ExceptionFlags: 00000000
+NumberParameters: 2
+   Parameter[0]: 0000000000000001
+   Parameter[1]: 0000000f8ea03ee0
+rax=0000000000000017 rbx=0000000f8ea04570 rcx=0000000000000009
+rdx=0000000000000000 rsi=00000000fa000000 rdi=0000000000000002
+rip=00007ffe63ce7645 rsp=0000000f8ea03eb0 rbp=0000000000000000
+ r8=0000000000000001  r9=0000000000000009 r10=0000000000000001
+r11=0000000000000017 r12=0000000000000022 r13=0000000000000000
+r14=0000000f8ea04740 r15=0000000000000000
+iopl=0         nv up ei pl zr na po nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00010244
+ucrtbase!free_base+0x48e5:
+00007ffe`63ce7645 4889442430      mov     qword ptr [rsp+30h],rax ss:0000000f`8ea03ee0=0000000000000000
+ # Child-SP          RetAddr               Call Site
+00 0000000f`8ea03eb0 00007ffe`63ce4535     ucrtbase!free_base+0x48e5
+01 0000000f`8ea04110 00007ffe`63ce372c     ucrtbase!free_base+0x17d5
+02 0000000f`8ea04d10 00007ffe`63cde50a     ucrtbase!free_base+0x9cc
+03 0000000f`8ea04d70 00007ffe`63ce31c1     ucrtbase!__lc_locale_name_func+0x62a
+04 0000000f`8ea04df0 00007ffe`63cdd528     ucrtbase!free_base+0x461
+*** WARNING: Unable to verify checksum for Ingnomia.exe
+05 0000000f`8ea04e80 00007ff7`2db66c8a     ucrtbase!_stdio_common_vsprintf+0x128
+06 (Inline Function) --------`--------     Ingnomia!_vscprintf_l+0x28
+07 0000000f`8ea053d0 00007ff7`2db5e67e     Ingnomia!_scprintf+0x4a
+08 (Inline Function) --------`--------     Ingnomia!std::to_string+0x1a
+09 0000000f`8ea05420 00007ff7`2dc59d8a     Ingnomia!std::to_string+0x2e
+0a 0000000f`8ea05490 00007ff7`2dc7d05b     Ingnomia!ingnomia::ui::showManagementTooltip+0x4ca
+0b (Inline Function) --------`--------     Ingnomia!ingnomia::ui::management6b::Management6BRmlBinding::initialize::__l19::<lambda_72>::operator()+0x4f
+0c (Inline Function) --------`--------     Ingnomia!std::invoke+0x4f
+0d 0000000f`8ea05640 00007ff7`2dda525d     Ingnomia!std::_Func_impl_no_alloc<`ingnomia::ui::management6b::Management6BRmlBinding::initialize'::`19'::<lambda_72>,void,Rml::Event &>::_Do_call+0x5b
+0e 0000000f`8ea056a0 00007ff7`2dd40f91     Ingnomia!Rml::EventDispatcher::DispatchEvent+0x26d
+0f 0000000f`8ea05760 00007ff7`2dd4fbbd     Ingnomia!Rml::Element::DispatchEvent+0x41
+10 0000000f`8ea057b0 00007ff7`2dd50c4d     Ingnomia!Rml::Context::SendEvents+0x7d
+11 0000000f`8ea05830 00007ff7`2dd5035c     Ingnomia!Rml::Context::UpdateHoverChain+0x75d
+12 0000000f`8ea059a0 00007ff7`2dc5a8af     Ingnomia!Rml::Context::Update+0x6c
+13 0000000f`8ea059e0 00007ff7`2dc7d05b     Ingnomia!ingnomia::ui::showManagementTooltip+0xfef
+14 (Inline Function) --------`--------     Ingnomia!ingnomia::ui::management6b::Management6BRmlBinding::initialize::__l19::<lambda_72>::operator()+0x4f
+15 (Inline Function) --------`--------     Ingnomia!std::invoke+0x4f
+16 0000000f`8ea05b90 00007ff7`2dda525d     Ingnomia!std::_Func_impl_no_alloc<`ingnomia::ui::management6b::Management6BRmlBinding::initialize'::`19'::<lambda_72>,void,Rml::Event &>::_Do_call+0x5b
+17 0000000f`8ea05bf0 00007ff7`2dd40f91     Ingnomia!Rml::EventDispatcher::DispatchEvent+0x26d
+18 0000000f`8ea05cb0 00007ff7`2dd4fbbd     Ingnomia!Rml::Element::DispatchEvent+0x41
+19 0000000f`8ea05d00 00007ff7`2dd50c4d     Ingnomia!Rml::Context::SendEvents+0x7d
+1a 0000000f`8ea05d80 00007ff7`2dd5035c     Ingnomia!Rml::Context::UpdateHoverChain+0x75d
+1b 0000000f`8ea05ef0 00007ff7`2dc5a8af     Ingnomia!Rml::Context::Update+0x6c
+1c 0000000f`8ea05f30 00007ff7`2dc7d05b     Ingnomia!ingnomia::ui::showManagementTooltip+0xfef
+1d (Inline Function) --------`--------     Ingnomia!ingnomia::ui::management6b::Management6BRmlBinding::initialize::__l19::<lambda_72>::operator()+0x4f
+1e (Inline Function) --------`--------     Ingnomia!std::invoke+0x4f
+1f 0000000f`8ea060e0 00007ff7`2dda525d     Ingnomia!std::_Func_impl_no_alloc<`ingnomia::ui::management6b::Management6BRmlBinding::initialize'::`19'::<lambda_72>,void,Rml::Event &>::_Do_call+0x5b
+20 0000000f`8ea06140 00007ff7`2dd40f91     Ingnomia!Rml::EventDispatcher::DispatchEvent+0x26d
+21 0000000f`8ea06200 00007ff7`2dd4fbbd     Ingnomia!Rml::Element::DispatchEvent+0x41
+22 0000000f`8ea06250 00007ff7`2dd50c4d     Ingnomia!Rml::Context::SendEvents+0x7d
+23 0000000f`8ea062d0 00007ff7`2dd5035c     Ingnomia!Rml::Context::UpdateHoverChain+0x75d
+24 0000000f`8ea06440 00007ff7`2dc5a8af     Ingnomia!Rml::Context::Update+0x6c
+25 0000000f`8ea06480 00007ff7`2dc7d05b     Ingnomia!ingnomia::ui::showManagementTooltip+0xfef
+26 (Inline Function) --------`--------     Ingnomia!ingnomia::ui::management6b::Management6BRmlBinding::initialize::__l19::<lambda_72>::operator()+0x4f
+27 (Inline Function) --------`--------     Ingnomia!std::invoke+0x4f
+28 0000000f`8ea06630 00007ff7`2dda525d     Ingnomia!std::_Func_impl_no_alloc<`ingnomia::ui::management6b::Management6BRmlBinding::initialize'::`19'::<lambda_72>,void,Rml::Event &>::_Do_call+0x5b
+29 0000000f`8ea06690 00007ff7`2dd40f91     Ingnomia!Rml::EventDispatcher::DispatchEvent+0x26d
+2a 0000000f`8ea06750 00007ff7`2dd4fbbd     Ingnomia!Rml::Element::DispatchEvent+0x41
+2b 0000000f`8ea067a0 00007ff7`2dd50c4d     Ingnomia!Rml::Context::SendEvents+0x7d
+2c 0000000f`8ea06820 00007ff7`2dd5035c     Ingnomia!Rml::Context::UpdateHoverChain+0x75d
+2d 0000000f`8ea06990 00007ff7`2dc5a8af     Ingnomia!Rml::Context::Update+0x6c
+2e 0000000f`8ea069d0 00007ff7`2dc7d05b     Ingnomia!ingnomia::ui::showManagementTooltip+0xfef
+2f (Inline Function) --------`--------     Ingnomia!ingnomia::ui::management6b::Management6BRmlBinding::initialize::__l19::<lambda_72>::operator()+0x4f
+30 (Inline Function) --------`--------     Ingnomia!std::invoke+0x4f
+31 0000000f`8ea06b80 00007ff7`2dda525d     Ingnomia!std::_Func_impl_no_alloc<`ingnomia::ui::management6b::Management6BRmlBinding::initialize'::`19'::<lambda_72>,void,Rml::Event &>::_Do_call+0x5b
+32 0000000f`8ea06be0 00007ff7`2dd40f91     Ingnomia!Rml::EventDispatcher::DispatchEvent+0x26d
+33 0000000f`8ea06ca0 00007ff7`2dd4fbbd     Ingnomia!Rml::Element::DispatchEvent+0x41
+34 0000000f`8ea06cf0 00007ff7`2dd50c4d     Ingnomia!Rml::Context::SendEvents+0x7d
+quit:
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\ObjectiveC.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'

@@ -1,0 +1,9 @@
+Stage 00 Settings route probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+Data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-settings-3ae8f384687a495faca04c64514223e8\data
+Route: shell.main_menu -> shell.settings through MainWindow::activateShellElement("shell-settings")
+Capture: stage-00-route-settings.png (primary RmlUi host)
+Trace: stage-00-route-settings-trace.log
+The probe dispatched UI scale 125%, minimum light 40%, camera speed 140, and wheel-level changes through the Settings document's RmlUi Change-event probe. The isolated app config reported uiscale=1.25, lightMin=0.40, keyboardMoveSpeed=140, toggleMouseWheel=true. These changes were confined to the disposable data root; no game save was loaded or written.

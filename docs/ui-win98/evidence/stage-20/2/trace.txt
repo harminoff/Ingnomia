@@ -1,0 +1,17 @@
+2026-09-25T12:17:56.274 PASS main menu shown
+2026-09-25T12:17:56.275 PASS capture requested main-menu
+2026-09-25T12:17:56.878 PASS PASS key 76/134217728
+2026-09-25T12:17:57.875 PASS Alt+L opened Load Game through the game window's key handling
+2026-09-25T12:17:57.875 PASS capture requested load-game
+2026-09-25T12:17:58.478 PASS PASS key 16777216/0
+2026-09-25T12:17:59.275 PASS Esc closed Load Game and the focus returned to Load Game
+2026-09-25T12:17:59.278 PASS PASS key 67/134217728
+2026-09-25T12:18:09.275 PASS Alt+C continued into the copied save
+2026-09-25T12:18:09.275 PASS capture requested hud
+2026-09-25T12:18:09.893 PASS Population opened
+2026-09-25T12:18:11.275 PASS capture requested population
+2026-09-25T12:18:12.285 PASS PASS clicked hud_tool_build
+2026-09-25T12:18:13.675 PASS PASS position=736,197 visible=1
+2026-09-25T12:18:13.675 PASS capture requested build
+2026-09-25T12:18:14.276 PASS PASS clicked hud_build_close
+2026-09-25T12:18:15.075 PASS closing the Build palette remembered where it was moved: 736,197 saved 736,197

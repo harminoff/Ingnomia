@@ -1,0 +1,7 @@
+2026-09-25T11:52:24.872 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\new004-truncated\1
+2026-09-25T11:52:31.373 STATE route=shell.loading focus=loading-heading page=- next=0 finish=0 backEnabled=0 kingdoms=1 saves=1 selectedSave=1 fileName=- finishEnabled=0 pending=0 errors=0 newGameStatus=4 openEnabled=0 settingsPage=- inGame=0 loadingError=1 retry=1 confirm=0 paused=0 cursor=0
+2026-09-25T11:52:31.373 PASS a missing save shows the failure with Retry and Cancel instead of crashing
+2026-09-25T11:52:31.373 PASS the hourglass is gone once the game asks the player
+2026-09-25T11:52:31.374 PASS capture requested loading-failed
+2026-09-25T11:52:31.977 PASS PASS clicked shell-back
+2026-09-25T11:52:32.774 PASS Cancel returns to the main menu

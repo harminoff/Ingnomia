@@ -1,0 +1,2 @@
+2026-09-24T09:51:10.770 ui_shell_element requested=shell-load click_dispatched=true route_before=shell.main_menu route_after=shell.load_game focused_target=shell-load focus_after=load-refresh
+2026-09-24T09:51:11.768 ui_shell_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke\load_game.png

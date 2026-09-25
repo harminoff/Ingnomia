@@ -1,0 +1,27 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[0/2] Re-checking globbed directories...
+[1/12] Automatic MOC for target Ingnomia
+[2/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\hud\HudQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[3/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\aggregatorworkshop.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[4/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\mainwindowrenderer.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+C:\Programming\Repos\Ingnomia2\Ingnomia\src\gui\mainwindowrenderer.cpp(555) : warning C4702: unreachable code
+[5/12] Building CXX object CMakeFiles\Ingnomia.dir\src\game\gamemanager.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[6/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[7/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6a\Management6ARmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[8/12] Building CXX object CMakeFiles\Ingnomia.dir\Ingnomia_autogen\mocs_compilation.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[9/12] Building CXX object CMakeFiles\Ingnomia.dir\src\main.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[10/12] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\mainwindow.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[11/12] Linking CXX executable Ingnomia.exe
+-- Qt runtime deployment is current; skipping windeployqt

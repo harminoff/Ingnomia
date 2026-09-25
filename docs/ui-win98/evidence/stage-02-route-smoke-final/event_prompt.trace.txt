@@ -1,0 +1,6 @@
+2026-09-24T09:59:13.279 continue_last_game dispatched=true
+2026-09-24T09:59:19.777 event_prompt_source queued=true kind=ack
+2026-09-24T09:59:19.778 event_prompt_debug executing=true
+2026-09-24T09:59:19.778 event_prompt_db_handoff=true kind=ack event_id=0 title=Invasion
+2026-09-24T09:59:22.278 event_prompt_gl_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke-final\event_prompt.png
+2026-09-24T09:59:24.278 event_prompt_response element=hud_event_ack activated=true

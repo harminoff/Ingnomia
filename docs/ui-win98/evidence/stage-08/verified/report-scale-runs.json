@@ -1,0 +1,14 @@
+[
+  {
+    "name": "detail-1",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 63380,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [\n    {\n      \"pid\": 63380,\n      \"title\": \"Ingnomia\",\n      \"window_handle\": 8526040,\n      \"responding\": true,\n      \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\"\n    }\n  ],\n  \"running\": true\n}"
+        }
+      ],
+      "isError": false
+    }
+  }
+]

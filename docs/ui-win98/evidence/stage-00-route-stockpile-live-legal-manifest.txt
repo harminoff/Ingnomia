@@ -1,0 +1,15 @@
+# Live Stockpile manager route probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The opt-in Stockpile probe loaded a fresh copy of the 21-file Tutorial Valley save through `EventConnector::onLoadGame`. On the game thread, it created a one-field Stockpile on a walkable unmarked tile, inserted one Oak RawWood item, and selected the field through `EventConnector::onSelectTile`. The registered Stockpile manager opened and rendered its real row with one stored item; the trace reports the field/item creation and successful manager capture request.
+
+The stockpile and item existed only in the copied world during the probe. All 21 copied save-file SHA-256 values matched the source copy after exit; no save command was issued. This establishes a live legal manager route and populated row. Allow-list changes, search/sort, staged settings, hauling controls, and authoritative filter updates remain untested for their assigned later stage. The route/control automation was injected; physical input is not claimed.
+
+## Isolation and evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-stockpile-live-20260924-131301`
+- Copied save: `...\data\save\TutorialValley\1` (21 files; unchanged after run)
+- [Live manager capture](stage-00-route-stockpile-live-legal.png) — SHA-256 `1978A088C1A709AC6EE0B6FB3CA5AA15977E48E115D62A330F2E1B17C09C3FA9`
+- [Trace](stage-00-route-stockpile-live-legal-trace.log) — SHA-256 `B5B56958A364D8A6DED911EDED4F1984CBE011B4DD6DEA506FDF2BB657463D9D`

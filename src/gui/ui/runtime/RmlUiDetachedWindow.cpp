@@ -61,6 +61,7 @@ RmlUiDetachedWindow::RmlUiDetachedWindow( RmlUiHost& host, QOpenGLContext* share
 RmlUiDetachedWindow::~RmlUiDetachedWindow()
 {
     m_closeHandler = {};
+    m_closeGuard = {};
     m_designerFocusHandler = {};
     m_designerKeyHandler = {};
     m_designerMousePressHandler = {};
@@ -111,7 +112,23 @@ void RmlUiDetachedWindow::attachContext( RmlUiDetachedContext* context )
     m_detachedContext = context;
     m_renderingEnabled = false;
     m_frameQueued = false;
+    setChromeActive( isActive() );
     resizeUi();
+}
+
+void RmlUiDetachedWindow::setChromeActive( bool active )
+{
+    if ( !m_detachedContext || !m_detachedContext->context() ) return;
+    auto* context = m_detachedContext->context();
+    bool changed = false;
+    for ( int index = 0; index < context->GetNumDocuments(); ++index )
+        if ( auto* document = context->GetDocument( index ) )
+            if ( document->IsClassSet( "is-window-inactive" ) == active )
+            {
+                document->SetClass( "is-window-inactive", !active );
+                changed = true;
+            }
+    if ( changed ) queueRenderFrame();
 }
 
 void RmlUiDetachedWindow::setCloseHandler( std::function<void()> handler )
@@ -278,6 +295,7 @@ bool RmlUiDetachedWindow::event( QEvent* event )
 
 void RmlUiDetachedWindow::closeEvent( QCloseEvent* event )
 {
+    if(m_closeGuard && !m_closeGuard()) { event->ignore(); return; }
     // A close can be deferred while the owner context is restored. Stop the
     // detached frame loop immediately so a hidden inspector cannot continue
     // submitting OpenGL work during that handoff.
@@ -320,6 +338,7 @@ void RmlUiDetachedWindow::focusOutEvent( QFocusEvent* event )
         setMouseGrabEnabled( false );
     }
     if ( m_detachedContext ) m_detachedContext->input().cancelInteraction();
+    setChromeActive( false );
     QWindow::focusOutEvent( event );
 }
 
@@ -327,6 +346,7 @@ void RmlUiDetachedWindow::focusInEvent( QFocusEvent* event )
 {
     if ( m_designerFocusHandler ) m_designerFocusHandler();
     QWindow::focusInEvent( event );
+    setChromeActive( true );
 }
 
 void RmlUiDetachedWindow::keyPressEvent( QKeyEvent* event )
@@ -339,8 +359,8 @@ void RmlUiDetachedWindow::keyPressEvent( QKeyEvent* event )
         return;
     }
     m_host.setSystemWindow( this );
-    const auto key = m_detachedContext->input().keyDown( event->key(), event->modifiers() );
-    const auto text = m_detachedContext->input().committedText( event->text() );
+    const auto key = m_detachedContext->input().keyDown( event->key(), event->modifiers(), event->isAutoRepeat() );
+    const auto text = key.suppressText ? InputDispatch{} : m_detachedContext->input().committedText( event->text() );
     m_host.setSystemWindow( nullptr );
     if ( key.uiConsumed || text.uiConsumed ) event->accept();
     else event->ignore();
@@ -350,7 +370,7 @@ void RmlUiDetachedWindow::keyReleaseEvent( QKeyEvent* event )
 {
     if ( !m_detachedContext ) return;
     m_host.setSystemWindow( this );
-    const auto result = m_detachedContext->input().keyUp( event->key(), event->modifiers() );
+    const auto result = m_detachedContext->input().keyUp( event->key(), event->modifiers(), event->isAutoRepeat() );
     m_host.setSystemWindow( nullptr );
     if ( result.uiConsumed ) event->accept();
     else event->ignore();
@@ -562,6 +582,8 @@ void RmlUiDetachedWindow::renderFrame()
 {
     if ( !m_renderingEnabled || m_rendering || !m_detachedContext || !isExposed() || !makeCurrent() ) return;
     m_rendering = true;
+    // Newly loaded or hot-reloaded documents also inherit the native host state.
+    setChromeActive( isActive() );
 
     const int physicalWidth = std::max( 1, qRound( width() * devicePixelRatio() ) );
     const int physicalHeight = std::max( 1, qRound( height() * devicePixelRatio() ) );

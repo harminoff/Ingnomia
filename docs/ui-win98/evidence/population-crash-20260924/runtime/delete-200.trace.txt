@@ -1,0 +1,3 @@
+2026-09-24T16:07:54.448 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50
+2026-09-24T16:07:54.449 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\population-crash-20260924\runtime\delete-200-primary.png
+2026-09-24T16:07:54.449 ui_fixture_detached_capture kind=inventory armed=false path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\population-crash-20260924\runtime\delete-200.png

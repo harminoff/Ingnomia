@@ -80,14 +80,16 @@ CommandResult ShellQtCommandPort::dispatch( const UiActionEnvelope& action )
 			else value = QVariant::fromValue( source );
 		}, payload->value );
 		const QString field = text( payload->field.value );
-		return queueConnector( [target = connector_, field, value]() {
-			if( target ) target->onSetNewGameField( field, value );
-		} );
+		// These draft edits publish a state snapshot, not a request-completion event.
+        // Keep Start usable; the edit and subsequent Start remain queued in order.
+        return QMetaObject::invokeMethod(connector_, [target = connector_, field, value]() {
+            if(target) target->onSetNewGameField(field, value);
+        }, Qt::QueuedConnection) ? complete() : reject("ui.error.bridge_queue_failed");
 	}
 	if( action.id.value == "new_game.randomize_name" )
-		return queueConnector( [target = connector_]() { if( target ) target->onRandomizeNewGameName(); } );
+		return QMetaObject::invokeMethod(connector_, [target = connector_]() { if(target) target->onRandomizeNewGameName(); }, Qt::QueuedConnection) ? complete() : reject("ui.error.bridge_queue_failed");
 	if( action.id.value == "new_game.randomize_seed" )
-		return queueConnector( [target = connector_]() { if( target ) target->onRandomizeNewGameSeed(); } );
+		return QMetaObject::invokeMethod(connector_, [target = connector_]() { if(target) target->onRandomizeNewGameSeed(); }, Qt::QueuedConnection) ? complete() : reject("ui.error.bridge_queue_failed");
 	if( action.id.value == "app.load_game" )
 	{
 		const auto* payload = std::get_if<LoadGamePayload>( &action.payload );
@@ -110,7 +112,9 @@ CommandResult ShellQtCommandPort::dispatch( const UiActionEnvelope& action )
 	if( action.id.value == "load.refresh" )
 	{
 		auto* aggregator = connector_->aggregatorLoadGame();
-		return QMetaObject::invokeMethod( aggregator, &AggregatorLoadGame::onRequestKingdoms, Qt::QueuedConnection ) ? queued()
+		// The kingdom and save lists arrive as data of their own and nothing reports these requests as finished.
+		// Counting them as pending left Open and Finish unavailable for the rest of the session (Stage 18).
+		return QMetaObject::invokeMethod( aggregator, &AggregatorLoadGame::onRequestKingdoms, Qt::QueuedConnection ) ? complete()
 			: reject( "ui.error.bridge_queue_failed" );
 	}
 	if( action.id.value == "load.select_kingdom" )
@@ -122,7 +126,7 @@ CommandResult ShellQtCommandPort::dispatch( const UiActionEnvelope& action )
 		auto* aggregator = connector_->aggregatorLoadGame();
 		const QString path = *found;
 		return QMetaObject::invokeMethod( aggregator, [aggregator, path]() { aggregator->onRequestSaveGames( path ); }, Qt::QueuedConnection )
-			? queued() : reject( "ui.error.bridge_queue_failed" );
+			? complete() : reject( "ui.error.bridge_queue_failed" );
 	}
 	if( action.id.value == "settings.set_draft" )
 	{

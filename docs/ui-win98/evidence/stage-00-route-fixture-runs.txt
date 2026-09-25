@@ -1,0 +1,5 @@
+stockpile_manager capture=stage-00-route-stockpile_manager.png ready=True
+farm_manager capture=stage-00-route-farm_manager.png ready=True
+blueprint capture=stage-00-route-blueprint.png ready=True
+stockpile capture=stage-00-route-stockpile.png ready=True
+creature_profile capture=stage-00-route-creature_profile.png ready=True

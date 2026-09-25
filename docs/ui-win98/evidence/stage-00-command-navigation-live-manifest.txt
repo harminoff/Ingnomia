@@ -1,0 +1,17 @@
+Stage 00 shell route navigation probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime HEAD: bca0bee3acf79d460360c5f6b96fde08db784585, with working-tree route-probe hooks
+Isolated application-data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-shell-navigation-8605d472eab34f358264c25e81baa038\data
+No world was loaded or created; no save command was issued.
+
+Action 1: activate visible `shell-new-setup` through `ShellRmlBinding`.
+Observed route: `shell.main_menu` -> `shell.new_game`.
+Action 2: activate visible `shell-back` through the same production binding.
+Observed route: `shell.new_game` -> `shell.main_menu`.
+The `ShellController` calls `nav.open` and `nav.back` through its command port and updates to the expected registered routes. Focus restoration was not instrumented in this run.
+
+Trace: `stage-00-command-navigation-live-trace.log`.
+Returned primary-host capture: `stage-00-command-navigation-live.png`.
+Capture SHA-256: 79BE68A197908447F796A78887835C0567F6C8F03BC1FB558825DCB7A313B70
+The probe used production RmlUi element callbacks via the opt-in shell automation seam. It is route-state evidence, not physical pointer input.

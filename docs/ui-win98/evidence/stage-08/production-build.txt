@@ -1,0 +1,10 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[0/2] Re-checking globbed directories...
+[1/5] Automatic MOC for target Ingnomia
+[2/4] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\mainwindow.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[3/4] Linking CXX executable Ingnomia.exe
+-- Qt runtime deployment is current; skipping windeployqt

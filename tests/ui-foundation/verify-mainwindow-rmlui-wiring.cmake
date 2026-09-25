@@ -45,7 +45,7 @@ require_text(WINDOW_SOURCE "PointerOwner::World" "stable world gesture ownership
 require_text(WINDOW_SOURCE "input\\(\\).mouseWheel" "wheel first refusal")
 require_text(WINDOW_SOURCE "input\\(\\).cancelInteraction" "focus-loss cancellation")
 require_text(WINDOW_SOURCE "escapeLayer == ingnomia::ui::accessibility::EscapeLayer::ActiveTool" "active-tool Escape cancellation")
-require_text(INSPECTOR_BINDING "const bool open=s.kind!=InspectorKind::None;" "tile selections keep the inspector panel visible")
+require_text(INSPECTOR_BINDING "const bool open = liveInspection_ \\|\\| s.kind != InspectorKind::None;" "tile selections keep the inspector panel visible")
 require_text(WINDOW_SOURCE "m_rmlUiHost->update\\(\\).*m_rmlUiHost->render\\(\\)" "UI update/render sequence")
 require_text(HOST_SOURCE "UnloadAllDocuments\\(\\).*RemoveContext.*Rml::Shutdown" "document/context/core teardown order")
 

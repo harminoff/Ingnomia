@@ -1,0 +1,22 @@
+{
+  "src/gui/aggregatorstockpile.cpp": "cc74c742ac261e328d8ccfc841014fcf1bfd18f78faccf8d4d5c514b88631205",
+  "src/gui/aggregatorstockpile.h": "033f83274b87abc3eb3ae27e06c6e97bc9c286c375b56e2a909caf0c2b18bfcd",
+  "src/gui/mainwindow.cpp": "3e75543fc2a3dadf2d9845323f8ad3bfa67b8088fd9f67923bc41e4c8f60448d",
+  "src/gui/mainwindow.h": "910d0a7cec78ff2adc40b8daac9c46bab938c5964e53a907dd76eb3c57c7f3b3",
+  "src/gui/ui/actions/UiActions.h": "efb410b9f91cfc5353f25685e8e36090f4e631b1b5d889691e684135d37b4557",
+  "src/gui/ui/controllers/management6a/Management6AIntegration.cpp": "baff05ac5bc60be6e64d9458c82453de6515cbbe075fe66be8a5443f53c3a32b",
+  "src/gui/ui/controllers/management6a/Management6AIntegration.h": "fac9335d9852c649c8d347b5df4198356daa17e1f909c55f96c47a024a576e03",
+  "src/gui/ui/controllers/management6a/Management6AQtCommandPort.cpp": "d69915280e79ccc5bee3c50a87e2994ea835ef82abdc37e7bc244f6939e43f29",
+  "src/gui/ui/screens/management6a/Management6AController.cpp": "aa0068834a93c5904c3d9668adec7c65b04004bdb02dc17ffc124fdabf641a30",
+  "src/gui/ui/screens/management6a/Management6AController.h": "42aa5c6cc77154b77841e8bd9895eef524f5c43aa4effe16d46182a6ee8ec76a",
+  "src/gui/ui/screens/management6a/Management6AState.h": "cde4bc9ed155e15f0f1bfd0399f0122bc0c13ca677c75f3863f40fb8b0ca1c7f",
+  "src/gui/ui/screens/management6a/Management6ARmlBinding.cpp": "8b5570e9f172532f48041b443ad77803c5ffd4c20be02908151a03b967f6e569",
+  "src/gui/ui/screens/management6a/Management6ARmlBinding.h": "3013aa318ba51c0d9771ca1d01cba4e96fb1247b683b5f56431e2c31d6b22d49",
+  "src/gui/ui/screens/inspector/InspectorController.cpp": "f7fa6143c47fb1a045437571ad6db7f408f7345bb11482518953397af3d18cc6",
+  "src/gui/ui/screens/inspector/InspectorRmlBinding.cpp": "5f38d7ab7be7a914cf502048d75c1135c2fe0a1b6ecda2414e32f5afe8412acd",
+  "src/gui/ui/localization/UiTextStaticEntries.inc": "d7339416e315581cb6301fa555c3ce9b0d3ddf1be3857904060c945d911531c7",
+  "content/rmlui/windows/stockpile_manager.rml": "dab54e0e2c689511c0256126d1bcc3f335fcf89870015633bafabe2bff78de2c",
+  "content/rmlui/screens/management6a.rcss": "88e3549da52a1e39a07e87b4cf2f7d785717b177c366898085da82f7cbe6b303",
+  "tests/ui-stage09/stockpile_tests.cpp": "48d5b180985abc9b71adfbf6c6f9f942af6e8b425dff3e4af8e6d6598a78a3fe",
+  "tests/ui-management6a/runtime_probe.h": "ae5f49f91abfed5cb5f43c5070c9b907d1a1d3a1c3bf39a4fb49da8266a9b87b"
+}

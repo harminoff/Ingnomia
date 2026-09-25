@@ -1,0 +1,50 @@
+[
+  {
+    "name": "inventory",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 75504,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "inventory-200",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 94056,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "inventory-popup",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 59388,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "stockpile",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 70556,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  }
+]

@@ -1,6 +1,6 @@
 <rml>
 <head>
-    <title>Ingnomia cave component fixture</title>
+    <title>Ingnomia Windows 98 component gallery</title>
     <link type="text/rcss" href="/styles/base.rcss" />
     <link type="text/rcss" href="/styles/components.rcss" />
     <link type="text/rcss" href="/styles/accessibility.rcss" />
@@ -10,29 +10,38 @@
     <link type="text/template" href="/templates/state_panel.rml" />
     <link type="text/template" href="/templates/inspector_section.rml" />
 </head>
-<body class="c-fixture-page">
-    <header class="c-fixture-page__header">
-        <h1>Cave interface component forge</h1>
+<body id="fixture-body" class="c-fixture-page">
+    <header id="fixture-header" class="c-fixture-page__header">
+        <h1>Windows 98 interface components</h1>
         <p>Wave 2 fixture: shared visual states and supported RmlUi 6.2 controls. Static examples do not imply game actions or full-app integration.</p>
         <div class="u-row">
             <span class="c-status-chip c-status-chip--info">i Information</span>
-            <span class="c-status-chip c-status-chip--success">&#10003; Ready</span>
+            <span class="c-status-chip c-status-chip--success">Ready</span>
             <span class="c-status-chip c-status-chip--warning">! Warning</span>
             <span class="c-status-chip c-status-chip--danger">&#215; Danger</span>
             <span class="c-key-hint">Tab</span><span class="u-muted">moves focus</span>
         </div>
+        <div class="u-row" aria-label="Original chrome glyph set">
+            <span class="c-status-chip"><span class="c-chrome-glyph c-chrome-glyph--close" aria-hidden="true"></span> close</span>
+            <span class="c-status-chip"><span class="c-chrome-glyph c-chrome-glyph--dropdown" aria-hidden="true"></span> dropdown</span>
+            <span class="c-status-chip"><span class="c-chrome-glyph-stack" aria-hidden="true"><span class="c-chrome-glyph c-chrome-glyph--spin-up"></span><span class="c-chrome-glyph-spacer"></span><span class="c-chrome-glyph c-chrome-glyph--spin-down"></span></span> spinner</span>
+            <span class="c-status-chip"><span class="c-chrome-glyph c-chrome-glyph--sort-ascending" aria-hidden="true"></span> sort</span>
+            <span class="c-status-chip"><span class="c-chrome-glyph c-chrome-glyph--expand" aria-hidden="true"></span><span class="c-chrome-glyph c-chrome-glyph--collapse" aria-hidden="true"></span> disclose</span>
+            <span class="c-status-chip c-status-chip--warning"><span class="c-chrome-glyph c-chrome-glyph--warning" aria-hidden="true"></span> warning</span>
+        </div>
     </header>
 
-    <main class="c-fixture-grid">
-        <section class="c-fixture-cell">
+    <main id="fixture-grid" class="c-fixture-grid">
+        <section class="c-fixture-cell c-window">
             <template src="framed-window">
                 <h2>Panels, toolbar, and buttons</h2>
-                <p>Iron structure, bronze selection, and amber focus remain separate.</p>
+                <p>Gray controls, navy selection, and keyboard focus have separate roles.</p>
                 <div class="c-toolbar">
                     <button class="c-icon-button" title="Inspect"><span class="c-icon-button__glyph">i</span></button>
-                    <button class="c-icon-button is-selected" title="Dig"><span class="c-icon-button__glyph">&#8595;</span></button>
+                    <button class="c-icon-button is-selected" title="Dig"><span class="c-icon-button__glyph">D</span></button>
                     <div class="c-toolbar__separator"></div>
-                    <button class="c-button">Text button</button>
+                    <button id="fixture-command" class="c-button">Text button</button>
+                    <button id="fixture-arrow-command" class="c-icon-button c-button--arrow-down" title="Sample dropdown command" aria-label="Sample dropdown command"></button>
                     <button class="c-button c-button--primary">Primary</button>
                     <button class="c-button c-button--danger">Delete</button>
                 </div>
@@ -42,13 +51,30 @@
                     <button class="c-button is-error">Retry</button>
                     <button class="c-button" disabled="disabled">Disabled</button>
                 </div>
-                <div class="c-panel c-panel--inset" style="margin-top: 12dp;">
+                <div class="c-content-region" style="margin-top: 12dp;">
                     Inset working surface for dense values, never decorative card sprawl.
                 </div>
             </template>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
+            <h2>Window chrome and grouping</h2>
+            <div class="c-window">
+                <header class="c-title-bar">
+                    <span class="c-title-bar__mark" aria-hidden="true"></span>
+                    <h3 id="fixture-long-title" class="c-title-bar__title" title="A long fixture title for ellipsis and full-name recovery">A deliberately long fixture title for ellipsis and full-name recovery: Inventory and Resources for the northern settlement and its surrounding workshops</h3>
+                    <button id="fixture-title-close" class="c-button c-window__close" aria-label="Close sample window" title="Close sample window"><span class="c-window__close-content"><span class="c-chrome-glyph c-chrome-glyph--close" aria-hidden="true"></span><span>Close</span></span></button>
+                </header>
+                <div class="c-window__body c-content-region">Active window caption. The complete title expands on hover.</div>
+            </div>
+            <div class="c-window is-window-inactive" style="margin-top: 8dp;">
+                <header class="c-title-bar"><span class="c-title-bar__mark" aria-hidden="true"></span><h3 class="c-title-bar__title">Inactive window</h3><button class="c-button c-window__close" aria-label="Close sample window"><span class="c-window__close-content"><span class="c-chrome-glyph c-chrome-glyph--close" aria-hidden="true"></span><span>Close</span></span></button></header>
+                <div class="c-window__body c-content-region">Gray caption marks an inactive host.</div>
+            </div>
+            <div class="c-window" style="margin-top: 8dp;"><header class="c-title-bar"><h3 id="fixture-empty-title" class="c-title-bar__title"></h3><button class="c-button c-window__close" aria-label="Close sample window">Close</button></header><div class="c-window__body">Initially empty caption uses the localized fallback.</div></div>
+        </section>
+
+        <section class="c-fixture-cell c-group-box">
             <h2>Toggles, segments, and tabs</h2>
             <label class="c-toggle">
                 <input class="checkbox" type="checkbox" checked="checked" />
@@ -69,15 +95,17 @@
                 <button class="c-segmented__item is-selected">Normal</button>
                 <button class="c-segmented__item">Fast</button>
             </div>
-            <div class="c-tabs">
-                <button class="c-tabs__tab is-selected">Overview</button>
-                <button class="c-tabs__tab">Orders</button>
-                <button class="c-tabs__tab">Materials</button>
+            <div class="c-tabs c-connected-tabs" role="tablist" aria-label="Sample pages">
+                <button id="fixture-tab-overview" class="c-tabs__tab is-selected" role="tab" aria-controls="fixture-panel-overview" aria-selected="true">Overview</button>
+                <button id="fixture-tab-orders" class="c-tabs__tab" role="tab" aria-controls="fixture-panel-orders" aria-selected="false" style="tab-index: none;">Orders</button>
+                <button id="fixture-tab-materials" class="c-tabs__tab" role="tab" aria-controls="fixture-panel-materials" aria-selected="false" style="tab-index: none;">Materials</button>
             </div>
-            <div class="c-panel c-panel--inset">Selected tab content. Arrow/Home/End activation belongs to the shared controller.</div>
+            <div id="fixture-panel-overview" class="c-tab-panel" role="tabpanel" aria-labelledby="fixture-tab-overview">Selected tab content. Arrow/Home/End and Ctrl+Tab use the shared input helper.</div>
+            <div id="fixture-panel-orders" class="c-tab-panel u-hidden" role="tabpanel" aria-labelledby="fixture-tab-orders">Sample orders page.</div>
+            <div id="fixture-panel-materials" class="c-tab-panel u-hidden" role="tabpanel" aria-labelledby="fixture-tab-materials">Sample materials page.</div>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
             <h2>List and table</h2>
             <div class="c-list" style="margin-bottom: 16dp;">
                 <div class="c-list__row" tab-index="auto"><span class="c-list__primary">Granite blocks</span><span class="c-list__meta">124</span></div>
@@ -88,7 +116,7 @@
                 <table class="c-table">
                     <thead><tr><th>Workshop</th><th>Status</th><th class="c-table__number">Queue</th></tr></thead>
                     <tbody>
-                        <tr><td>Stonecutter</td><td><span class="c-status-chip c-status-chip--success">&#10003; Working</span></td><td class="c-table__number">4</td></tr>
+                        <tr><td>Stonecutter</td><td><span class="c-status-chip c-status-chip--success">Working</span></td><td class="c-table__number">4</td></tr>
                         <tr class="is-selected"><td>Blacksmith</td><td><span class="c-status-chip c-status-chip--warning">! Blocked</span></td><td class="c-table__number">2</td></tr>
                         <tr><td>Carpenter</td><td>Idle</td><td class="c-table__number">0</td></tr>
                     </tbody>
@@ -96,14 +124,14 @@
             </div>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
             <h2>Tree and scroll region</h2>
             <div class="c-tree">
-                <div class="c-tree__row" tab-index="auto"><button class="c-tree__disclosure" title="Collapse">&#9662;</button><input class="checkbox" type="checkbox" /><span class="c-tree__label">Stone</span><span class="c-list__meta">Mixed</span></div>
-                <div class="c-tree__row c-tree__row--depth-1" tab-index="auto"><button class="c-tree__disclosure" title="Expand">&#9656;</button><input class="checkbox" type="checkbox" checked="checked" /><span class="c-tree__label">Granite</span></div>
+                <div class="c-tree__row" tab-index="auto"><button class="c-tree__disclosure" title="Collapse"><span class="c-chrome-glyph c-chrome-glyph--collapse" aria-hidden="true"></span></button><input class="checkbox" type="checkbox" /><span class="c-tree__label">Stone</span><span class="c-list__meta">Mixed</span></div>
+                <div class="c-tree__row c-tree__row--depth-1" tab-index="auto"><button class="c-tree__disclosure" title="Expand"><span class="c-chrome-glyph c-chrome-glyph--expand" aria-hidden="true"></span></button><input class="checkbox" type="checkbox" checked="checked" /><span class="c-tree__label">Granite</span></div>
                 <div class="c-tree__row c-tree__row--depth-2" tab-index="auto"><span class="c-tree__disclosure"></span><input class="checkbox" type="checkbox" checked="checked" /><span class="c-tree__label">Granite blocks</span></div>
             </div>
-            <div class="c-scroll-region" style="margin-top: 12dp;">
+            <div id="fixture-generated-scroll" class="c-scroll-region" style="margin-top: 12dp;">
                 <h3>Scrollable ledger</h3>
                 <p>Wheel input is owned while the pointer is over this bounded region.</p>
                 <button class="c-context-action"><span class="c-context-action__glyph">&#8593;</span><span class="c-context-action__copy"><span class="c-context-action__label">Raise priority</span><span class="c-context-action__hint">Moves this order one position</span></span><span class="c-key-hint">Alt+Up</span></button>
@@ -113,8 +141,10 @@
             </div>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
             <h2>Fields and selectors</h2>
+            <label class="c-field" for="fixture-readonly"><span class="c-field__label">Read-only value</span><input id="fixture-readonly" class="text c-field__control" readonly="readonly" value="Available for selection and copy" /></label>
+            <div class="u-row" role="radiogroup" aria-label="Example exclusive choice"><label class="c-choice"><input class="radio" type="radio" name="fixture-choice" checked="checked" value="one" /><span>One</span></label><label class="c-choice"><input class="radio" type="radio" name="fixture-choice" value="two" /><span>Two</span></label></div>
             <label class="c-field">
                 <span class="c-field__label">Workshop name</span>
                 <input class="text c-field__control" type="text" value="Deep Forge" placeholder="Enter a name" />
@@ -122,7 +152,7 @@
             </label>
             <label class="c-field">
                 <span class="c-field__label">Priority</span>
-                <select class="c-field__control">
+            <select id="fixture-generated-select" class="c-field__control">
                     <option value="low">Low</option>
                     <option value="normal" selected="selected">Normal</option>
                     <option value="high">High</option>
@@ -144,7 +174,7 @@
             </label>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
             <h2>Slider, progress, and compact status</h2>
             <label class="c-field">
                 <span class="c-field__label">Interface scale - 125%</span>
@@ -167,7 +197,7 @@
             </div>
         </section>
 
-        <section class="c-fixture-cell c-panel" style="position: relative; min-height: 250dp;">
+        <section class="c-fixture-cell c-group-box" style="position: relative; min-height: 250dp;">
             <h2>Popover and alert rows</h2>
             <button class="c-button is-selected">Actions</button>
             <div class="c-popover is-open" style="right: 16dp; top: 64dp;">
@@ -188,7 +218,7 @@
             </template>
         </section>
 
-        <section class="c-fixture-cell c-panel">
+        <section class="c-fixture-cell c-group-box">
             <h2>Inspector section</h2>
             <template src="inspector-section">
                 <div class="u-row"><span class="u-grow">Material</span><strong>Granite</strong></div>

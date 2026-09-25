@@ -1,0 +1,14 @@
+# Live Workshop staged-name edit probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The probe loaded a fresh copy of the 21-file Tutorial Valley save, created a probe Carpenter Workshop in memory through `WorkshopManager::addWorkshop`, set its nine footprint flags, and opened the registered manager through the production tile-selection route. The Settings page accepted a form-only Name change to `Draft Carpenter`; the authoritative controller snapshot remained byte-for-byte the same and no action became pending. Activating Apply dispatched the staged basics edit. The returned snapshot changed to `Draft Carpenter`, and the manager rendered that value. All four assertions passed.
+
+This records one staged edit end to end. The model was created in memory rather than through normal construction, no save command was issued, and all 21 files in the loaded copy matched the verified source copy after exit. Inputs were injected; physical mouse input is not claimed. The current Priority field is a separate source-level inconsistency: its `change` handler commits immediately while Apply also commits the form. That behavior remains assigned to WRK-04 in Stage 10; the name-path test does not establish coherent priority staging or draft persistence across tab/object/close changes.
+
+## Evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-workshop-staged-live-20260924-084451`
+- [Applied Workshop Settings capture](stage-00-workshop-staged-edit.png) — SHA-256 `9304A92754FC68DE2E2305F7277CB15612B02424F0E730252D9C7F2AC46116C9`
+- [Trace](stage-00-workshop-staged-edit-trace.log) — SHA-256 `D77FAED8177E339BCFD35E8989742C4E01C3FE1600315A735E6A7A28CE46B170`

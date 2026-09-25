@@ -1,0 +1,62 @@
+{
+  "data_root": "C:\\Programming\\Repos\\Ingnomia2\\Ingnomia\\.verification\\stage05-workshop-20260924-141031",
+  "source": "C:\\Users\\harmi\\AppData\\Local\\Temp\\Ingnomia-Win98-Stage00-stockpile-live-20260924-131301\\data\\save\\TutorialValley\\1",
+  "files": 21,
+  "unchanged": true,
+  "source_unchanged": true,
+  "before_hashes": {
+    "animals1.json": "30344a2ccbe118d1461948586fef6ceb8d803e1e957c2ae571c5aaa2529b6ea6",
+    "config.json": "8109b70b7884a402181cf70a25691d6f17f842bc44f2e1b2537a817926cb4824",
+    "doors.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "events.json": "a0a8bce5a85ae0530c16ea7c45bd6b7983a612e0252510016919c79d911fea19",
+    "farms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "floorconstructions.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "game.json": "43f4db76e633876446abf97151c5507bc3b5ba694b424a26d635797078d2426b",
+    "gnomes.json": "8bce014ed3fc1b44b5d12c61ad7b017a96c371c356d8e0b253cafac1ab290b09",
+    "itemhistory.json": "53781f075f95d576d733e59490354e4b05c040c2683cbb16ee1d9ec402647673",
+    "items1.json": "3e9dc8607c189e71a74eb8329087be8e0e55a191367e658e1262b241fb0b8896",
+    "jobs.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "jobsprites.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "mechanisms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "pipes.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "plants1.json": "092ba5303f48dedb86b13988e04ef09925c2e7e616b19eaf010f97141c2e8dd8",
+    "rooms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "sprites.json": "dc17218ee1b8f43e29ba6658eb58a6de5cf0ad564ed30f5e6560b03c0498a431",
+    "stockpiles.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "wallconstructions.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "workshops.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "world.dat": "bfea71ee8e2142b7f624b7a20cff2bfd5616f38f46818af6123378faa58cd9c8"
+  },
+  "after_hashes": {
+    "animals1.json": "30344a2ccbe118d1461948586fef6ceb8d803e1e957c2ae571c5aaa2529b6ea6",
+    "config.json": "8109b70b7884a402181cf70a25691d6f17f842bc44f2e1b2537a817926cb4824",
+    "doors.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "events.json": "a0a8bce5a85ae0530c16ea7c45bd6b7983a612e0252510016919c79d911fea19",
+    "farms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "floorconstructions.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "game.json": "43f4db76e633876446abf97151c5507bc3b5ba694b424a26d635797078d2426b",
+    "gnomes.json": "8bce014ed3fc1b44b5d12c61ad7b017a96c371c356d8e0b253cafac1ab290b09",
+    "itemhistory.json": "53781f075f95d576d733e59490354e4b05c040c2683cbb16ee1d9ec402647673",
+    "items1.json": "3e9dc8607c189e71a74eb8329087be8e0e55a191367e658e1262b241fb0b8896",
+    "jobs.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "jobsprites.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "mechanisms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "pipes.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "plants1.json": "092ba5303f48dedb86b13988e04ef09925c2e7e616b19eaf010f97141c2e8dd8",
+    "rooms.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "sprites.json": "dc17218ee1b8f43e29ba6658eb58a6de5cf0ad564ed30f5e6560b03c0498a431",
+    "stockpiles.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "wallconstructions.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "workshops.json": "3fbbd4c6d76130399b0c79cdf41758669224a91e05b7b216953f0c9728750865",
+    "world.dat": "bfea71ee8e2142b7f624b7a20cff2bfd5616f38f46818af6123378faa58cd9c8"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"pid\": 88952,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+      }
+    ],
+    "isError": false
+  }
+}

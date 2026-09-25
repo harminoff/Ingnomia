@@ -1,0 +1,76 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[0/2] Re-checking globbed directories...
+[1/43] Building CXX object tests\ui-foundation\CMakeFiles\ui_foundation_registry.dir\registry_tests.cpp.obj
+[2/43] Incrementally staging content to C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2/./content
+[3/43] Building CXX object tests\ui-foundation\CMakeFiles\ui_foundation_registry.dir\__\__\src\gui\ui\actions\UiActionRegistry.cpp.obj
+[4/43] Building CXX object tests\ui-foundation\CMakeFiles\ui_foundation_action_validation.dir\__\__\src\gui\ui\actions\UiActionRegistry.cpp.obj
+[5/43] Automatic MOC for target Ingnomia
+[6/43] Linking CXX executable tests\ui-foundation\ui_foundation_registry.exe
+[7/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\aggregatorworkshop.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[8/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\eventconnector.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[9/43] Building CXX object tests\ui-foundation\CMakeFiles\ui_foundation_action_validation.dir\action_validation_tests.cpp.obj
+[10/43] Building CXX object CMakeFiles\Ingnomia.dir\src\game\gamemanager.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[11/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\hud\HudQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[12/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\actions\UiActionRegistry.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[13/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\inspector\InspectorQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[14/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\inspector\InspectorQtDataAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[15/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6a\Management6AQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[16/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6a\Management6AIntegration.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[17/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6b\Management6BQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[18/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6a\Management6AQtDataAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[19/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6b\Management6BQtDataAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[20/43] Building CXX object CMakeFiles\Ingnomia.dir\Ingnomia_autogen\mocs_compilation.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[21/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6c\Management6CQtDataAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[22/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6c\Management6CQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[23/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\management6c\Management6CQtBridge.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[24/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\runtime\RmlUiHost.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[25/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\hud\HudRmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[26/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\inspector\InspectorRmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[27/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\controllers\shell\ShellQtCommandPort.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[28/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\hud\HudController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[29/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\inspector\InspectorController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[30/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6a\Management6ARmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[31/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[32/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6b\Management6BRmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[33/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6c\Management6CController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[34/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\shell\ShellRmlAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[35/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6b\Management6BController.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[36/43] Linking CXX executable tests\ui-foundation\ui_foundation_action_validation.exe
+[37/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\management6c\Management6CRmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[38/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\shell\ShellRmlBinding.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[39/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\shell\ShellDataAdapter.cpp.obj
+cl : Command line warning D9025 : overriding '/Ob1' with '/Ob2'
+[40/43] Building CXX object CMakeFiles\Ingnomia.dir\src\gui\ui\screens\shell\ShellController.cpp.obj

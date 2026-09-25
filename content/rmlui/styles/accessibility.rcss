@@ -1,6 +1,7 @@
-/* Root semantic variants. Controllers may apply these classes only when a
-   backed platform/config preference exists; no dead Settings toggle is implied. */
+/* Generated from accessibility.rcss.in and tokens.json. Edit the source inputs. */
 
+/* Ordered after the shared component styles. These optional root classes are
+   applied only when the corresponding accessibility setting is active. */
 .is-high-contrast,
 .is-high-contrast .c-fixture-page {
     color: #ffffff;
@@ -27,17 +28,16 @@
     background-color: #161616;
     border-color: #bfbfbf;
 }
-.is-high-contrast button:focus-visible,
 .is-high-contrast input:focus-visible,
-.is-high-contrast select:focus-visible,
-.is-high-contrast [tab-index]:focus-visible {
+.is-high-contrast select:focus-visible {
     border-width: 3dp;
-    border-color: #ffde59;
+    border-color: #ffff00;
 }
 .is-high-contrast .is-selected {
-    background-color: #242424;
+    color: #ffffff;
+    background-color: #000080;
     border-width: 3dp;
-    border-color: #ffde59;
+    border-color: #ffff00;
 }
 .is-high-contrast .c-modal-scrim { background-color: #000000e8; }
 
@@ -46,6 +46,49 @@
     transition: none;
     animation: none;
 }
+.is-reduced-motion .c-loading-step { background-color: #808080; }
+.is-reduced-motion .c-loading-step.is-active { background-color: #000080; }
 
-.is-reduced-motion .c-loading-step { background-color: #7a858a; }
-.is-reduced-motion .c-loading-step.is-active { background-color: #ffd27a; }
+/* The detached Qt hosts are frameless. Focus events set this document class so
+   inactive RmlUi captions follow the familiar gray Windows 98 title bar. */
+.is-window-inactive .c-title-bar { background-color: #808080; border-bottom-color: #000000; }
+.is-window-inactive .c-title-bar__title { color: #ffffff; }
+.is-window-inactive .c-title-bar__mark { background-color: #c0c0c0; }
+.is-window-inactive .c-title-bar__title:hover { background-color: #808080; }
+.is-window-inactive .c-title-bar__drag-handle:hover .c-title-bar__title { background-color: #808080; }
+
+.is-window-inactive .c-title-bar__title:focus,
+.is-window-inactive .c-title-bar__drag-handle:focus .c-title-bar__title { background-color: #808080; }
+
+.is-high-contrast button:focus-visible { decorator: win98-focus(#ffff00); }
+
+.is-high-contrast [tab-index]:focus-visible { decorator: win98-focus(#ffff00); }
+
+.is-high-contrast .c-button--primary { box-shadow: 0 0 0 1dp #bfbfbf; }
+.is-high-contrast .c-button--primary[disabled] { box-shadow: none; }
+
+.is-high-contrast .c-tabs__tab, .is-high-contrast .l-new-game-tab { border-width: 2dp; }
+.is-high-contrast [role="tabpanel"] { color: #ffffff; background-color: #161616; border-color: #bfbfbf; }
+.is-high-contrast .c-tabs__tab.is-selected { background-color: #161616; border-bottom-color: #161616; }
+.is-high-contrast .l-new-game-tab.is-selected { background-color: #161616; border-right-color: #161616; }
+
+.is-high-contrast .l-new-game-tab__label, .is-high-contrast .l-new-game-tab__hint { color: #ffffff; }
+.is-high-contrast .c-button--arrow-down { background-color: #ffffff; }
+.is-high-contrast .c-button--arrow-down:focus-visible { decorator: image(win98-down scale-none center center), win98-focus(#000000); }
+
+.is-high-contrast .l-new-game-content, .is-high-contrast .l-new-game-panels, .is-high-contrast .l-new-game-panel__header { background-color: #161616; }
+.is-high-contrast .l-new-game-panel__header h2, .is-high-contrast .l-new-game-panel__header p, .is-high-contrast .l-new-game-step { color: #ffffff; }
+
+.is-high-contrast input.checkbox, .is-high-contrast input.radio { background-color: #ffffff; border-width: 2dp; }
+.is-high-contrast input.checkbox:focus-visible, .is-high-contrast input.radio:focus-visible { box-shadow: 0 0 0 2dp #ffff00; }
+.is-high-contrast input.checkbox:checked { decorator: image(win98-check scale-none center center); }
+.is-high-contrast input.radio:checked { decorator: image(win98-radio scale-none center center); }
+.is-high-contrast input.text:focus-visible, .is-high-contrast select:focus-visible { border-width: 2dp; }
+.is-high-contrast .c-numeric-editor__arrows button { background-color: #ffffff; }
+.is-high-contrast .c-numeric-editor__up:focus-visible { decorator: image(win98-up scale-none center center), win98-focus(#000000); }
+.is-high-contrast .c-numeric-editor__down:focus-visible { decorator: image(win98-down scale-none center center), win98-focus(#000000); }
+.is-high-contrast .c-field__error { color: #ffff00; background-color: #161616; }
+
+.is-high-contrast .c-numeric-editor__unit { color: #ffffff; background-color: #161616; }
+.is-high-contrast select selectvalue, .is-high-contrast select selectbox, .is-high-contrast select selectbox option { color: #ffffff; background-color: #161616; }
+.is-high-contrast select selectarrow { background-color: #ffffff; }

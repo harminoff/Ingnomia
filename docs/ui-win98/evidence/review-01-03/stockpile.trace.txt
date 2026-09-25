@@ -1,0 +1,3 @@
+2026-09-24T12:02:17.852 ui_fixture_ready name=stockpile shown=true attempts=1 wait_ms=50
+2026-09-24T12:02:17.855 ui_fixture_stockpile_geometry inline=true icon=884,477,24,24 label=913,480,58,18
+2026-09-24T12:02:17.855 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\review-01-03\stockpile-primary.png

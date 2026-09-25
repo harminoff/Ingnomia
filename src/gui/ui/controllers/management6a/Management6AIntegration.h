@@ -55,6 +55,8 @@ public:
 
 private:
 	void connectSignals();
+    unsigned int requestedWorkshop_=0;
+    unsigned int requestedStockpile_{};
 	EventConnector* connector_ {};
 	Rml::Context& context_;
 	std::unique_ptr<Management6ARmlBinding> binding_;

@@ -1,0 +1,1 @@
+2026-09-24T16:36:02.280 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50

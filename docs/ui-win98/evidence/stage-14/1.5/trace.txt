@@ -1,0 +1,47 @@
+2026-09-25T09:14:39.106 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage14-live-1.5\data\save\TutorialValley\1
+2026-09-25T09:14:45.633 PASS Military opened from the HUD
+2026-09-25T09:14:47.112 STATE squads=new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,}; unassigned=Winkle,Cass,Omer,Humptyback,Olaf, roles=new_role; selectedSquad=1000507 selectedMember=- pending=0 open=1
+2026-09-25T09:14:47.112 PASS capture requested squads
+2026-09-25T09:14:47.115 PASS clicked squad_add
+2026-09-25T09:14:48.115 PASS clicked squad_add
+2026-09-25T09:14:49.112 PASS New created two squads: 1 -> 3
+2026-09-25T09:14:49.116 PASS clicked row military_squad_rows:1
+2026-09-25T09:14:49.117 PASS typed squad_name_input:Stage 14 A
+2026-09-25T09:14:49.121 PASS clicked squad_rename
+2026-09-25T09:14:50.112 PASS Rename changed only the selected squad: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};Stage_14_A[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:14:50.112 PASS capture requested squads-renamed
+2026-09-25T09:14:50.629 PASS clicked military_tab_members
+2026-09-25T09:14:51.117 PASS clicked row military_unassigned_rows:0
+2026-09-25T09:14:51.512 PASS capture requested members-selected
+2026-09-25T09:14:51.516 PASS clicked member_assign_squad
+2026-09-25T09:14:52.612 PASS Add put Winkle in Stage 14 A: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};Stage_14_A[Winkle,]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:14:53.017 PASS clicked row military_member_rows:0
+2026-09-25T09:14:53.022 PASS chose military_member_role:0 value=1000505
+2026-09-25T09:14:54.012 PASS chose military_member_destination:1 value=1000519
+2026-09-25T09:14:54.412 PASS capture requested members
+2026-09-25T09:14:54.417 PASS clicked member_move_to
+2026-09-25T09:14:55.512 PASS Move took Winkle out of Stage 14 A: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};Stage_14_A[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[Winkle,]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:14:55.922 PASS clicked military_tab_roles
+2026-09-25T09:14:55.922 PASS clicked role_add
+2026-09-25T09:14:57.014 PASS clicked row military_role_rows:0
+2026-09-25T09:14:57.415 PASS clicked role_civilian
+2026-09-25T09:14:58.508 PASS Civilian check box set the new role civilian: new_role(civ);
+2026-09-25T09:14:58.509 PASS capture requested roles
+2026-09-25T09:14:59.019 PASS clicked military_tab_uniforms
+2026-09-25T09:14:59.023 PASS clicked row military_uniform_rows:0
+2026-09-25T09:14:59.509 PASS capture requested uniforms
+2026-09-25T09:15:00.050 PASS clicked military_tab_priorities
+2026-09-25T09:15:00.062 PASS clicked row military_priority_rows:1
+2026-09-25T09:15:00.519 PASS clicked attitude_hunt
+2026-09-25T09:15:01.602 PASS Hunt set the response of the second target only: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};Stage_14_A[]{CrystalSnake=1,Yak=3,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[Winkle,]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:15:01.602 PASS capture requested targets
+2026-09-25T09:15:01.615 PASS clicked priority_move_up
+2026-09-25T09:15:02.712 PASS Move Up reordered and kept the response: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};Stage_14_A[]{Yak=3,CrystalSnake=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[Winkle,]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:15:03.115 PASS clicked military_tab_squads
+2026-09-25T09:15:03.119 PASS clicked row military_squad_rows:1
+2026-09-25T09:15:03.126 PASS clicked squad_remove
+2026-09-25T09:15:03.604 PASS capture requested squad-delete-review
+2026-09-25T09:15:04.016 PASS dialog confirm-accept
+2026-09-25T09:15:05.103 PASS Delete removed Stage 14 A only: new_squad[]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};new_squad[Winkle,]{CrystalSnake=1,Yak=1,ZygAdult=1,ZygSenior=1,ZygYoung=1,ZygYouth=1,};
+2026-09-25T09:15:05.109 PASS clicked military_close_button
+2026-09-25T09:15:05.913 PASS Close closed the Military window

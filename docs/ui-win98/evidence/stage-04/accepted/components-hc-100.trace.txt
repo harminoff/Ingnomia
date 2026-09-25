@@ -1,0 +1,3 @@
+2026-09-24T13:11:34.754 ui_fixture_ready name=components shown=true attempts=1 wait_ms=50
+2026-09-24T13:11:34.869 ui_fixture_components_generated passed=true root=1280x900 body=1228x848 header=1171x108 grid=1203x1924 layout=pass select_tag=select options=3 generated_select_parts=selectarrow,selectvalue,selectbox scrollbar_tag=scrollbarvertical generated_scroll_parts=slidertrack,sliderbar,sliderarrowdec,sliderarrowinc empty_title=pass title_recovery=pass viewport=640x480:bounds=pass:scroll=pass viewport=1280x900:bounds=pass:scroll=pass viewport=1280x900:bounds=pass:scroll=pass
+2026-09-24T13:11:34.870 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-04\accepted\components-hc-100.png

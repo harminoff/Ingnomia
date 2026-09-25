@@ -23,7 +23,7 @@ int main()
 	check( text.format( LocalizationKey{"common.close"} ) == "Close", "lookup" );
 	check( text.format( LocalizationKey{"missing.key"} ) == "⟦missing.key⟧", "visible missing key" );
 	check( text.format( LocalizationKey{"hud.date"}, {{"day","17"},{"year","4"}} ) == "Day 17 / Year 4", "named numeric arguments" );
-	check( text.format( LocalizationKey{"management.stockpile_summary"}, {{"items","12"},{"capacity","40"},{"reserved","3"},{"priority","2"},{"maximum","5"}} ) == "12 / 40 items | 3 reserved | priority 2 / 5", "management named arguments" );
+	check( text.format( LocalizationKey{"management.stockpile_summary"}, {{"items","12"},{"reserved","3"},{"status","Active"}} ) == "12 stored | 3 incoming | Active", "management named arguments" );
 
 	const auto longText = UiText::longStringFixture().format( LocalizationKey{"common.close"} );
 	check( longText.size() > 80 && longText.find( "Ångström" ) != std::string::npos && longText.find( "Жук" ) != std::string::npos && longText.find( "日本語" ) != std::string::npos && longText.find( "مرحبا" ) != std::string::npos, "long UTF-8 fixture" );

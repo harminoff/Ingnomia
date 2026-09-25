@@ -1,0 +1,14 @@
+# Production typed Exit confirmation probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The opt-in production shell probe opened the main-menu Exit confirmation, captured it, activated Cancel once, and verified that focus was on `confirm-cancel` and the route remained `shell.main_menu`. It then reopened the confirmation and activated Confirm once; the command path dispatched `app.exit` and the application emitted one `aboutToQuit` trace. This run used an empty disposable application-data root with zero save files. It did not start, save, or modify a world.
+
+The probe dispatched RmlUi click events through the production shell listeners rather than physical mouse input. It establishes that the modal is present and the controller's cancel and confirm paths are reachable; it does not establish physical focus trapping or a destructive world mutation.
+
+## Evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-confirm-live-20260924-083952`
+- [Confirmation capture](stage-00-confirmation-exit.png) — SHA-256 `6CECFB07C9CB28D1CBA113BCF20154582DCE5ADCD424CD67BFE4743A86F48841`
+- [Trace](stage-00-confirmation-exit-trace.log) — SHA-256 `CBA02AC53E048D68C3FF793167887B734292BE2F835CA375CFB047AF0218995D`

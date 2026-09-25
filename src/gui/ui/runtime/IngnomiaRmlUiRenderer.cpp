@@ -38,7 +38,17 @@ public:
                 return static_cast<Rml::TextureHandle>( it->second.texture );
             }
         }
-        return RenderInterface_GL3::LoadTexture( dimensions, source );
+        const auto handle = RenderInterface_GL3::LoadTexture( dimensions, source );
+        // Windows 98 control marks and the dither pattern are 1x pixel art drawn at whole-number scales: sample them
+        // with nearest filtering so 2x/3x stay pixel-exact instead of being smoothed.
+        if ( handle && key.find( "w98-" ) != std::string::npos )
+        {
+            glBindTexture( GL_TEXTURE_2D, static_cast<GLuint>( handle ) );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+            glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+            glBindTexture( GL_TEXTURE_2D, 0 );
+        }
+        return handle;
     }
 
     void ReleaseTexture( Rml::TextureHandle texture ) override

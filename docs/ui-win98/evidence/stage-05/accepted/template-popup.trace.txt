@@ -1,0 +1,3 @@
+2026-09-24T14:04:19.490 ui_fixture_ready name=stockpile_manager shown=true attempts=1 wait_ms=50
+2026-09-24T14:04:19.497 ui_fixture_stockpile_template mode=menu allow=true interaction=true
+2026-09-24T14:04:19.497 ui_fixture_detached_capture kind=stockpile armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-05\accepted\template-popup.png

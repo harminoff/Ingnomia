@@ -1,0 +1,73 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/DartConfiguration.tcl
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: ui_stage05
+
+1: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage05\ui_stage05.exe "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+1: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05
+1: Test timeout computed to be: 1500
+1: Stage05 PASS checks=76
+1/7 Test #1: ui_stage05 .............................   Passed    0.35 sec
+test 2
+    Start 2: ui_shell_controller
+
+2: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage05\shell\ui_shell_controller.exe
+2: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/shell
+2: Test timeout computed to be: 1500
+2: ui shell controller tests passed
+2/7 Test #2: ui_shell_controller ....................   Passed    0.01 sec
+test 3
+    Start 3: ui_shell_rml_contract
+
+3: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-rml.cmake"
+3: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/shell
+3: Test timeout computed to be: 1500
+3: -- Wave 3 shell RML contract check passed
+3/7 Test #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+test 4
+    Start 4: ui_shell_integration_contract
+
+4: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-integration.cmake"
+4: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/shell
+4: Test timeout computed to be: 1500
+4: -- Wave 3 shell host/Qt integration contract passed
+4/7 Test #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+test 5
+    Start 5: ui_management6a_controller
+
+5: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage05\management6a\ui_management6a_controller.exe
+5: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/management6a
+5: Test timeout computed to be: 1500
+5: Large stockpile controller search: 27 ms for load plus six queries
+5: Management 6A controller lifecycle, identity, patch, filter, and mutation tests passed
+5/7 Test #5: ui_management6a_controller .............   Passed    0.04 sec
+test 6
+    Start 6: ui_management6a_rml_contract
+
+6: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-rml.cmake"
+6: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/management6a
+6: Test timeout computed to be: 1500
+6: -- Management 6A RML IDs, state surfaces, keyboard buttons, and map ownership passed
+6/7 Test #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+test 7
+    Start 7: ui_management6a_integration_contract
+
+7: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-integration.cmake"
+7: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage05/management6a
+7: Test timeout computed to be: 1500
+7: -- Management 6A pointer-free DTO copy, queued ports, and teardown evidence passed
+7/7 Test #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Total Test time (real) =   0.56 sec

@@ -1,0 +1,32 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07/DartConfiguration.tcl
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: ui_stage07
+
+1: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage07\ui_stage07.exe "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+1: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage07
+1: Test timeout computed to be: 1500
+1: scale=1 cancel=458,104 size=88,25
+1: scale=1.25 cancel=494.25,125 size=109,32.25
+1: scale=1.5 cancel=470.5,164 size=131,37.5
+1: scale=2 cancel=423,211 size=177,50
+1: tooltip=346.8,152 size=280,268
+1: Stage 07: 179 assertions passed
+1/1 Test #1: ui_stage07 .......................   Passed    0.79 sec
+
+The following tests passed:
+	ui_stage07
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.80 sec

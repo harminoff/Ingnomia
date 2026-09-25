@@ -1,0 +1,33 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage15
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage15
+      Start  1: ui_Stage15
+ 1/13 Test  #1: ui_Stage15 .............................   Passed    1.03 sec
+      Start  2: ui_management6c_controller
+ 2/13 Test  #2: ui_management6c_controller .............   Passed    0.03 sec
+      Start  3: ui_management6c_rml_contract
+ 3/13 Test  #3: ui_management6c_rml_contract ...........   Passed    0.02 sec
+      Start  4: ui_management6c_integration_contract
+ 4/13 Test  #4: ui_management6c_integration_contract ...   Passed    0.02 sec
+      Start  5: ui_shell_controller
+ 5/13 Test  #5: ui_shell_controller ....................   Passed    0.01 sec
+      Start  6: ui_shell_rml_contract
+ 6/13 Test  #6: ui_shell_rml_contract ..................   Passed    0.02 sec
+      Start  7: ui_shell_integration_contract
+ 7/13 Test  #7: ui_shell_integration_contract ..........   Passed    0.02 sec
+      Start  8: ui_management6a_controller
+ 8/13 Test  #8: ui_management6a_controller .............   Passed    0.05 sec
+      Start  9: ui_management6a_rml_contract
+ 9/13 Test  #9: ui_management6a_rml_contract ...........   Passed    0.05 sec
+      Start 10: ui_management6a_integration_contract
+10/13 Test #10: ui_management6a_integration_contract ...   Passed    0.07 sec
+      Start 11: ui_management6b_controller
+11/13 Test #11: ui_management6b_controller .............   Passed    0.10 sec
+      Start 12: ui_management6b_rml_contract
+12/13 Test #12: ui_management6b_rml_contract ...........   Passed    0.03 sec
+      Start 13: ui_management6b_integration_contract
+13/13 Test #13: ui_management6b_integration_contract ...   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 13
+
+Total Test time (real) =   1.48 sec
+184 checks passed

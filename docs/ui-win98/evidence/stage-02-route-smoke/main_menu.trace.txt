@@ -1,0 +1,1 @@
+2026-09-24T09:51:04.621 ui_capture_requested path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke\main_menu.png

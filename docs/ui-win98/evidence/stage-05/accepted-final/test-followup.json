@@ -1,0 +1,4 @@
+{
+  "note": "After production captures, added two assertions only; application sources unchanged. tests.txt and source-hashes.json describe the capture-time test source; tests-final.txt describes the final 78-assertion suite.",
+  "interaction_tests_sha256": "7382e5b13fdb3462175cdeb51011b77967cc616082cc68a39a915b41ef6c3e72"
+}

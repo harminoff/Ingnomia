@@ -134,7 +134,11 @@ private:
 	QList<GuiTradeItem> m_traderStock;        ///< Current trader stock view.
 	QList<GuiTradeItem> m_playerStock;        ///< Current player stock view.
 
-	unsigned int m_traderID = 0;              ///< UID of the active trader creature.
+	unsigned int m_tradeWorkshopID=0;
+ quint64 m_tradeRevision=0;
+ void publishTrade();
+ bool validTradeTarget(unsigned int, unsigned int, quint64);
+ unsigned int m_traderID = 0;              ///< UID of the active trader creature.
 
 	int m_traderOfferValue = 0;               ///< Sum of values in the trader's offer column.
 	int m_playerOfferValue = 0;               ///< Sum of values in the player's offer column.
@@ -171,9 +175,13 @@ public slots:
 	void onPlayerOffertoStock( unsigned int workshopID, QString itemSID, QString materialSID, unsigned char quality, int count );
 
 	void onTrade( unsigned int workshopID );
+ void onSetTradeOffer(unsigned int workshopID,unsigned int traderID,quint64 revision,bool trader,QString item,QString material,unsigned char quality,int count);
+ void onReviewedTrade(unsigned int workshopID,unsigned int traderID,quint64 revision);
 
 	void onCloseWindow();
 signals:
+ void signalWorkshopRejected(unsigned int workshopID,QString reason);
+ void signalTradeSnapshot(unsigned int workshopID,unsigned int traderID,quint64 revision,const QList<GuiTradeItem>& trader,const QList<GuiTradeItem>& player,int traderValue,int playerValue);
 	void signalCraftOrderResult(unsigned int workshopID, bool accepted);
 	void signalOpenWorkshopWindow( unsigned int workshopID );
 	void signalUpdateInfo( const GuiWorkshopInfo& info );

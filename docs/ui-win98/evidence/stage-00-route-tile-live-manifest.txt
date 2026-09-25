@@ -1,0 +1,25 @@
+# Live tile inspector and stockpile probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`, build tree `build-wave8-root-msvc-link-priority2`; build succeeded after the probe capture adjustment.
+Executable exit code: 0.
+
+## Isolated run
+
+- Temporary run root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-live-tile-20260924-125712`
+- Data root: `...\data`; probe output: `...\probe`
+- Opt-in seam: `tests/ui-inspector/live_tile_probe.h`, enabled with `INGNOMIA_DATA_FOLDER` and `INGNOMIA_LIVE_TILE_PROBE`.
+- The probe starts a generated disposable world, creates a 31×31 in-memory granite floor patch, and adds its stockpile and item in memory. The data root contains only `log.txt` and settings; it has zero save files. No tutorial or normal user save was opened, and no save command was issued.
+
+## Results
+
+All 28 assertions passed. The production HUD binding opens the independent tile inspector; synthetic `QMouseEvent`s sent through the game window select tiles and retain the outline. The live panel shows the test-created stockpile and its item. The bound Delete stockpile action removes the full designation and clears both tile flags while leaving the item on its tile and releasing it from the stockpile. The bound Remove floor action creates an authoritative `RemoveFloor` job, and the live panel exposes Cancel job. The probe also verifies list-wheel isolation from map zoom, close/reopen selection behavior, title dragging beyond the game canvas, and the replacement-floor picker.
+
+`panel.tile` is now covered through a production route with a probe-created world/object. This does not establish coverage for natural world content. `panel.stockpile` (the separate stockpile management window) remains unverified as a legal manager route; the probe confirms the tile inspector does not open that window. The injected Qt events and Rml element activation are not physical mouse/keyboard evidence. The active-job capture temporarily enlarges the probe window to include the job row, then restores its original fixed size.
+
+## Evidence
+
+- [Tile and stockpile detail](stage-00-route-tile-live-stockpile.png) — SHA-256 `0CD419FDB41C31C06EE9D5A658CB7D4435AEEFC34D2088F93338941C14FD6CFF`
+- [Scrollable contents](stage-00-route-tile-live-overflow.png) — SHA-256 `6572D5147C442C06489E58CFE1D96A65C28FFD33E4DE7B632DA20F15EFC3B508`
+- [Active Remove floor job](stage-00-route-tile-live-job.png) — SHA-256 `00C4D0F4B6A51C2BA2EA05E06F80CDB8E3A25C83B8D2C3ADDB221F460485D3F7`
+- [Assertion trace](stage-00-route-tile-live-trace.log) — SHA-256 `0AE1DF9A9A570CE4AFDF7D69A2AB285A24E0D7CA5AC1625FB399FEAB930E3E48`

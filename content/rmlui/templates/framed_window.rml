@@ -5,9 +5,9 @@
 </head>
 <body class="c-window">
     <div class="c-title-bar">
-        <div class="c-title-bar__mark"></div>
-        <div class="c-title-bar__title">Framed window</div>
-        <button class="c-icon-button" title="Close"><span class="c-icon-button__glyph">&#215;</span></button>
+        <div class="c-title-bar__mark" aria-hidden="true"></div>
+        <div class="c-title-bar__title" title="A deliberately long workbench title used to verify truncation and full-title recovery on hover">A deliberately long workbench title used to verify truncation and full-title recovery on hover</div>
+        <button class="c-button c-window__close" title="Close sample window"><span class="c-window__close-content"><span class="c-chrome-glyph c-chrome-glyph--close" aria-hidden="true"></span><span>Close</span></span></button>
     </div>
     <div id="window-content" class="c-window__body"></div>
 </body>

@@ -16,7 +16,7 @@ int main()
 	CHECK( test, UiRegistries::routes().size() == 18 );
 	CHECK( test, UiRegistries::documents().size() == 23 );
 	CHECK( test, UiRegistries::modelNames().size() == 16 );
-	CHECK( test, UiRegistries::tools().size() == 27 );
+	CHECK( test, UiRegistries::tools().size() == 31 );
 
 	const auto* hud = UiRegistries::findRoute( "game.hud" );
 	CHECK( test, hud != nullptr );
@@ -30,11 +30,11 @@ int main()
 	CHECK( test, !UiRegistries::hasModel( "ui_debug" ) );
 	CHECK( test, UiRegistries::hasModel( "ui_debug", true ) );
 	CHECK( test, UiRegistries::hasTool( "explorative_mine" ) );
-	CHECK( test, !UiRegistries::hasTool( "suspend_job" ) );
+	CHECK( test, UiRegistries::hasTool( "suspend_job" ) );
 
 	const auto actionAudit = UiActionRegistry::audit();
 	CHECK( test, actionAudit.valid() );
-	CHECK( test, UiActionRegistry::actions().size() == 101 );
+	CHECK( test, UiActionRegistry::actions().size() == 117 );
 	CHECK( test, UiActionRegistry::find( "app.exit" ) != nullptr );
 	CHECK( test, UiActionRegistry::find( "app.exit" )->requiresConfirmation );
 	CHECK( test, UiActionRegistry::find( "event.respond" ) != nullptr );

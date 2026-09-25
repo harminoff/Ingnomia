@@ -1,0 +1,61 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[1/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellRmlBinding.cpp.obj
+[2/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6b\Management6BRmlBinding.cpp.obj
+[3/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellRmlAdapter.cpp.obj
+[4/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6b\Management6BController.cpp.obj
+[5/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellController.cpp.obj
+[6/20] Building CXX object CMakeFiles\ui_stage06.dir\report_tests.cpp.obj
+[7/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6ARmlBinding.cpp.obj
+[8/20] Building CXX object CMakeFiles\ui_stage06.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+[9/20] Building CXX object shell\CMakeFiles\ui_shell_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellRmlAdapter.cpp.obj
+[10/20] Building CXX object shell\CMakeFiles\ui_shell_controller.dir\controller_tests.cpp.obj
+[11/20] Building CXX object shell\CMakeFiles\ui_shell_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellController.cpp.obj
+[12/20] Building CXX object shell\CMakeFiles\ui_shell_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\shell\ShellDataAdapter.cpp.obj
+[13/20] Building CXX object management6a\CMakeFiles\ui_management6a_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+[14/20] Building CXX object management6a\CMakeFiles\ui_management6a_controller.dir\controller_tests.cpp.obj
+[15/20] Linking CXX executable shell\ui_shell_controller.exe
+[16/20] Linking CXX executable ui_stage06.exe
+[17/20] Linking CXX executable management6a\ui_management6a_controller.exe
+[18/20] Building CXX object management6b\CMakeFiles\ui_management6b_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6b\Management6BController.cpp.obj
+[19/20] Building CXX object management6b\CMakeFiles\ui_management6b_controller.dir\controller_tests.cpp.obj
+[20/20] Linking CXX executable management6b\ui_management6b_controller.exe
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06
+      Start  1: ui_stage06
+ 1/10 Test  #1: ui_stage06 .............................***Failed    3.38 sec
+PERF initial_ms=65.6123 elements=634 row_children=32
+PERF scroll20_ms=130.182 elements=635
+WATCH delta=1 action=watch.set
+SCROLL range=1800/144 arrow=16x16
+ALIGN stockpile header=528 row=524
+FAIL Stockpile material header aligns with virtual body
+
+      Start  2: ui_shell_controller
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.04 sec
+      Start  3: ui_shell_rml_contract
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+      Start  4: ui_shell_integration_contract
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+      Start  5: ui_management6a_controller
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.21 sec
+      Start  6: ui_management6a_rml_contract
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+      Start  7: ui_management6a_integration_contract
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+      Start  8: ui_management6b_controller
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.28 sec
+      Start  9: ui_management6b_rml_contract
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+      Start 10: ui_management6b_integration_contract
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+
+90% tests passed, 1 tests failed out of 10
+
+Total Test time (real) =   4.17 sec
+
+The following tests FAILED:
+	  1 - ui_stage06 (Failed)
+Errors while running CTest

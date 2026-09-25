@@ -1,0 +1,75 @@
+﻿===== Stage 04
+1/4 Test #1: ui_stage04 .......................   Passed    0.38 sec
+2/4 Test #2: ui_shell_controller ..............   Passed    0.01 sec
+3/4 Test #3: ui_shell_rml_contract ............   Passed    0.02 sec
+4/4 Test #4: ui_shell_integration_contract ....   Passed    0.02 sec
+100% tests passed, 0 tests failed out of 4
+===== Stage 05
+1/7 Test #1: ui_stage05 .............................   Passed    1.11 sec
+2/7 Test #2: ui_shell_controller ....................   Passed    0.01 sec
+3/7 Test #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+4/7 Test #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+5/7 Test #5: ui_management6a_controller .............   Passed    0.07 sec
+6/7 Test #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+7/7 Test #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+100% tests passed, 0 tests failed out of 7
+===== Stage 06
+ 1/10 Test  #1: ui_stage06 .............................   Passed    4.48 sec
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.04 sec
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.05 sec
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.11 sec
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+100% tests passed, 0 tests failed out of 10
+===== Stage 07
+ 1/10 Test  #1: ui_stage07 .............................   Passed    1.65 sec
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.05 sec
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.05 sec
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.11 sec
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+100% tests passed, 0 tests failed out of 10
+===== Stage 08
+ 1/10 Test  #1: ui_stage08 .............................   Passed   25.85 sec
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.04 sec
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.05 sec
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.11 sec
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+100% tests passed, 0 tests failed out of 10
+===== Stage 09
+ 1/10 Test  #1: ui_stage09 .............................   Passed    6.47 sec
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.04 sec
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.11 sec
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+100% tests passed, 0 tests failed out of 10
+===== Stage 10
+ 1/10 Test  #1: ui_Stage10 .............................   Passed    0.31 sec
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.04 sec
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.12 sec
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+100% tests passed, 0 tests failed out of 10

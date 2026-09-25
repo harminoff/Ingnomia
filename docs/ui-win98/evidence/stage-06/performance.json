@@ -1,0 +1,28 @@
+{
+  "runs": [
+    {
+      "initial_ms": 64.0089,
+      "initial_elements": 522,
+      "row_children": 26,
+      "scroll20_ms": 102.83,
+      "scroll_elements": 523
+    },
+    {
+      "initial_ms": 63.5322,
+      "initial_elements": 522,
+      "row_children": 26,
+      "scroll20_ms": 103.585,
+      "scroll_elements": 523
+    },
+    {
+      "initial_ms": 64.8082,
+      "initial_elements": 522,
+      "row_children": 26,
+      "scroll20_ms": 101.43,
+      "scroll_elements": 523
+    }
+  ],
+  "median_initial_ms": 64.0089,
+  "median_scroll20_ms": 102.83,
+  "method": "Idle focused harness, production binding, real RmlUi layout and stub renderer; not GPU timing."
+}

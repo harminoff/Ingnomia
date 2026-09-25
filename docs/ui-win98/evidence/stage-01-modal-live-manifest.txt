@@ -1,0 +1,10 @@
+Stage 01 live modal sentinel
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+Route: game.hud -> live HUD event prompt (database-backed migration confirmation)
+Scenario: two fresh isolated copies of the disposable five-gnome Tutorial Valley save
+Captures: stage-01-modal-live-a.png, stage-01-modal-live-b.png
+Traces: stage-01-modal-live-a-trace.log, stage-01-modal-live-b-trace.log
+
+Both production-host captures show the same centered Yes/No event dialog and both traces show a successful prompt source handoff and response dispatch. The event amount is data-driven and differed (1 versus 5 new gnomes), so byte-identical image comparison would be inappropriate. This validates a live event-prompt modal path and repeatable structure; it does not validate typed destructive confirmation, physical input, or focus trapping.

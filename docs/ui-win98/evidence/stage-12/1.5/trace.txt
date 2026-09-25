@@ -1,0 +1,35 @@
+2026-09-25T08:21:37.527 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage12-live-1.5\data\save\TutorialValley\1
+2026-09-25T08:21:44.025 PASS Population opened from the HUD
+2026-09-25T08:21:45.511 PASS clicked population_rows:1
+2026-09-25T08:21:46.010 STATE view=0 sort=0 desc=0 selected=1000127 order=Cass;Humptyback;Olaf;Omer;Winkle; skill=Mining skillState=Cass=on;Humptyback=on;Olaf=on;Omer=on;Winkle=on; profession=- draft=0 dirty=0 pending=0 professions=Farmer(0);Gnomad(0);Mason(0);Miner(0);Woodcutter(0); open=1
+2026-09-25T08:21:46.010 PASS capture requested citizens
+2026-09-25T08:21:46.311 PASS activated population_sort_name
+2026-09-25T08:21:46.610 PASS Name heading reversed the order: Winkle;Omer;Olaf;Humptyback;Cass;
+2026-09-25T08:21:46.610 PASS capture requested citizens-descending
+2026-09-25T08:21:47.413 PASS activated population_tab_skills
+2026-09-25T08:21:48.010 skills before Cass=on;Humptyback=on;Olaf=on;Omer=on;Winkle=on;
+2026-09-25T08:21:48.010 PASS capture requested skills
+2026-09-25T08:21:48.011 PASS clicked skill_citizen_rows:0
+2026-09-25T08:21:49.610 PASS the game changed only the first citizen's skill: Cass=off;Humptyback=on;Olaf=on;Omer=on;Winkle=on;
+2026-09-25T08:21:49.611 PASS clicked skill_citizen_rows:0
+2026-09-25T08:21:51.010 PASS second click restored the skill
+2026-09-25T08:21:51.011 PASS activated skill_disable_all
+2026-09-25T08:21:51.509 PASS capture requested skills-bulk-review
+2026-09-25T08:21:51.910 PASS dialog confirm-cancel
+2026-09-25T08:21:52.211 PASS activated population_tab_professions
+2026-09-25T08:21:52.212 PASS activated profession_create
+2026-09-25T08:21:53.410 PASS New created and selected New Profession: Farmer(0);Gnomad(0);Mason(0);Miner(0);New
+2026-09-25T08:21:53.411 PASS clicked profession_available_skills:0
+2026-09-25T08:21:53.412 PASS activated profession_skill_add
+2026-09-25T08:21:53.910 PASS capture requested professions-dirty
+2026-09-25T08:21:53.913 PASS activated profession_save
+2026-09-25T08:21:55.410 PASS Save stored one skill for New Profession: Farmer(0);Gnomad(0);Mason(0);Miner(0);New
+2026-09-25T08:21:55.410 PASS capture requested professions
+2026-09-25T08:21:55.411 PASS activated profession_delete
+2026-09-25T08:21:55.910 PASS capture requested profession-delete-review
+2026-09-25T08:21:56.327 PASS dialog confirm-accept
+2026-09-25T08:21:57.213 PASS Delete removed New Profession: Farmer(0);Gnomad(0);Mason(0);Miner(0);Woodcutter(0);
+2026-09-25T08:21:57.620 PASS activated population_tab_schedules
+2026-09-25T08:21:58.211 PASS capture requested schedules
+2026-09-25T08:21:58.618 PASS activated population_close_button
+2026-09-25T08:21:59.008 PASS Close closed the Population window

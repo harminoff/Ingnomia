@@ -1,0 +1,3 @@
+2026-09-24T14:10:34.837 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage05-workshop-20260924-141031\data\save\TutorialValley\1
+2026-09-24T14:10:41.339 PASS created probe Carpenter workshop id=1000518 tile=287500 footprint=9
+2026-09-24T14:10:43.845 PASS Workshop manager opened and capture requested

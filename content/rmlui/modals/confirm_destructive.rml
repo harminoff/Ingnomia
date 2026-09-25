@@ -3,12 +3,12 @@
     <title data-l10n="shell.confirm.confirm_action">Confirm action</title>
     <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="c-modal-stage">
+<body class="c-modal-stage" data-modal-dialog="true">
     <div class="c-modal-scrim"></div>
-    <section class="c-modal c-modal--danger">
+    <section class="c-modal c-modal--danger" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-detail">
         <header class="c-modal__header"><h2 id="confirm-title" data-l10n="shell.confirm.confirm-title">Confirm action</h2></header>
         <div class="c-modal__body"><div class="c-alert-row c-alert-row--danger"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span id="confirm-detail" class="c-alert-row__detail" data-l10n="shell.confirm.confirm-detail">This action may discard unsaved progress.</span></span></div></div>
-        <footer class="c-modal__actions"><button id="confirm-cancel" class="c-button c-button--primary" data-l10n="shell.confirm.confirm-cancel">Cancel</button><button id="confirm-accept" class="c-button c-button--danger" data-l10n="shell.confirm.confirm-accept">Confirm</button></footer>
+        <footer class="c-modal__actions"><button id="confirm-accept" class="c-button" data-l10n="ui.confirm.accept">Confirm</button><button id="confirm-alternate" class="c-button is-hidden" data-l10n="ui.confirm.discard_draft">Discard draft</button><button id="confirm-cancel" class="c-button" data-default-action="true" data-l10n="common.cancel">Cancel</button></footer>
     </section>
 </body>
 </rml>

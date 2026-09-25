@@ -1,0 +1,15 @@
+# Live Workshop manager route probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The opt-in probe loaded a fresh copy of the 21-file Tutorial Valley save through `EventConnector::onLoadGame`. On the game thread it created a `Carpenter` instance through `WorkshopManager::addWorkshop`, set the workshop footprint flags on its nine component tiles, and selected the anchor through `EventConnector::onSelectTile`. The registered Workshop manager opened and rendered its Craft page with the craft catalog, empty queue, new-order controls, and material requirements for Wood Chair.
+
+This proves the production Workshop manager route/document against a real `Workshop` model instance. The model and footprint were created in memory by the probe; it did not use the normal construction/build workflow or place the required components. The screenshot reports missing materials and the queue is empty, so construction legality, successful production, and queue-command effects remain open. All 21 copied save-file SHA-256 values matched the source copy after exit; no save command was issued. The route and capture were driven by injected test events, not physical input.
+
+## Isolation and evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-workshop-live-20260924-131758`
+- Copied save: `...\data\save\TutorialValley\1` (21 files; unchanged after run)
+- [Carpenter manager capture](stage-00-route-workshop-live-carpenter.png) — SHA-256 `9B15F5E9019A6F3FD86F4FDA96F1A6C0337830A80DBC1B5B5D746AFD054195FF`
+- [Trace](stage-00-route-workshop-live-trace.log) — SHA-256 `0FF49A5B504CB9A75F44EE98C20899DE5D97DEC9B23E6EBDB650D6014092555C`

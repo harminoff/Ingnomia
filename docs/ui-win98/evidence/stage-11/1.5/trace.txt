@@ -1,0 +1,70 @@
+2026-09-25T07:41:48.835 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage11-live-1.5\data\save\TutorialValley\1
+2026-09-25T07:41:55.346 Farm plan probe created four-plot Farm id=1000518
+2026-09-25T07:41:55.347 Farm plan probe selected farm id=1000518 plots=4 targetA=287500 targetB=287501
+2026-09-25T07:41:57.847 PASS Farm opens with ready data instead of Loading
+2026-09-25T07:41:57.848 PASS Farm Plots page opens
+2026-09-25T07:41:57.848 PASS activated agriculture_view_plots
+2026-09-25T07:41:57.849 PASS activated agriculture_plot_12_12_70
+2026-09-25T07:41:57.850 PASS ctrl-click:agriculture_plot_13_12_70
+2026-09-25T07:41:57.851 PASS set agriculture_plot_crop=Strawberry
+2026-09-25T07:41:57.852 PASS activated agriculture_plot_assign
+2026-09-25T07:41:57.852 PASS set agriculture_plot_count=2
+2026-09-25T07:41:57.854 PASS activated agriculture_plot_queue
+2026-09-25T07:41:57.854 STATE kind=0 name=Farm pane=1 selected=12,12;13,12; plots=12,12,70;13,12,70;12,13,70;13,13,70; product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:41:57.854 PASS Farm grid selects two plots and queues two Strawberry plantings on each
+2026-09-25T07:42:00.345 PASS reopening the same Farm remains ready
+2026-09-25T07:42:00.835 PASS Farm bulk plan applied to exactly 2 of 4 plots; 2 plots untouched
+2026-09-25T07:42:00.835 PASS Farm plot plans survive save-data deserialization for 2 plots
+2026-09-25T07:42:00.836 WARN Farm scheduling created 0 Strawberry planting jobs
+2026-09-25T07:42:01.846 PASS capture requested farm-plots
+2026-09-25T07:42:02.038 PASS Farm emitted 2 live updates without Refresh
+2026-09-25T07:42:02.646 PASS activated agriculture_plot_13_12_70
+2026-09-25T07:42:02.647 PASS activated agriculture_view_queue
+2026-09-25T07:42:02.648 PASS selected planting 2
+2026-09-25T07:42:03.245 STATE kind=0 name=Farm pane=2 selected=13,12; plots=12,12,70;13,12,70;12,13,70;13,13,70; product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:03.246 PASS capture requested farm-queue
+2026-09-25T07:42:04.044 PASS activated agriculture_view_general
+2026-09-25T07:42:04.046 PASS set agriculture_name=Stage 11 farm
+2026-09-25T07:42:04.047 PASS activated agriculture_toggle_harvest
+2026-09-25T07:42:04.545 PASS General edits stay pending: STATE kind=0 name=Farm pane=0 selected=13,12; plots=12,12,70;13,12,70;12,13,70;13,13,70; product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=1 pending=0 feedback=
+2026-09-25T07:42:04.545 PASS capture requested farm-general-pending
+2026-09-25T07:42:05.249 PASS activated agriculture_apply
+2026-09-25T07:42:06.445 PASS authoritative snapshot confirms Apply: STATE kind=0 name=Stage 11 farm pane=0 selected=13,12; plots=12,12,70;13,12,70;12,13,70;13,13,70; product= harvest=0 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:06.445 PASS Apply renamed the farm and switched off harvest in the game model name=Stage 11 farm
+2026-09-25T07:42:06.445 PASS capture requested farm-general
+2026-09-25T07:42:07.245 PASS activated agriculture_view_crops
+2026-09-25T07:42:07.247 PASS activated agriculture_farm_crop_53747261776265727279
+2026-09-25T07:42:07.745 PASS capture requested farm-crops
+2026-09-25T07:42:08.446 PASS activated agriculture_ok
+2026-09-25T07:42:09.645 PASS OK applied the default crop plantType=Strawberry
+2026-09-25T07:42:09.645 PASS created a probe grove and pasture next to the farm
+2026-09-25T07:42:11.647 STATE kind=2 name=Grove pane=0 selected= plots= product= harvest=0 hay=0 tame=0 pick=1 plant=1 fell=1 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:11.648 PASS capture requested grove-general
+2026-09-25T07:42:11.649 PASS activated agriculture_toggle_fell
+2026-09-25T07:42:11.651 PASS activated agriculture_apply
+2026-09-25T07:42:12.845 PASS Fell trees changed only that rule: STATE kind=2 name=Grove pane=0 selected= plots= product= harvest=0 hay=0 tame=0 pick=1 plant=1 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:12.846 PASS activated agriculture_view_crops
+2026-09-25T07:42:13.444 PASS capture requested grove-trees
+2026-09-25T07:42:15.445 STATE kind=1 name=Pasture pane=0 selected= plots= product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:15.445 PASS capture requested pasture-general
+2026-09-25T07:42:15.446 PASS activated agriculture_view_animals
+2026-09-25T07:42:15.748 PASS a new pasture starts with no animal type: STATE kind=1 name=Pasture pane=4 selected= plots= product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:15.749 PASS set agriculture_animal_type=Chicken
+2026-09-25T07:42:15.835 PASS capture requested pasture-type-pending
+2026-09-25T07:42:15.837 PASS activated agriculture_apply
+2026-09-25T07:42:15.837 after type Apply STATE kind=1 name=Pasture pane=4 selected= plots= product= harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=0 maxFemale=0 foods=0 animals=0 dirty=1 pending=1 feedback=
+2026-09-25T07:42:16.334 type Apply settled STATE kind=1 name=Pasture pane=4 selected= plots= product=Chicken harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=2 maxFemale=2 foods=52 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:16.649 PASS set agriculture_male_cap=3
+2026-09-25T07:42:16.650 PASS activated agriculture_male_cap-up
+2026-09-25T07:42:16.650 PASS capture requested pasture-animals
+2026-09-25T07:42:16.741 PASS activated agriculture_view_food
+2026-09-25T07:42:17.241 PASS capture requested pasture-food
+2026-09-25T07:42:17.244 PASS activated agriculture_apply
+2026-09-25T07:42:18.334 MODEL pasture type=Chicken
+2026-09-25T07:42:18.444 PASS pasture animal type and male limit applied: STATE kind=1 name=Pasture pane=5 selected= plots= product=Chicken harvest=1 hay=0 tame=0 pick=0 plant=0 fell=0 suspended=0 maxMale=4 maxFemale=2 foods=52 animals=0 dirty=0 pending=0 feedback=
+2026-09-25T07:42:19.045 PASS activated agriculture_view_general
+2026-09-25T07:42:19.046 PASS set agriculture_name=Unsaved pasture
+2026-09-25T07:42:19.047 PASS activated agriculture_close
+2026-09-25T07:42:19.652 PASS capture requested pasture-close-prompt
+2026-09-25T07:42:20.450 PASS activated agriculture_review_alternate
+2026-09-25T07:42:21.244 PASS No discarded the pending pasture name

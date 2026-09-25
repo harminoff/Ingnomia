@@ -1,0 +1,1 @@
+2026-09-24T17:12:19.451 ui_fixture_ready name=stockpile_manager shown=true attempts=1 wait_ms=50

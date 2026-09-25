@@ -1,0 +1,2 @@
+2026-09-24T09:51:48.067 ui_shell_element requested=shell-settings click_dispatched=true route_before=shell.main_menu route_after=shell.settings focused_target=shell-settings focus_after=shell-back
+2026-09-24T09:51:49.056 ui_shell_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke\settings.png

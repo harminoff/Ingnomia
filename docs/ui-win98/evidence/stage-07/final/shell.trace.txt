@@ -1,0 +1,14 @@
+2026-09-24T15:46:47.834 ui_fixture_ready name=shell_confirmation shown=true attempts=1 wait_ms=50
+2026-09-24T15:46:47.836 shell_confirmation first_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:46:47.836 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\shell-primary.png
+2026-09-24T15:46:48.337 shell_confirmation cancel=true focus=confirm-cancel route=shell.main_menu
+2026-09-24T15:46:48.639 shell_confirmation second_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:46:48.939 shell_confirmation accept=true focus=confirm-accept action=app.exit
+2026-09-24T15:46:48.940 shell_confirmation about_to_quit=true
+2026-09-24T15:51:40.221 ui_fixture_ready name=shell_confirmation shown=true attempts=1 wait_ms=50
+2026-09-24T15:51:40.224 shell_confirmation first_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:51:40.224 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\final\shell-primary.png
+2026-09-24T15:51:40.724 shell_confirmation cancel=true focus=confirm-cancel route=shell.main_menu
+2026-09-24T15:51:41.026 shell_confirmation second_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:51:41.326 shell_confirmation accept=true focus=confirm-accept action=app.exit
+2026-09-24T15:51:41.327 shell_confirmation about_to_quit=true

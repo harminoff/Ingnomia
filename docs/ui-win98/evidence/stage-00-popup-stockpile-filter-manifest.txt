@@ -1,0 +1,13 @@
+# Production Stockpile filter popup capture
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The production detached Stockpile manager was opened with the opt-in `stockpile_manager` fixture. Its three Stock entries are synthetic fixture data. The probe activated the live `stockpile_content_filter_material_toggle` listener and captured the manager with its material options popover open. The screenshot is the detached RmlUi window's own framebuffer, not a browser or hand-drawn substitute. This proves a real rendered popup state, not a legal stockpile scenario or filter command against a live world. No save was opened or created.
+
+## Evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-popup-live-20260924-083422`
+- [Open filter popup](stage-00-popup-stockpile-filter.png) — SHA-256 `39E64356B4C99E82FE0E853F9B236220277E2BE4C0FF98731ECC3CB6ADA6BC87`
+- [Trace](stage-00-popup-stockpile-filter-trace.log) — SHA-256 `A56C80F3DB6B41B9136F26855C4339357229A0D9B1C86953295727C3DF8B00D7`
+- Primary shell capture from the same fixture launch is temporary diagnostic output and is not part of this evidence set.

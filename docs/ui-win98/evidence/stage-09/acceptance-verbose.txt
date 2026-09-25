@@ -1,0 +1,168 @@
+Start testing: Sep 24 17:26 Central Daylight Time
+----------------------------------------------------------
+1/10 Testing: ui_stage09
+1/10 Test: ui_stage09
+Command: "C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/ui_stage09.exe" "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09
+"ui_stage09" start time: Sep 24 17:26 Central Daylight Time
+Output:
+----------------------------------------------------------
+popup density=1 x=417 y=213 w=220 h=104
+popup density=1.25 x=362.75 y=209 w=275 h=130
+popup density=1.5 x=307.5 y=249 w=330 h=158
+popup density=2 x=198 y=332 w=440 h=84
+90 Stage09 checks passed
+<end of output>
+Test time =   6.63 sec
+----------------------------------------------------------
+Test Passed.
+"ui_stage09" end time: Sep 24 17:27 Central Daylight Time
+"ui_stage09" time elapsed: 00:00:06
+----------------------------------------------------------
+
+2/10 Testing: ui_shell_controller
+2/10 Test: ui_shell_controller
+Command: "C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/shell/ui_shell_controller.exe"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/shell
+"ui_shell_controller" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+ui shell controller tests passed
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"ui_shell_controller" end time: Sep 24 17:27 Central Daylight Time
+"ui_shell_controller" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/10 Testing: ui_shell_rml_contract
+3/10 Test: ui_shell_rml_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-rml.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/shell
+"ui_shell_rml_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Wave 3 shell RML contract check passed
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"ui_shell_rml_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_shell_rml_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/10 Testing: ui_shell_integration_contract
+4/10 Test: ui_shell_integration_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-integration.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/shell
+"ui_shell_integration_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Wave 3 shell host/Qt integration contract passed
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"ui_shell_integration_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_shell_integration_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/10 Testing: ui_management6a_controller
+5/10 Test: ui_management6a_controller
+Command: "C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6a/ui_management6a_controller.exe"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6a
+"ui_management6a_controller" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+Large stockpile controller search: 27 ms for load plus six queries
+Management 6A controller lifecycle, identity, patch, filter, and mutation tests passed
+<end of output>
+Test time =   0.20 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6a_controller" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6a_controller" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/10 Testing: ui_management6a_rml_contract
+6/10 Test: ui_management6a_rml_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-rml.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6a
+"ui_management6a_rml_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Management 6A RML IDs, state surfaces, keyboard buttons, and map ownership passed
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6a_rml_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6a_rml_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/10 Testing: ui_management6a_integration_contract
+7/10 Test: ui_management6a_integration_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-integration.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6a
+"ui_management6a_integration_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Management 6A pointer-free DTO copy, queued ports, and teardown evidence passed
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6a_integration_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6a_integration_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/10 Testing: ui_management6b_controller
+8/10 Test: ui_management6b_controller
+Command: "C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6b/ui_management6b_controller.exe"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6b
+"ui_management6b_controller" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+Management 6B controller tests passed
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6b_controller" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6b_controller" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/10 Testing: ui_management6b_rml_contract
+9/10 Test: ui_management6b_rml_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6b/verify-management6b-rml.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6b
+"ui_management6b_rml_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Management 6B RML contract verified
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6b_rml_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6b_rml_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/10 Testing: ui_management6b_integration_contract
+10/10 Test: ui_management6b_integration_contract
+Command: "C:/Program Files/lua/lua/tools/bin/cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6b/verify-management6b-integration.cmake"
+Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage09/management6b
+"ui_management6b_integration_contract" start time: Sep 24 17:27 Central Daylight Time
+Output:
+----------------------------------------------------------
+-- Management 6B integration contract verified
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"ui_management6b_integration_contract" end time: Sep 24 17:27 Central Daylight Time
+"ui_management6b_integration_contract" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Sep 24 17:27 Central Daylight Time

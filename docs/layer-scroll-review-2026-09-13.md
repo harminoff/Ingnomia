@@ -1,5 +1,8 @@
 # Stationary canvas during layer changes
 
+Historical behavior: superseded by [active-floor grid alignment](canvas-layer-alignment-2026-09-22.md).
+The fixed-Z compensation described below caused the active grid to drift between floors.
+
 The wheel handler was not explicitly panning. All world vertex shaders project
 height relative to `uRenderMax.z`, so changing the visible layer shifted every
 existing tile by 20 unscaled pixels (60 screen pixels at zoom 3).

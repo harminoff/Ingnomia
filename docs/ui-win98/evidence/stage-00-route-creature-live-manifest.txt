@@ -1,0 +1,24 @@
+Stage 00 live creature inspector route
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+Scenario: Tutorial Valley, five gnomes; fresh copy of the generated disposable source save.
+Selected creature: Winkle (ID 1000124), position 31 31 70.
+Source save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-20260924-003012\copy-data\save\TutorialValley\1
+Probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-creature-capture-1878f2dac68e44e9a5b6b674fdd5c597\data
+Probe save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-creature-capture-1878f2dac68e44e9a5b6b674fdd5c597\data\save\TutorialValley\1
+Save files copied: 21
+Probe save hashes before/after launch: equal.
+
+Route: copied-save load -> production AggregatorSelection::signalSelectCreature -> AggregatorCreatureInfo update -> MainWindow detached creature inspector.
+Capture: stage-00-route-creature-live-detached.png, read from the detached RmlUi window's OpenGL surface.
+Capture SHA256: 7C18E9E60E8750606AE488E0032BB9EBF6FC6E3480C210C64F47E89F830FF6AD
+Automation trace: stage-00-route-creature-live-trace.log (explicit_load and selection_creature dispatched for ID 1000124).
+
+Additional live page probes, each on a fresh copy of the same 21-file source save:
+- Stats probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-creature-stats-bfde7a0835bc4e16b155af7fdb52595c\data
+- Expertise probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-creature-expertise-f6fbde29b7cf4ac9acfd04ad839be48c\data
+- Stats: stage-00-route-creature-live-stats-detached.png (SHA256 F34FD14027E6FC62821A86C54FCBC0D6B8EB03CC818CC7F12C8908D041CF9B50), stage-00-route-creature-live-stats-trace.log; selected `creature_preview_nav_stats` through the production binding. The page shows the live attributes and needs.
+- Expertise: stage-00-route-creature-live-expertise-detached.png (SHA256 46B21FEA3CBBF4714D31588B3DACADDFD8153EE8F656D2F20231B68FDEBE9919), stage-00-route-creature-live-expertise-trace.log; selected `creature_preview_nav_expertise` through the production binding. It shows the live profession and 47 skill rows; [producer/route data trace](stage-00-route-creature-live-expertise-data.log) reports 47 unique rows from Winkle's current snapshot.
+
+All three copied saves retained their 21 original file hashes after launch. These runs verify the route and selected identity plus Camera, Stats, and Expertise page rendering. They do not verify Equipment/Inventory pages, Center on Map, or profession edits. No save command was issued.

@@ -1,0 +1,3 @@
+2026-09-24T15:39:00.674 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50
+2026-09-24T15:39:00.675 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\runtime\delete-primary.png
+2026-09-24T15:39:00.675 ui_fixture_detached_capture kind=inventory armed=false path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\runtime\delete.png

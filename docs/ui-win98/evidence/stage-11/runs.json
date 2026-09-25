@@ -1,0 +1,6 @@
+[
+  {"scale": "1", "pass": 59, "fail": 0, "captures": 12, "capture_px": "384x380", "hashes": {"files":21,"source_unchanged":true,"copy_unchanged":true,"changed":[],"extra_files":0}},
+  {"scale": "1.25", "pass": 59, "fail": 0, "captures": 12, "capture_px": "384x380", "hashes": {"files":21,"source_unchanged":true,"copy_unchanged":true,"changed":[],"extra_files":0}},
+  {"scale": "1.5", "pass": 59, "fail": 0, "captures": 12, "capture_px": "768x760", "hashes": {"files":21,"source_unchanged":true,"copy_unchanged":true,"changed":[],"extra_files":0}},
+  {"scale": "2", "pass": 59, "fail": 0, "captures": 12, "capture_px": "768x760", "hashes": {"files":21,"source_unchanged":true,"copy_unchanged":true,"changed":[],"extra_files":0}}
+]

@@ -1,0 +1,7 @@
+﻿MS W98 UI (MSW98UI-Regular.ttf, MSW98UI-Bold.ttf)
+
+Font name record: "Original font by Microsoft. Conversion by LR-Soft, 2019. Fixes, details and improvements by MARTYR X LTD 2022."
+Source: supplied by the project owner (docs/ms-w98-ui-main, "MS W98 UI", a conversion of Microsoft's MS Sans Serif).
+License: none stated in the files or the README. The glyph designs derive from Microsoft's MS Sans Serif.
+Decision: the project owner chose to use this font for the Windows 98 UI on 2026-09-24 after being told it has no license.
+Review before any public distribution of the game or its content.

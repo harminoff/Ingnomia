@@ -1,0 +1,3 @@
+2026-09-24T12:25:11.257 ui_shell_element requested=shell-new-setup click_dispatched=true route_before=shell.main_menu route_after=shell.new_game focused_target=shell-new-setup focus_after=new-kingdom-name
+2026-09-24T12:25:11.772 ui_shell_tabs PASS checks=166
+2026-09-24T12:25:12.243 ui_shell_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-04\tabs-focus-default.png

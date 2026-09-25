@@ -1,0 +1,20 @@
+Stage 00 shell route and focus-return probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime HEAD: bca0bee3acf79d460360c5f6b96fde08db784585, with working-tree probe hooks
+Isolated application-data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-shell-focus-return-a46efe90542841d3872a607dd31a9180\data
+No world was loaded or created; no save command was issued.
+
+Action 1: focus and dispatch a Rml click on `shell-new-setup`.
+Observed route: `shell.main_menu` -> `shell.new_game`.
+Observed focus: `shell-new-setup` before click; `new-kingdom-name` after the route transition.
+Action 2: focus and dispatch a Rml click on `shell-back`.
+Observed route: `shell.new_game` -> `shell.main_menu`.
+Observed focus: `shell-back` before click; `shell-load` after the route transition.
+
+Result: Back returns to the correct registered route, but focus does not return to the invoking `shell-new-setup` control. Track as NEW-002 for Stage 18.
+The probe dispatched events on the actual Rml elements and exercised their registered listeners and ShellController/command path. It did not use physical mouse input.
+
+Trace: `stage-00-command-navigation-focus-return-trace.log`.
+Returned primary-host capture: `stage-00-command-navigation-focus-return.png`.
+Capture SHA-256: 79BE68A197908447F796A78887835C0567F6C8F03BC1FB558825DCB7A313B70

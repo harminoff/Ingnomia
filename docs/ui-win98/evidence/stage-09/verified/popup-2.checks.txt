@@ -1,0 +1,1 @@
+mode=popup density=2 tabs=1 stock-height=352 rules-height=0

@@ -1,0 +1,3 @@
+2026-09-24T13:05:14.429 ui_shell_element requested=shell-new-setup click_dispatched=true route_before=shell.main_menu route_after=shell.new_game focused_target=shell-new-setup focus_after=new-tab-world
+2026-09-24T13:05:14.994 ui_shell_tabs PASS checks=167 qt_host=PASS checks=13 pause_signals=0 world_keys=0
+2026-09-24T13:05:15.424 ui_shell_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-04\completion\pilot-normal.png

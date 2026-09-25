@@ -1,0 +1,6 @@
+2026-09-24T15:39:25.710 ui_fixture_ready name=shell_confirmation shown=true attempts=1 wait_ms=50
+2026-09-24T15:39:25.712 shell_confirmation first_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:39:25.712 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-07\runtime\shell-primary.png
+2026-09-24T15:39:26.213 shell_confirmation cancel=true focus=confirm-cancel route=shell.main_menu
+2026-09-24T15:39:26.515 shell_confirmation second_open=true focus=shell-exit route=shell.main_menu
+2026-09-24T15:39:26.713 shell_confirmation about_to_quit=true

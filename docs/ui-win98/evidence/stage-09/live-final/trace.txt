@@ -1,0 +1,15 @@
+2026-09-24T17:27:39.829 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage09-live-final\data\save\TutorialValley\1
+2026-09-24T17:27:46.325 PASS created one-field Stockpile at 287500 with item=1000519
+2026-09-24T17:27:48.839 PASS Stockpile manager opened and capture requested
+2026-09-24T17:27:49.931 PASS invalid priority blocked authoritative Apply
+2026-09-24T17:27:52.325 PASS form name priority and hauling reached authoritative Stockpile
+2026-09-24T17:27:53.343 PASS reviewed 28 stable rule IDs
+2026-09-24T17:27:54.833 PASS authoritative blocked scope=28 changed=0
+2026-09-24T17:27:55.825 PASS reviewed 28 stable rule IDs
+2026-09-24T17:27:56.833 PASS authoritative allowed scope=28 changed=28
+2026-09-24T17:27:58.328 PASS duplicate save and canceled update preserved saved rules
+2026-09-24T17:28:01.327 PASS inspector opened on authoritative manager snapshot
+2026-09-24T17:28:01.328 PASS confirmed template update persisted current rules
+2026-09-24T17:28:03.328 PASS inspector manager snapshot agreement suspended=1 name=Stage 05 supplies
+2026-09-24T17:28:03.328 PASS inspector suspension dispatched
+2026-09-24T17:28:04.322 PASS inspector manager snapshot agreement suspended=0 name=Stage 05 supplies

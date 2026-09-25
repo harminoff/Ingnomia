@@ -58,6 +58,7 @@ void Management6AIntegration::shutdown()
 }
 void Management6AIntegration::beginWorld( WorldEpoch world )
 {
+    requestedStockpile_=0;requestedWorkshop_=0;
 	workshopRevision_    = {};
 	stockpileRevision_   = {};
 	agricultureRevision_ = {};
@@ -109,32 +110,25 @@ void Management6AIntegration::connectSignals()
     },Qt::QueuedConnection);
 	auto* sp   = connector_->aggregatorStockpile();
 	auto* ag   = connector_->aggregatorAgri();
-	connect( ws, &AggregatorWorkshop::signalOpenWorkshopWindow, this, [this]( unsigned int )
-			 {if(controller_){activeView_=ManagementView::Workshop;if(viewHandler_)viewHandler_(activeView_);controller_->showLoading(ManagementView::Workshop);} }, Qt::QueuedConnection );
+	connect( ws, &AggregatorWorkshop::signalOpenWorkshopWindow, this, [this]( unsigned int id )
+			 {requestedWorkshop_=id;if(controller_){activeView_=ManagementView::Workshop;if(viewHandler_)viewHandler_(activeView_);controller_->showLoading(ManagementView::Workshop);} }, Qt::QueuedConnection );
 	auto workshop = [this]( const GuiWorkshopInfo& value )
-	{if(!controller_)return;commands_->rememberWorkshopLink(WorkshopId{value.workshopID},value.linkStockpile);const auto& state=controller_->state().workshop;const auto position=state.value.id==WorkshopId{value.workshopID}?state.position:selectedPosition_;controller_->showWorkshop(Management6AQtDataAdapter::workshop(value),Revision{++workshopRevision_.value},position); };
+	{if(!controller_ || (requestedWorkshop_ && requestedWorkshop_!=value.workshopID))return;commands_->rememberWorkshopLink(WorkshopId{value.workshopID},value.linkStockpile);const auto& state=controller_->state().workshop;const auto position=state.value.id==WorkshopId{value.workshopID}?state.position:selectedPosition_;controller_->showWorkshop(Management6AQtDataAdapter::workshop(value),Revision{++workshopRevision_.value},position); };
 	connect( ws, &AggregatorWorkshop::signalUpdateInfo, this, workshop, Qt::QueuedConnection );
 	connect( ws, &AggregatorWorkshop::signalUpdateContent, this, workshop, Qt::QueuedConnection );
 	connect( ws, &AggregatorWorkshop::signalUpdateCraftList, this, workshop, Qt::QueuedConnection );
-	auto tradeRows = [this]( const QList<GuiTradeItem>& values, TradeParty party )
-	{if(!controller_)return;std::vector<TradeRow> rows;for(const auto&value:values){auto row=Management6AQtDataAdapter::trade(value,party);commands_->rememberTradeOffer(row.id,row.offered);rows.push_back(std::move(row));}controller_->setTradeRows(party,std::move(rows)); };
-	connect( ws, &AggregatorWorkshop::signalTraderStock, this, [tradeRows]( const QList<GuiTradeItem>& v )
-			 { tradeRows( v, TradeParty::Trader ); }, Qt::QueuedConnection );
-	connect( ws, &AggregatorWorkshop::signalPlayerStock, this, [tradeRows]( const QList<GuiTradeItem>& v )
-			 { tradeRows( v, TradeParty::Player ); }, Qt::QueuedConnection );
-	connect( ws, &AggregatorWorkshop::signalUpdateTraderStockItem, this, [this]( const GuiTradeItem& v )
-			 {if(!controller_)return;auto row=Management6AQtDataAdapter::trade(v,TradeParty::Trader);commands_->rememberTradeOffer(row.id,row.offered);controller_->updateTradeRow(std::move(row)); }, Qt::QueuedConnection );
-	connect( ws, &AggregatorWorkshop::signalUpdatePlayerStockItem, this, [this]( const GuiTradeItem& v )
-			 {if(!controller_)return;auto row=Management6AQtDataAdapter::trade(v,TradeParty::Player);commands_->rememberTradeOffer(row.id,row.offered);controller_->updateTradeRow(std::move(row)); }, Qt::QueuedConnection );
-	connect( ws, &AggregatorWorkshop::signalUpdateTraderValue, this, [this]( int value )
-			 {if(controller_)controller_->setTradeValues(value,controller_->state().workshop.playerOfferValue); }, Qt::QueuedConnection );
-	connect( ws, &AggregatorWorkshop::signalUpdatePlayerValue, this, [this]( int value )
-			 {if(controller_)controller_->setTradeValues(controller_->state().workshop.traderOfferValue,value); }, Qt::QueuedConnection );
-	connect( sp, &AggregatorStockpile::signalOpenStockpileWindow, this, [this]( unsigned int )
-			 {if(stockpileController_){activeView_=ManagementView::Stockpile;if(viewHandler_)viewHandler_(activeView_);stockpileController_->showLoading(ManagementView::Stockpile);stockpileController_->setStockpilePane(StockpilePane::Contents);} }, Qt::QueuedConnection );
+    connect(ws,&AggregatorWorkshop::signalWorkshopRejected,this,[this](unsigned int id,const QString& reason){if(controller_)controller_->rejectWorkshop(WorkshopId{id},reason.toStdString());},Qt::QueuedConnection);
+    connect(ws,&AggregatorWorkshop::signalTradeSnapshot,this,[this](unsigned int id,unsigned int trader,quint64 revision,const QList<GuiTradeItem>& seller,const QList<GuiTradeItem>& buyer,int sellerValue,int buyerValue){
+        if(!controller_ || (requestedWorkshop_ && requestedWorkshop_!=id))return;
+        std::vector<TradeRow> sells,buys;for(const auto& row:seller)sells.push_back(Management6AQtDataAdapter::trade(row,TradeParty::Trader));for(const auto& row:buyer)buys.push_back(Management6AQtDataAdapter::trade(row,TradeParty::Player));
+        controller_->setTradeSnapshot(WorkshopId{id},trader,revision,std::move(sells),std::move(buys),sellerValue,buyerValue);
+    },Qt::QueuedConnection);
+	connect( sp, &AggregatorStockpile::signalOpenStockpileWindow, this, [this]( unsigned int id )
+			 {requestedStockpile_=id;if(stockpileController_){activeView_=ManagementView::Stockpile;if(viewHandler_)viewHandler_(activeView_);stockpileController_->showLoading(ManagementView::Stockpile);stockpileController_->setStockpilePane(StockpilePane::Contents);} }, Qt::QueuedConnection );
 	auto stockpile = [this]( const GuiStockpileInfo& value )
-	{if(!stockpileController_)return;auto snapshot=Management6AQtDataAdapter::stockpile(value);const auto& state=stockpileController_->state().stockpile;const auto position=state.value.id==snapshot.id?state.position:selectedPosition_;stockpileController_->showStockpile(std::move(snapshot),Revision{++stockpileRevision_.value},position); };
+	{if(!stockpileController_ || (requestedStockpile_ && requestedStockpile_!=value.stockpileID))return;auto snapshot=Management6AQtDataAdapter::stockpile(value);const auto& state=stockpileController_->state().stockpile;const auto position=state.value.id==snapshot.id?state.position:selectedPosition_;stockpileController_->showStockpile(std::move(snapshot),Revision{++stockpileRevision_.value},position); };
 	connect( sp, &AggregatorStockpile::signalUpdateInfo, this, stockpile, Qt::QueuedConnection );
+    connect(sp,&AggregatorStockpile::signalStockpileRejected,this,[this](unsigned int id,const QString& message){if(stockpileController_)stockpileController_->rejectStockpile(StockpileId{id},message.toStdString());},Qt::QueuedConnection);
 	connect( sp, &AggregatorStockpile::signalUpdateContent, this, stockpile, Qt::QueuedConnection );
 	connect( ag, &AggregatorAgri::signalShowAgri, this, [this]( unsigned int )
 			 {if(agricultureController_){activeView_=ManagementView::Agriculture;if(viewHandler_)viewHandler_(activeView_);agricultureController_->showLoading(ManagementView::Agriculture);} }, Qt::QueuedConnection );

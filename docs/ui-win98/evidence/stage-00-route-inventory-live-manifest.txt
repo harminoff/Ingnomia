@@ -1,0 +1,13 @@
+Stage 00 live Inventory route probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+Source save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-20260924-003012\copy-data\save\TutorialValley\1
+Probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-inventory-11e2fa7479534d759a5a3222837d3ea6\data
+Probe save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-inventory-11e2fa7479534d759a5a3222837d3ea6\data\save\TutorialValley\1
+Source save files copied: 21
+Probe save hashes before/after launch: equal (21 files)
+Route: game.hud -> workbench.inventory; HUD listener `hud_open_inventory`; inventory history request returned `1:ready`.
+Capture: stage-00-route-inventory-live.png (detached RmlUi Inventory window, live copied-world data)
+Trace: stage-00-route-inventory-live-trace.log
+No save command was issued. The attempted Inventory history action is a read request; the trace does not claim that any gameplay data changed.

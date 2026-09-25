@@ -1,0 +1,4 @@
+scale=1 exit=0 pass=23 fail=0 png=6 files=21 saves_unchanged=True 
+scale=1.25 exit=0 pass=23 fail=0 png=6 files=21 saves_unchanged=True 
+scale=1.5 exit=0 pass=23 fail=0 png=6 files=21 saves_unchanged=True 
+scale=2 exit=0 pass=23 fail=0 png=6 files=21 saves_unchanged=True 

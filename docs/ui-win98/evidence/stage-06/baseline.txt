@@ -1,0 +1,29 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06/DartConfiguration.tcl
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: ui_stage06
+
+1: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage06\ui_stage06.exe "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+1: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage06
+1: Test timeout computed to be: 1500
+1: PERF initial_ms=59.5125 elements=522 row_children=26
+1: PERF scroll20_ms=99.0755 elements=523
+1: Stage06 PASS checks=4
+1/1 Test #1: ui_stage06 .......................   Passed    1.26 sec
+
+The following tests passed:
+	ui_stage06
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   1.29 sec

@@ -51,7 +51,8 @@ require_text(DEV_LAUNCHER "INGNOMIA_RMLUI_ASSET_ROOT" "source-root launcher over
 require_text(DEV_LAUNCHER "stockpile" "stockpile development fixture")
 require_text(DEV_LAUNCHER "CapturePath" "fixture framebuffer capture option")
 
-require_order(WINDOW_SOURCE "processHotReload();" "m_rmlUiHost->update();" "reloads must run before the RmlUi update")
+# The frame loop reloads first and then updates; other update calls elsewhere in the window are not the frame loop.
+require_text(WINDOW_SOURCE "processHotReload\\(\\);[^\n]*\n[^\n]*m_rmlUiHost->update\\(\\)" "reloads must run before the RmlUi update in the frame loop")
 require_order(HOST_SOURCE "m_reloadDocumentsPending" "ReloadStyleSheet" "a full document reload takes precedence over stylesheet refresh")
 require_order(HOST_SOURCE "Rml::SetSystemInterface" "Rml::Initialise" "interfaces must be installed before core initialization")
 require_order(HOST_SOURCE "m_debugBinding.reset" "Rml::RemoveContext" "bindings and their listeners must be released before contexts")

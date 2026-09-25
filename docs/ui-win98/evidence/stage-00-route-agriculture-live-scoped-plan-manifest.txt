@@ -1,0 +1,15 @@
+# Live scoped Agriculture Farm plan probe
+
+Date: 2026-09-24
+Build: `RelWithDebInfo`, target `Ingnomia`; production executable exited 0.
+
+The opt-in Farm plan probe loaded a fresh Tutorial Valley save copy through `EventConnector::onLoadGame`, paused it, and created a four-plot Farm in memory through `FarmingManager::addFarm`. It opened the production Agriculture manager, used its crop catalog and plot selection controls, and assigned Strawberry with a planting count of two to exactly two selected plots. Assertions confirmed the other two plots were unchanged, the two plans survived save-data deserialization, the view stayed ready after reselection, and two live updates arrived without Refresh.
+
+This verifies scope-sensitive bulk plan editing and serialization behavior through the production manager listeners. The image shows the resulting Farm plan page with Strawberry selected and a two-item plot queue. The farm and its plan were not saved to disk. The scheduler emitted zero Strawberry planting jobs during the capture window, so this run does not prove job creation or planting execution. Inputs were injected; physical input is not claimed.
+
+## Isolation and evidence
+
+- Temporary root: `C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-farm-plan-20260924-132331`
+- Loaded save: `...\data\save\TutorialValley\1` (21 files). All 21 hashes matched the loaded-save files from the separately verified Farm Overview run after this probe; no save command was issued.
+- [Farm plan capture](stage-00-route-agriculture-live-scoped-plan.png) — SHA-256 `99B9F2B4B1E6E78817907006E940EAB94D512E9B456FA4BEB07E158509F628BB`
+- [Trace](stage-00-route-agriculture-live-scoped-plan-trace.log) — SHA-256 `04E65EE325C8E810466BC0A5C3CE09D362AA697617A11A8D4F8505CBC2E1F36A`

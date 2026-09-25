@@ -1,0 +1,8 @@
+2026-09-24T14:52:59.734 ui_fixture_ready name=stockpile_manager shown=true attempts=1 wait_ms=50
+2026-09-24T14:52:59.735 ui_fixture_element id=stockpile_view_allow activated=true
+2026-09-24T14:52:59.735 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted-final\stockpile-primary.png
+2026-09-24T14:52:59.735 ui_fixture_detached_capture kind=stockpile armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted-final\stockpile.png
+2026-09-24T14:58:17.119 ui_fixture_ready name=stockpile_manager shown=true attempts=1 wait_ms=50
+2026-09-24T14:58:17.121 ui_fixture_element id=stockpile_view_allow activated=true
+2026-09-24T14:58:17.121 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted-final\stockpile-primary.png
+2026-09-24T14:58:17.121 ui_fixture_detached_capture kind=stockpile armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted-final\stockpile.png

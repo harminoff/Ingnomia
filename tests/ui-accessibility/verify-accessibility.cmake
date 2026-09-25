@@ -23,16 +23,27 @@ file(READ "${ROOT}/content/rmlui/localization/en.json" EN)
 file(READ "${ROOT}/content/rmlui/localization/qps-long.json" QPS)
 set(RELEASED
  content/rmlui/documents/app_shell.rml
+ content/rmlui/screens/main_menu.rml
+ content/rmlui/screens/new_game.rml
+ content/rmlui/screens/load_game.rml
+ content/rmlui/screens/settings.rml
+ content/rmlui/screens/pause_menu.rml
+ content/rmlui/screens/loading.rml
  content/rmlui/screens/game_hud.rml
+ content/rmlui/screens/orders_tools.rml
  content/rmlui/screens/inspector.rml
  content/rmlui/windows/workshop_manager.rml
  content/rmlui/windows/stockpile_manager.rml
- content/rmlui/panels/agriculture_manager.rml)
+ content/rmlui/panels/agriculture_manager.rml
+ content/rmlui/windows/population_manager.rml
+ content/rmlui/windows/inventory_browser.rml
+ content/rmlui/windows/military_manager.rml
+ content/rmlui/windows/diplomacy_missions.rml)
 foreach(FILE IN LISTS RELEASED)
  file(READ "${ROOT}/${FILE}" DOC)
- string(REGEX MATCHALL "data-l10n=\"[A-Za-z0-9_.-]+\"" MATCHES "${DOC}")
+ string(REGEX MATCHALL "data-l10n(-title)?=\"[A-Za-z0-9_.-]+\"" MATCHES "${DOC}")
  foreach(MATCH IN LISTS MATCHES)
-  string(REGEX REPLACE "data-l10n=\"([^\"]+)\"" "\\1" KEY "${MATCH}")
+  string(REGEX REPLACE "data-l10n(-title)?=\"([^\"]+)\"" "\\2" KEY "${MATCH}")
   foreach(CATALOG IN ITEMS EN QPS)
    string(FIND "${${CATALOG}}" "\"${KEY}\"" FOUND)
    if(FOUND EQUAL -1)

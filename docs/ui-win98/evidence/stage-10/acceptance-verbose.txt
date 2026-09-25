@@ -1,0 +1,97 @@
+﻿Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/DartConfiguration.tcl
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+      Start  1: ui_Stage10
+
+1: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage10\ui_Stage10.exe "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+1: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10
+1: Test timeout computed to be: 1500
+1: 125 checks passed
+ 1/10 Test  #1: ui_Stage10 .............................   Passed    0.62 sec
+test 2
+      Start  2: ui_shell_controller
+
+2: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage10\shell\ui_shell_controller.exe
+2: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/shell
+2: Test timeout computed to be: 1500
+2: ui shell controller tests passed
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+test 3
+      Start  3: ui_shell_rml_contract
+
+3: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-rml.cmake"
+3: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/shell
+3: Test timeout computed to be: 1500
+3: -- Wave 3 shell RML contract check passed
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+test 4
+      Start  4: ui_shell_integration_contract
+
+4: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-integration.cmake"
+4: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/shell
+4: Test timeout computed to be: 1500
+4: -- Wave 3 shell host/Qt integration contract passed
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+test 5
+      Start  5: ui_management6a_controller
+
+5: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage10\management6a\ui_management6a_controller.exe
+5: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6a
+5: Test timeout computed to be: 1500
+5: Large stockpile controller search: 25 ms for load plus six queries
+5: Management 6A controller lifecycle, identity, patch, filter, and mutation tests passed
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.05 sec
+test 6
+      Start  6: ui_management6a_rml_contract
+
+6: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-rml.cmake"
+6: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6a
+6: Test timeout computed to be: 1500
+6: -- Management 6A RML IDs, state surfaces, keyboard buttons, and map ownership passed
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+test 7
+      Start  7: ui_management6a_integration_contract
+
+7: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-integration.cmake"
+7: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6a
+7: Test timeout computed to be: 1500
+7: -- Management 6A pointer-free DTO copy, queued ports, and teardown evidence passed
+ 7/10 Test  #7: ui_management6a_integration_contract ...   Passed    0.07 sec
+test 8
+      Start  8: ui_management6b_controller
+
+8: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage10\management6b\ui_management6b_controller.exe
+8: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6b
+8: Test timeout computed to be: 1500
+8: Management 6B controller tests passed
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.12 sec
+test 9
+      Start  9: ui_management6b_rml_contract
+
+9: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6b/verify-management6b-rml.cmake"
+9: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6b
+9: Test timeout computed to be: 1500
+9: -- Management 6B RML contract verified
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+test 10
+      Start 10: ui_management6b_integration_contract
+
+10: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6b/verify-management6b-integration.cmake"
+10: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10/management6b
+10: Test timeout computed to be: 1500
+10: -- Management 6B integration contract verified
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+
+100% tests passed, 0 tests failed out of 10
+
+Total Test time (real) =   1.04 sec

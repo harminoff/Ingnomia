@@ -1,0 +1,1 @@
+detail=1 return_scroll=1 return_focus=1 top=399804 count=10000 density=1.25

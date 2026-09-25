@@ -1,0 +1,122 @@
+[
+  {
+    "name": "pilot-normal",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 24904,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "pilot-high-contrast",
+    "scale": 1,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 82188,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-100",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 77732,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-125",
+    "scale": 1.25,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 20896,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-150",
+    "scale": 1.5,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 58712,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-200",
+    "scale": 2,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 47476,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-hc-100",
+    "scale": 1,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 42928,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "components-hc-200",
+    "scale": 2,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 68032,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  }
+]

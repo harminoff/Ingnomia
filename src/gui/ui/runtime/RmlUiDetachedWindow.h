@@ -45,6 +45,7 @@ public:
     void setResizable( bool value );
     void setResizeMinimumSize( QSize size );
     void setResizeHandler( std::function<void( QSize )> handler );
+    void setCloseGuard(std::function<bool()> guard) { m_closeGuard=std::move(guard); }
     void setCloseHandler( std::function<void()> );
     void setDesignerFocusHandler( std::function<void()> handler );
     void setDesignerKeyHandler( std::function<bool( int, Qt::KeyboardModifiers )> handler );
@@ -78,6 +79,7 @@ private:
     void queueRenderFrame();
     void renderFrame();
     void resizeUi();
+    void setChromeActive( bool active );
 
     RmlUiHost& m_host;
     QOpenGLContext* m_shareContext = nullptr;
@@ -104,6 +106,7 @@ private:
     QString m_automationCapturePath;
     bool m_inspectorLayoutTraceDone = false;
     int m_automationCaptureSkipFrames = 0;
+    std::function<bool()> m_closeGuard;
     bool m_renderingEnabled = false;
     bool m_frameQueued = false;
     bool m_rendering = false;

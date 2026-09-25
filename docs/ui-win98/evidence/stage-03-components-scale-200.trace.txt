@@ -1,0 +1,6 @@
+2026-09-24T11:07:40.855 ui_fixture_ready name=components shown=true attempts=1 wait_ms=50
+2026-09-24T11:07:40.856 ui_fixture_components_generated passed=true root=3231x1631 body=3167x1567 header=3036x216 grid=3100x2761 layout=pass select_tag=select options=3 generated_select_parts=selectarrow,selectvalue,selectbox scrollbar_tag=scrollbarvertical generated_scroll_parts=slidertrack,sliderbar,sliderarrowdec,sliderarrowinc
+2026-09-24T11:07:40.856 ui_fixture_capture armed=true path=C:\\Users\\harmi\\AppData\\Local\\Temp\\Ingnomia-Win98-Stage03-runtime-check\\components-200-final.png
+2026-09-24T11:21:41.511 ui_fixture_ready name=components shown=true attempts=1 wait_ms=50
+2026-09-24T11:21:41.512 ui_fixture_components_generated passed=true root=3231x1631 body=3167x1567 header=3036x216 grid=3100x2761 layout=pass select_tag=select options=3 generated_select_parts=selectarrow,selectvalue,selectbox scrollbar_tag=scrollbarvertical generated_scroll_parts=slidertrack,sliderbar,sliderarrowdec,sliderarrowinc
+2026-09-24T11:21:41.512 ui_fixture_capture armed=true path=C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage03-runtime-check\components-200-final.png

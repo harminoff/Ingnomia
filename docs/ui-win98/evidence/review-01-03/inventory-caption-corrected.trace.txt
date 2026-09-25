@@ -1,0 +1,3 @@
+2026-09-24T12:06:20.821 ui_fixture_ready name=inventory shown=true attempts=1 wait_ms=50
+2026-09-24T12:06:20.821 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\review-01-03\inventory-caption-corrected-primary.png
+2026-09-24T12:06:20.822 ui_fixture_detached_capture kind=inventory armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\review-01-03\inventory-caption-corrected.png

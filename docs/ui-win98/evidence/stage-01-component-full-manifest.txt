@@ -1,0 +1,18 @@
+Stage 01 full-viewport component gallery
+
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe (RelWithDebInfo)
+Route: opt-in `components` fixture in the production primary RmlUi host
+Viewport: 3231×1631 physical pixels
+
+The gallery stylesheet now uses the available viewport width, with four columns at wide widths and three-, two-, and one-column breakpoints for narrower viewports. One production framebuffer shows every fixture section without scrolling. The screenshot includes selected, disabled, pending, invalid, dirty, checked, unavailable, list/table selection, tree, bounded scrollbar, form controls, progress, tooltip, popover, alert, inspector section, and dialog-preview states. The dialog example remains static markup; the live event-prompt and typed Exit confirmation have separate runtime evidence.
+
+RmlUi's in-process context inspection passed on both launches and reported the generated parts, not hand-drawn replacements: select `selectarrow,selectvalue,selectbox`; vertical scrollbar `slidertrack,sliderbar,sliderarrowdec,sliderarrowinc`.
+
+The two screenshots are byte-identical (SHA-256 `92D87556173110267F25984CCD5CEB4F98A76F6CB9DE9AB1BAE141F9432B6F63`):
+- [Capture A](stage-01-component-full-a.png)
+- [Verified trace A](stage-01-component-full-a-success-trace.log)
+- [Capture B](stage-01-component-full-b.png)
+- [Verified trace B](stage-01-component-full-b-success-trace.log)
+
+An earlier hidden-window launch did not expose an OpenGL surface and therefore reported `shown=false`; it is preserved in the raw trace files. The two successful exposed-window runs above are the accepted evidence. Narrower breakpoint behavior remains for the later scale/accessibility stage.

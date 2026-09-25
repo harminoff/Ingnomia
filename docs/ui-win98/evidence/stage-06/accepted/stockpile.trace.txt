@@ -1,0 +1,4 @@
+2026-09-24T14:46:21.883 ui_fixture_ready name=stockpile_manager shown=true attempts=1 wait_ms=50
+2026-09-24T14:46:21.886 ui_fixture_element id=stockpile_view_allow activated=true
+2026-09-24T14:46:21.886 ui_fixture_capture armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted\stockpile-primary.png
+2026-09-24T14:46:21.886 ui_fixture_detached_capture kind=stockpile armed=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-06\accepted\stockpile.png

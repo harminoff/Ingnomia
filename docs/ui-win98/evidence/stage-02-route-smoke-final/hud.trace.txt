@@ -1,0 +1,2 @@
+2026-09-24T09:57:03.826 ui_capture_requested path=C:\Programming\Repos\Ingnomia2\Ingnomia\docs\ui-win98\evidence\stage-02-route-smoke-final\hud.png
+2026-09-24T09:57:06.322 continue_last_game dispatched=true

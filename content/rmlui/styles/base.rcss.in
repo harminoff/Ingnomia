@@ -1,0 +1,244 @@
+/* Original arrow geometry; transparent 16dp cells keep glyph size stable. */
+@spritesheet win98-chrome {
+    src: /icons/chrome-arrows.tga;
+    resolution: 1x;
+    win98-up: 0px 0px 16px 16px;
+    win98-down: 16px 0px 16px 16px;
+    win98-left: 32px 0px 16px 16px;
+    win98-right: 48px 0px 16px 16px;
+}
+
+* { box-sizing: border-box; }
+
+body, div { display: block; }
+
+body {
+    margin: 0;
+    color: {{color.text.primary}};
+    background-color: transparent;
+    font-family: LatoLatin;
+    font-size: {{type.body}};
+    line-height: 18dp;
+    nav: auto;
+}
+
+h1, h2, h3, p, ul { display: block; margin: 0; }
+h1 { color: {{color.text.primary}}; font-size: {{type.route_title}}; line-height: 32dp; }
+h2 { color: {{color.text.primary}}; font-size: {{type.section_title}}; line-height: 26dp; }
+h3 { color: {{color.text.secondary}}; font-size: {{type.subheading}}; line-height: 22dp; }
+p { color: {{color.text.secondary}}; margin-bottom: 8dp; }
+
+button, input, select, textarea {
+    color: {{color.text.primary}};
+    font-family: LatoLatin;
+    font-size: {{type.control}};
+    tab-index: auto;
+    nav: auto;
+}
+
+button {
+    min-height: 40dp;
+    padding: 8dp 12dp;
+    background-color: {{color.surface.control}};
+    border-width: 2dp;
+    border-top-color: {{color.border.highlight}};
+    border-left-color: {{color.border.highlight}};
+    border-right-color: {{color.border.shadow}};
+    border-bottom-color: {{color.border.shadow}};
+    border-radius: 0;
+    cursor: pointer;
+}
+button:hover { background-color: {{color.surface.control}}; }
+button:active, button.is-key-pressed {
+    padding: 9dp 13dp 7dp 11dp;
+    background-color: {{color.surface.control}};
+    border-top-color: {{color.border.shadow}};
+    border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}};
+    border-bottom-color: {{color.border.highlight}};
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    border-width: 2dp;
+    border-color: {{color.interaction.focus}};
+}
+
+button:disabled,
+button[disabled],
+input:disabled,
+select:disabled,
+textarea:disabled {
+    color: {{color.text.disabled}};
+    background-color: {{color.surface.control}};
+    border-top-color: {{color.border.light}};
+    border-left-color: {{color.border.light}};
+    border-right-color: {{color.border.shadow}};
+    border-bottom-color: {{color.border.shadow}};
+    cursor: unavailable;
+}
+
+input.text,
+input.password,
+textarea,
+select {
+    min-height: 40dp;
+    padding: 8dp 12dp;
+    color: {{color.text.primary}};
+    background-color: {{color.surface.inset}};
+    border-width: 2dp;
+    border-top-color: {{color.border.shadow}};
+    border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}};
+    border-bottom-color: {{color.border.highlight}};
+    border-radius: 0;
+}
+textarea { min-height: 96dp; cursor: text; }
+select { width: 100%; }
+select selectvalue {
+    width: auto;
+    height: 38dp;
+    margin-right: 36dp;
+    padding: 9dp 12dp;
+    background-color: {{color.surface.inset}};
+}
+select selectarrow {
+    decorator: image(win98-down scale-none center center);
+    width: 36dp;
+    height: 38dp;
+    background-color: {{color.surface.control}};
+    border-left-width: 1dp;
+    border-left-color: {{color.border.shadow}};
+}
+select selectarrow:hover,
+select selectarrow:checked { background-color: {{color.interaction.hover}}; }
+select selectbox {
+    width: 100%;
+    margin-top: 2dp;
+    padding: 4dp;
+    background-color: {{color.surface.inset}};
+    border-width: 1dp;
+    border-color: {{color.border.shadow}};
+}
+select selectbox option {
+    min-height: 30dp;
+    padding: 6dp 8dp;
+    background-color: {{color.surface.inset}};
+}
+select selectbox option:hover { background-color: {{color.interaction.hover}}; }
+select selectbox option:checked {
+    color: {{color.text.selection}};
+    background-color: {{color.surface.selection}};
+}
+
+input.checkbox,
+input.radio {
+    width: 20dp;
+    height: 20dp;
+    margin-right: 8dp;
+    vertical-align: middle;
+    background-color: {{color.surface.inset}};
+    border-width: 2dp;
+    border-top-color: {{color.border.shadow}};
+    border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}};
+    border-bottom-color: {{color.border.highlight}};
+    border-radius: 0;
+}
+input.radio { border-radius: 10dp; }
+input.checkbox:checked,
+input.radio:checked {
+    background-color: {{color.surface.selection}};
+    border-width: 5dp;
+    border-color: {{color.text.selection}};
+}
+
+.u-muted { color: {{color.text.disabled}}; }
+.u-secondary { color: {{color.text.secondary}}; }
+.u-information { color: {{color.semantic.information.strong}}; }
+.u-warning { color: {{color.semantic.warning.strong}}; }
+.u-notice { color: {{color.semantic.notice.strong}}; }
+.u-danger { color: {{color.semantic.danger.strong}}; }
+.u-success { color: {{color.semantic.success.strong}}; }
+.u-row { display: flex; flex-direction: row; align-items: center; gap: 8dp; }
+.u-column { display: flex; flex-direction: column; gap: 8dp; }
+.u-grow { flex: 1; }
+.u-right { text-align: right; }
+.u-hidden { display: none; }
+
+/* Generated scrollbar parts use the same window bevel and directional glyphs. */
+scrollbarvertical { width: 16dp; }
+scrollbarhorizontal { height: 16dp; }
+scrollbarvertical slidertrack, scrollbarhorizontal slidertrack { background-color: {{color.border.light}}; }
+scrollbarvertical sliderbar, scrollbarhorizontal sliderbar,
+sliderarrowdec, sliderarrowinc {
+    background-color: {{color.surface.control}};
+    border-width: 1dp;
+    border-top-color: {{color.border.highlight}};
+    border-left-color: {{color.border.highlight}};
+    border-right-color: {{color.border.dark}};
+    border-bottom-color: {{color.border.dark}};
+}
+scrollbarvertical sliderbar { min-height: 24dp; }
+scrollbarhorizontal sliderbar { min-width: 24dp; }
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { height: 16dp; }
+scrollbarhorizontal sliderarrowdec, scrollbarhorizontal sliderarrowinc { width: 16dp; }
+scrollbarvertical sliderarrowdec { decorator: image(win98-up scale-none center center); }
+scrollbarvertical sliderarrowinc { decorator: image(win98-down scale-none center center); }
+scrollbarhorizontal sliderarrowdec { decorator: image(win98-left scale-none center center); }
+scrollbarhorizontal sliderarrowinc { decorator: image(win98-right scale-none center center); }
+sliderarrowdec:active, sliderarrowinc:active {
+    border-top-color: {{color.border.shadow}}; border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}}; border-bottom-color: {{color.border.highlight}};
+}
+
+/* Focus is paint, never a replacement for the raised/pressed bevel. */
+button:focus-visible, [tab-index]:focus-visible { decorator: win98-focus({{color.interaction.focus}}); }
+button[disabled] { tab-index: none; pointer-events: none; }
+
+button:disabled, button[disabled] { font-effect: shadow(1dp 1dp {{color.border.highlight}}); }
+
+/* Stage 05: fixed geometry, classic marks, and distinct editability. */
+@spritesheet win98-form-marks {
+    src: /icons/form-marks.tga;
+    resolution: 1x;
+    win98-check: 0px 0px 16px 16px;
+    win98-radio: 16px 0px 16px 16px;
+    win98-check-disabled: 32px 0px 16px 16px;
+    win98-radio-disabled: 48px 0px 16px 16px;
+}
+input.checkbox, input.radio, input.checkbox:checked, input.radio:checked {
+    width: 20dp; height: 20dp; padding: 0; border-width: 2dp;
+    background-color: {{color.surface.inset}};
+    border-top-color: {{color.border.shadow}}; border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}}; border-bottom-color: {{color.border.highlight}};
+}
+input.checkbox { border-radius: 0; }
+input.radio { border-radius: 10dp; }
+input.checkbox:checked { decorator: image(win98-check scale-none center center); }
+input.radio:checked { decorator: image(win98-radio scale-none center center); }
+input.checkbox:focus-visible, input.radio:focus-visible { box-shadow: 0 0 0 1dp {{color.interaction.focus}}; }
+input.checkbox[disabled], input.radio[disabled] { background-color: {{color.surface.control}}; }
+input.checkbox[disabled]:checked { decorator: image(win98-check-disabled scale-none center center); }
+input.radio[disabled]:checked { decorator: image(win98-radio-disabled scale-none center center); }
+input[disabled], select[disabled], textarea[disabled] { tab-index: none; }
+input[readonly], textarea[readonly] { color: {{color.text.primary}}; background-color: {{color.surface.control}}; }
+input.text:focus-visible, input.password:focus-visible, textarea:focus-visible, select:focus-visible {
+    border-width: 2dp;
+    border-top-color: {{color.border.shadow}}; border-left-color: {{color.border.shadow}};
+    border-right-color: {{color.border.highlight}}; border-bottom-color: {{color.border.highlight}};
+}
+input.is-invalid { border-width: 2dp; border-color: {{color.semantic.danger.strong}}; }
+select selectarrow { border-width: 2dp; border-top-color: {{color.border.highlight}}; border-left-color: {{color.border.highlight}}; border-right-color: {{color.border.shadow}}; border-bottom-color: {{color.border.shadow}}; }
+select selectarrow:hover { background-color: {{color.surface.control}}; }
+select selectarrow:active { border-top-color: {{color.border.shadow}}; border-left-color: {{color.border.shadow}}; border-right-color: {{color.border.highlight}}; border-bottom-color: {{color.border.highlight}}; }
+
+select { padding: 0; }
+select selectvalue { height: 36dp; padding: 8dp 12dp; box-sizing: border-box; }
+select selectarrow { height: 36dp; box-sizing: border-box; }
+
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { width: 16dp; }
+scrollbarhorizontal sliderarrowdec, scrollbarhorizontal sliderarrowinc { height: 16dp; }
+scrollbarvertical sliderbar { width: 16dp; }
+scrollbarhorizontal sliderbar { height: 16dp; }

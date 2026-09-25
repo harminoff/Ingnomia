@@ -118,20 +118,38 @@ inline void scheduleFarmOpenProbe(QApplication& app)
             if (!game || !game->w() || !game->fm()) { automationTrace("FAIL Farm probe has no loaded world"); return; }
             connector->onSetPause(true);
 			if (qEnvironmentVariable("INGNOMIA_AUTOMATE_FARM_PLAN_PROBE") == "1") {
-				for (auto* farm : game->fm()->allFarms()) {
-					if (!farm || farm->countTiles() < 4) continue;
-					const auto fields = farm->serialize().toMap().value("Fields").toList();
-					if (fields.size() < 2) continue;
-					const Position first(fields[0].toMap().value("Pos").toString());
-					const Position second(fields[1].toMap().value("Pos").toString());
-					qputenv("INGNOMIA_PROBE_FARM_TILE", QByteArray::number(first.toInt()));
-					qputenv("INGNOMIA_PROBE_FARM_PLOT_A", QString("%1_%2_%3").arg(first.x).arg(first.y).arg(first.z).toUtf8());
-					qputenv("INGNOMIA_PROBE_FARM_PLOT_B", QString("%1_%2_%3").arg(second.x).arg(second.y).arg(second.z).toUtf8());
-					automationTrace(QString("Farm plan probe selected existing farm id=%1 plots=%2").arg(farm->id()).arg(fields.size()));
-					connector->onSelectTile(first.toInt());
-					return;
+				Farm* farm = nullptr;
+				for (auto* candidate : game->fm()->allFarms())
+					if (candidate && candidate->countTiles() >= 4) { farm = candidate; break; }
+				if (!farm) {
+					const auto mask = TileFlag::TF_WORKSHOP + TileFlag::TF_STOCKPILE + TileFlag::TF_GROVE
+						+ TileFlag::TF_FARM + TileFlag::TF_PASTURE + TileFlag::TF_ROOM;
+					for (int z = Global::dimZ - 2; z > 0 && !farm; --z)
+						for (int x = Global::dimX / 2 - 20; x < Global::dimX / 2 + 20 && !farm; ++x)
+							for (int y = Global::dimY / 2 - 20; y < Global::dimY / 2 + 20 && !farm; ++y) {
+								const Position first(x,y,z);
+								const QList<Position> plots{first,first.eastOf(),first.southOf(),first.seOf()};
+								const bool open = std::all_of(plots.begin(),plots.end(),[game,mask](const Position& tile) {
+									return game->w()->isWalkableGnome(tile) && (game->w()->getTile(tile).flags-~mask)==TileFlag::TF_NONE;
+								});
+								if (!open) continue;
+								QList<QPair<Position,bool>> fields;
+								for (const auto& tile : plots) fields.append({tile,true});
+								game->fm()->addFarm(first,fields);
+								farm=game->fm()->getFarmAtPos(first);
+								if (farm) automationTrace(QString("Farm plan probe created four-plot Farm id=%1").arg(farm->id()));
+							}
 				}
-				automationTrace("FAIL Farm plan probe found no existing multi-plot Farm");
+				if (!farm) { automationTrace("FAIL Farm plan probe found no multi-plot Farm or open four-tile patch"); return; }
+				const auto fields = farm->serialize().toMap().value("Fields").toList();
+				if (fields.size() < 2) { automationTrace("FAIL Farm plan probe requires at least two fields"); return; }
+				const Position first(fields[0].toMap().value("Pos").toString());
+				const Position second(fields[1].toMap().value("Pos").toString());
+				qputenv("INGNOMIA_PROBE_FARM_TILE", QByteArray::number(first.toInt()));
+				qputenv("INGNOMIA_PROBE_FARM_PLOT_A", QString("%1_%2_%3").arg(first.x).arg(first.y).arg(first.z).toUtf8());
+				qputenv("INGNOMIA_PROBE_FARM_PLOT_B", QString("%1_%2_%3").arg(second.x).arg(second.y).arg(second.z).toUtf8());
+				automationTrace(QString("Farm plan probe selected farm id=%1 plots=%2 targetA=%3 targetB=%4").arg(farm->id()).arg(fields.size()).arg(first.toInt()).arg(second.toInt()));
+				connector->onSelectTile(first.toInt());
 				return;
 			}
             const auto mask = TileFlag::TF_WORKSHOP + TileFlag::TF_STOCKPILE + TileFlag::TF_GROVE
@@ -157,31 +175,19 @@ inline void scheduleFarmOpenProbe(QApplication& app)
         const bool ready = MainWindow::getInstance().managementFarmReadyForProbe();
         automationTrace(QString(ready ? "PASS" : "FAIL") + " Farm opens with ready data instead of Loading");
         if (qEnvironmentVariable("INGNOMIA_AUTOMATE_FARM_PLAN_PROBE") == "1") {
-			const bool products = MainWindow::getInstance().activateManagementElement("agriculture_view_products");
+			const bool products = MainWindow::getInstance().activateManagementElement("agriculture_view_plots");
 			if (qEnvironmentVariable("INGNOMIA_AUTOMATE_FARM_NATIVE_CLICK_PROBE") == "1") {
 				const bool allPlots = MainWindow::getInstance().activateManagementElement("agriculture_plot_select_all");
 				automationTrace(QString(products && allPlots ? "PASS" : "FAIL") + " Farm plan opened with all plots for pointer probe");
 				return;
 			}
-			const bool filtered = MainWindow::getInstance().setManagementFormValueForProbe("agriculture_farm_search", "strawberry");
-			const auto crop = std::string("agriculture_farm_crop_") + QByteArray("Strawberry").toHex().toStdString();
-			const bool chosen = MainWindow::getInstance().activateManagementElement(crop);
-			const auto first = std::string("agriculture_plot_") + qEnvironmentVariable("INGNOMIA_PROBE_FARM_PLOT_A").toStdString();
-			const auto second = std::string("agriculture_plot_") + qEnvironmentVariable("INGNOMIA_PROBE_FARM_PLOT_B").toStdString();
-			const bool selected = MainWindow::getInstance().activateManagementElement(first) && MainWindow::getInstance().activateManagementElement(second);
-			const bool assigned = selected && MainWindow::getInstance().activateManagementElement("agriculture_plot_assign");
-			const bool count = MainWindow::getInstance().setManagementFormValueForProbe("agriculture_plot_count", "2");
-			const bool queued = count && MainWindow::getInstance().activateManagementElement("agriculture_plot_queue");
-			automationTrace(QString(products && filtered && chosen && selected && assigned && queued ? "PASS" : "FAIL") + " Farm grid selects two plots and queues two Strawberry plantings on each");
-			MainWindow::getInstance().activateManagementElement(second);
+			// Stage 11 property sheet: click, Ctrl+click, crop drop-down, Assign Crop, Queue (see ui-stage11/runtime_probe.h).
+			automationTrace(QString(products ? "PASS" : "FAIL") + " Farm Plots page opens");
+			stage11::farmPlanSteps();
 		}
         else if (qEnvironmentVariable("INGNOMIA_AUTOMATE_FARM_SEED_PROBE") == "1") {
-            automationTrace(QString(MainWindow::getInstance().activateManagementElement("agriculture_view_products") ? "PASS" : "FAIL")
-                + " Farm Products view opens");
-            const bool filtered = MainWindow::getInstance().setManagementFormValueForProbe("agriculture_search", "strawberry");
-            const auto row = std::string("m6a_agri_product_") + QByteArray("Strawberry").toHex().toStdString();
-            const bool selected = filtered && MainWindow::getInstance().activateManagementElement(row);
-            automationTrace(QString(selected ? "PASS" : "FAIL") + " Strawberry filtered and selected through Farm Products");
+            automationTrace(QString(MainWindow::getInstance().activateManagementElement("agriculture_view_crops") ? "PASS" : "FAIL")
+                + " Farm Crops page opens");
         }
         const auto capture = qEnvironmentVariable("INGNOMIA_AUTOMATE_FARM_CAPTURE_PATH");
         if (!capture.isEmpty()) qputenv("INGNOMIA_AUTOMATE_DETACHED_CAPTURE_PATH", capture.toUtf8());
@@ -212,14 +218,17 @@ inline void scheduleFarmOpenProbe(QApplication& app)
 				if (!farm) { automationTrace("FAIL Farm plan model missing"); return; }
 				const auto fields = farm->serialize().toMap().value("Fields").toList();
 				int planned = 0;
+				int untouched = 0;
 				for (const auto& value : fields) {
 					const auto plot = value.toMap();
 					const auto orders = plot.value("CropOrders").toList();
 					if (plot.value("Crop").toString() == "Strawberry" && orders.size() == 1
 						&& orders.first().toMap().value("Crop").toString() == "Strawberry"
 						&& orders.first().toMap().value("Remaining").toInt() == 2) ++planned;
+					else if (plot.value("Crop").toString().isEmpty() && orders.isEmpty()) ++untouched;
 				}
-				automationTrace(QString(planned == 2 ? "PASS" : "FAIL") + QString(" Farm plot assignments and queues serialized for %1 plots").arg(planned));
+				automationTrace(QString(planned == 2 && untouched == fields.size()-2 ? "PASS" : "FAIL")
+					+ QString(" Farm bulk plan applied to exactly %1 of %2 plots; %3 plots untouched").arg(planned).arg(fields.size()).arg(untouched));
 				Farm restored(farm->serialize().toMap(), game);
 				int restoredPlans = 0;
 				for (const auto& value : restored.serialize().toMap().value("Fields").toList()) {
@@ -249,11 +258,11 @@ inline void scheduleFarmOpenProbe(QApplication& app)
     else if (seedProbe)
     {
         QTimer::singleShot(13500, &app, [] {
-            const auto row = std::string("m6a_agri_product_") + QByteArray("Strawberry").toHex().toStdString();
+            const auto row = std::string("agriculture_farm_crop_") + QByteArray("Strawberry").toHex().toStdString();
             const bool selected = MainWindow::getInstance().activateManagementElement(row);
-            const bool applied = selected && MainWindow::getInstance().activateManagementElement("agriculture_apply_product");
-            automationTrace(QString(selected ? "PASS" : "FAIL") + " Strawberry selected through Farm Products");
-            automationTrace(QString(applied ? "PASS" : "FAIL") + " selected crop applied through Farm Products");
+            const bool applied = selected && MainWindow::getInstance().activateManagementElement("agriculture_apply");
+            automationTrace(QString(selected ? "PASS" : "FAIL") + " Strawberry chosen as the default crop on the Crops page");
+            automationTrace(QString(applied ? "PASS" : "FAIL") + " default crop applied with Apply");
         });
         QTimer::singleShot(14500, &app, [] {
             auto* connector = Global::eventConnector;
@@ -272,13 +281,162 @@ inline void scheduleFarmOpenProbe(QApplication& app)
             }, Qt::QueuedConnection);
         });
     }
-    QTimer::singleShot(16000, &app, [] {
+    const bool stage11Live = qEnvironmentVariable("INGNOMIA_AUTOMATE_AGRICULTURE_STAGE11_LIVE") == "1";
+    if (stage11Live && planProbe) stage11::schedule(app, 15500);
+    QTimer::singleShot(stage11Live ? 36500 : 16000, &app, [] {
         if (Global::eventConnector) QMetaObject::invokeMethod(Global::eventConnector, "onExit", Qt::QueuedConnection);
     });
 }
 
 inline void scheduleWorkshopOrderProbe(QApplication& app)
 {
+    if(qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_STAGE10_LIVE")=="1") {
+        QTimer::singleShot(13000,&app,[]{auto& w=MainWindow::getInstance();w.activateManagementElement("workshop_view_craft");w.setManagementFormValueForProbe("workshop_order_count","3");w.activateManagementElement("workshop_queue_once");w.activateManagementElement("workshop_queue_once");});
+        QTimer::singleShot(14000,&app,[]{auto* c=Global::eventConnector;QMetaObject::invokeMethod(c,[c]{stage10BackendProbe(c);},Qt::QueuedConnection);});
+        scheduleStage10Captures(app,16500);
+    }
+    const bool stagedEditProbe=qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_STAGED_EDIT_PROBE")=="1";
+    if((qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_OPEN_PROBE")=="1" || stagedEditProbe)
+        && !qEnvironmentVariableIsEmpty("INGNOMIA_DATA_FOLDER") && !qEnvironmentVariableIsEmpty("INGNOMIA_AUTOMATE_LOAD_PATH")) {
+        QTimer::singleShot(9000,&app,[] {
+            auto* connector=Global::eventConnector;
+            if(!connector) { automationTrace("FAIL workshop probe has no EventConnector"); return; }
+            QMetaObject::invokeMethod(connector,[connector] {
+                auto* game=connector->game();
+                if(!game || !game->w() || !game->wsm()) { automationTrace("FAIL workshop probe has no loaded world"); return; }
+                connector->onSetPause(true);
+                for(int z=Global::dimZ-2;z>0;--z) for(int x=Global::dimX/2-20;x<Global::dimX/2+20;++x) for(int y=Global::dimY/2-20;y<Global::dimY/2+20;++y) {
+                    Position tile(x,y,z);
+                    if(!game->w()->isWalkableGnome(tile) || game->wsm()->isWorkshop(tile)
+                        || game->spm()->isStockPile(tile) || !DB::workshop("Carpenter")) continue;
+                    auto* workshop=game->wsm()->addWorkshop("Carpenter",tile,0);
+                    if(!workshop || workshop->tiles().isEmpty()) { automationTrace("FAIL Carpenter workshop object missing components"); return; }
+                    for(auto component : workshop->tiles()) game->w()->setTileFlag(component,TileFlag::TF_WORKSHOP);
+                    qputenv("INGNOMIA_PROBE_WORKSHOP_TILE",QByteArray::number(tile.toInt()));
+                    automationTrace(QString("PASS created probe Carpenter workshop id=%1 tile=%2 footprint=%3").arg(workshop->id()).arg(tile.toInt()).arg(workshop->tiles().size()));
+                    connector->onSelectTile(tile.toInt());
+                    return;
+                }
+                automationTrace("FAIL workshop probe found no open tile or Carpenter definition");
+            },Qt::QueuedConnection);
+        });
+        QTimer::singleShot(11500,&app,[] {
+            if(qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_STAGED_EDIT_PROBE")=="1") {
+                auto& window=MainWindow::getInstance();
+                const bool settings=window.activateManagementElement("workshop_view_settings");
+                const auto before=window.workshopSettingsStatusForProbe();
+                const bool entered=window.setManagementFormValueForProbe("workshop_name","Draft Carpenter");
+                const auto draft=window.workshopSettingsStatusForProbe();
+                const bool staged=settings && entered && before==draft && before.find("name=Draft Carpenter")==std::string::npos;
+                automationTrace(QString(staged?"PASS ":"FAIL ")+"Workshop name remains a local draft until Apply");
+                const bool applied=staged && window.activateManagementElement("workshop_apply_basics");
+                automationTrace(QString(applied?"PASS ":"FAIL ")+"Workshop Apply dispatched one staged basics edit");
+				QTimer::singleShot(750,qApp,[applied] {
+                    auto& current=MainWindow::getInstance();
+                    const auto status=current.workshopSettingsStatusForProbe();
+                    const bool committed=applied && status.find("name=Draft Carpenter")!=std::string::npos;
+                    automationTrace(QString(committed?"PASS ":"FAIL ")+"Workshop authoritative snapshot reflects the applied name");
+                    const auto path=qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_CAPTURE_PATH");
+                    const bool captured=current.requestManagementCaptureForProbe("workshop",path);
+                    automationTrace(QString(captured?"PASS ":"FAIL ")+"Workshop staged-edit capture requested");
+                });
+                return;
+            }
+            const auto path=qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_CAPTURE_PATH");
+            const bool opened=MainWindow::getInstance().requestManagementCaptureForProbe("workshop",path);
+            automationTrace(QString(opened?"PASS ":"FAIL ")+"Workshop manager opened and capture requested");
+        });
+        QTimer::singleShot(qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_STAGE10_LIVE")=="1"?37000:15000,&app,[] { if(Global::eventConnector) QMetaObject::invokeMethod(Global::eventConnector,"onExit",Qt::QueuedConnection); });
+        return;
+    }
+    if(qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_OPEN_PROBE")=="1"
+        && !qEnvironmentVariableIsEmpty("INGNOMIA_DATA_FOLDER") && !qEnvironmentVariableIsEmpty("INGNOMIA_AUTOMATE_LOAD_PATH")) {
+        QTimer::singleShot(9000,&app,[] {
+            auto* connector=Global::eventConnector;
+            if(!connector) { automationTrace("FAIL stockpile probe has no EventConnector"); return; }
+            QMetaObject::invokeMethod(connector,[connector] {
+                auto* game=connector->game();
+                if(!game || !game->w() || !game->spm() || !game->inv()) { automationTrace("FAIL stockpile probe has no loaded world"); return; }
+                connector->onSetPause(true);
+                const auto mask=TileFlag::TF_WORKSHOP+TileFlag::TF_STOCKPILE+TileFlag::TF_GROVE+TileFlag::TF_FARM+TileFlag::TF_PASTURE+TileFlag::TF_ROOM;
+                for(int z=Global::dimZ-2;z>0;--z) for(int x=Global::dimX/2-20;x<Global::dimX/2+20;++x) for(int y=Global::dimY/2-20;y<Global::dimY/2+20;++y) {
+                    Position tile(x,y,z);
+                    if(!game->w()->isWalkableGnome(tile) || (game->w()->getTile(tile).flags-~mask)!=TileFlag::TF_NONE) continue;
+                    game->spm()->addStockpile(tile,{{tile,true}});
+                    auto* pile=game->spm()->getStockpileAtPos(tile);
+                    const auto item=game->inv()->createItem(tile,"RawWood","Oak");
+                    const bool inserted=pile && item && pile->insertItem(tile,item);
+                    qputenv("INGNOMIA_PROBE_STOCKPILE_TILE",QByteArray::number(tile.toInt()));
+                    automationTrace(QString(inserted?"PASS ":"FAIL ")+QString("created one-field Stockpile at %1 with item=%2").arg(tile.toInt()).arg(item));
+                    connector->onSelectTile(tile.toInt());
+                    return;
+                }
+                automationTrace("FAIL stockpile probe found no open tile");
+            },Qt::QueuedConnection);
+        });
+        QTimer::singleShot(11500,&app,[] {
+            const auto path=qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_CAPTURE_PATH");
+            const bool opened=MainWindow::getInstance().requestManagementCaptureForProbe("stockpile",path);
+            automationTrace(QString(opened?"PASS ":"FAIL ")+"Stockpile manager opened and capture requested");
+        });
+        if(qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_FORM_PROBE")=="1") {
+            QTimer::singleShot(12000,&app,[]{
+                auto& w=MainWindow::getInstance();w.activateManagementElement("stockpile_view_settings");
+                w.setManagementFormValueForProbe("stockpile_name","Stage 05 supplies");
+                w.setManagementFormValueForProbe("stockpile_priority","999999");w.activateManagementElement("stockpile_apply");w.activateManagementElement("stockpile_review_cancel");
+            });
+            QTimer::singleShot(12600,&app,[]{auto* c=Global::eventConnector;QMetaObject::invokeMethod(c,[c]{
+                Position tile(qEnvironmentVariable("INGNOMIA_PROBE_STOCKPILE_TILE").toUInt());auto* pile=c->game()->spm()->getStockpileAtPos(tile);
+                automationTrace(QString(pile&&pile->name()!="Stage 05 supplies"?"PASS ":"FAIL ")+"invalid priority blocked authoritative Apply");
+                if(pile)qputenv("INGNOMIA_PROBE_PULL_BEFORE",pile->pullsOthers()?"1":"0");
+            },Qt::QueuedConnection);});
+            QTimer::singleShot(13200,&app,[]{auto& w=MainWindow::getInstance();w.setManagementFormValueForProbe("stockpile_priority","1");w.activateManagementElement("stockpile_apply");});
+            // Hauling options are pending until Apply (Stage 21a).
+            QTimer::singleShot(14000,&app,[]{auto& w=MainWindow::getInstance();w.activateManagementElement("stockpile_toggle_pull");w.activateManagementElement("stockpile_apply");});
+            QTimer::singleShot(15000,&app,[]{auto* c=Global::eventConnector;QMetaObject::invokeMethod(c,[c]{
+                Position tile(qEnvironmentVariable("INGNOMIA_PROBE_STOCKPILE_TILE").toUInt());auto* pile=c->game()->spm()->getStockpileAtPos(tile);
+                const bool ok=pile&&pile->name()=="Stage 05 supplies"&&pile->priority()==0&&pile->pullsOthers()!=(qEnvironmentVariable("INGNOMIA_PROBE_PULL_BEFORE")=="1");
+                automationTrace(QString(ok?"PASS ":"FAIL ")+"form name priority and hauling reached authoritative Stockpile");
+            },Qt::QueuedConnection);});
+            QTimer::singleShot(15600,&app,[]{MainWindow::getInstance().requestManagementCaptureForProbe("stockpile",qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_FORM_CAPTURE_PATH"));});
+        }
+        if(qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_STAGE09_LIVE")=="1") {
+            // Stage 21a sheet: allow-list check boxes and General settings are pending until Apply; templates act at once.
+            const auto schedule=[&app](int delay,std::function<void()> fn){QTimer::singleShot(delay,Qt::PreciseTimer,&app,std::move(fn));};
+            const auto shot=[](const char* name){const auto dir=qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_STAGE21_DIR");if(dir.isEmpty())return;const bool ok=MainWindow::getInstance().requestManagementCaptureForProbe("stockpile",dir+"/"+name+".png");automationTrace(QString(ok?"PASS ":"FAIL ")+"capture requested "+name);};
+            const auto act=[](const char* id){automationTrace(QString(MainWindow::getInstance().activateManagementElement(id)?"PASS ":"FAIL ")+"activated "+id);};
+            schedule(12400,[shot]{shot("general-invalid");});
+            schedule(16000,[act]{auto& w=MainWindow::getInstance();act("stockpile_view_allow");w.setManagementStockpileSearchForProbe("wood");automationTrace(QString::fromStdString(w.stockpileStage09Probe("scope")));act("stockpile_block_bulk");});
+            schedule(16500,[shot]{shot("allow-pending");});
+            schedule(17000,[act]{act("stockpile_apply");});
+            schedule(17500,[act]{auto& w=MainWindow::getInstance();automationTrace(QString::fromStdString(w.stockpileStage09Probe("blocked")));w.setManagementFormValueForProbe("stockpile_template_name","Stage09 wood");act("stockpile_template_save");});
+            schedule(18000,[shot]{shot("allow");});
+            schedule(18500,[act]{auto& w=MainWindow::getInstance();automationTrace(QString::fromStdString(w.stockpileStage09Probe("scope")));act("stockpile_allow_bulk");act("stockpile_apply");});
+            schedule(19500,[act]{auto& w=MainWindow::getInstance();automationTrace(QString::fromStdString(w.stockpileStage09Probe("allowed")));act("stockpile_template_save");});
+            schedule(20000,[shot]{shot("template-replace");});
+            schedule(20500,[act]{act("stockpile_review_cancel");});
+            const auto compare=[](bool equal){auto*c=Global::eventConnector;QMetaObject::invokeMethod(c,[c,equal]{
+                Position tile(qEnvironmentVariable("INGNOMIA_PROBE_STOCKPILE_TILE").toUInt());auto* pile=c->game()->spm()->getStockpileAtPos(tile);
+                QJsonDocument doc;IO::loadFile(IO::getDataFolder()+"/settings/stockpile-filter-templates.json",doc);
+                bool match=false;for(const auto& entry:doc.toVariant().toList())if(entry.toMap().value("Name").toString()=="Stage09 wood")match=pile&&entry.toMap().value("Filter").toMap()==pile->filter().serialize();
+                automationTrace(QString(match==equal?"PASS ":"FAIL ")+(equal?"confirmed template replacement persisted current rules":"No on the replacement preserved the saved rules"));
+            },Qt::QueuedConnection);};
+            schedule(21000,[compare]{compare(false);});
+            schedule(22000,[act]{act("stockpile_template_save");act("stockpile_review_accept");});
+            schedule(23500,[compare]{compare(true);automationTrace(QString::fromStdString(MainWindow::getInstance().stockpileStage09Probe("inspector")));});
+            schedule(24000,[act]{act("stockpile_view_settings");act("stockpile_toggle_suspended");});
+            schedule(24400,[shot]{shot("general-pending");});
+            schedule(24800,[act]{act("stockpile_apply");});
+            schedule(25500,[]{auto&w=MainWindow::getInstance();automationTrace(QString::fromStdString(w.stockpileStage09Probe("agree")));automationTrace(QString::fromStdString(w.stockpileStage09Probe("toggle-inspector")));});
+            schedule(27000,[]{auto&w=MainWindow::getInstance();automationTrace(QString::fromStdString(w.stockpileStage09Probe("agree")));w.requestManagementCaptureForProbe("stockpile",qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_STAGE09_CAPTURE"));});
+            schedule(27600,[shot]{shot("general");});
+            schedule(28000,[act]{act("stockpile_view_contents");});
+            schedule(28400,[shot]{shot("contents");});
+        }
+        const int exitDelay=qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_STAGE09_LIVE")=="1"?29000:qEnvironmentVariable("INGNOMIA_AUTOMATE_INVENTORY_HISTORY")=="1"?30000:qEnvironmentVariable("INGNOMIA_AUTOMATE_STOCKPILE_FORM_PROBE")=="1"?18000:15000;
+        QTimer::singleShot(exitDelay,&app,[] { if(Global::eventConnector) QMetaObject::invokeMethod(Global::eventConnector,"onExit",Qt::QueuedConnection); });
+        return;
+    }
     if(qEnvironmentVariable("INGNOMIA_AUTOMATE_WORKSHOP_LINKS")=="1"
         && !qEnvironmentVariableIsEmpty("INGNOMIA_DATA_FOLDER") && !qEnvironmentVariableIsEmpty("INGNOMIA_AUTOMATE_LOAD_PATH")) {
         const auto status=[] { automationTrace(QString::fromStdString(MainWindow::getInstance().workshopSettingsStatusForProbe())); };

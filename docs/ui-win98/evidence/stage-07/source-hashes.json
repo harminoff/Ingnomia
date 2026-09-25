@@ -1,0 +1,22 @@
+{
+  "src/gui/ui/runtime/ModalDialog.h": "f82e70cc6af6c73045972738e1db77a80821bbaa4cb5d07ee8af00ff20c6576a",
+  "src/gui/ui/runtime/CommandFeedback.h": "d9720d1193dc5b46d7d478d4a23d6a8f425c13a18d0aa262c09d89b4cbda5bd3",
+  "src/gui/ui/runtime/RmlUiQtInputAdapter.cpp": "b2c7090dc4a6e7844de86f238d51fb79f6ee776d0dcf551893f56ba89bf401aa",
+  "src/gui/ui/runtime/RmlUiDetachedWindow.cpp": "65be1a6198f83ed014a697f9ce78a89358c7a58bcaed47a381dd16620a37ddb1",
+  "src/gui/ui/screens/ManagementTooltip.h": "61128b2e33a01b9b3a5c76791d182db7562ca7ec5b935e1dce64076589728253",
+  "src/gui/ui/screens/shell/ShellController.cpp": "abf529bce6ad9bc2fd57117b77521674d8813a7eaeb2cd43eea741e2af14e5ed",
+  "src/gui/ui/screens/shell/ShellRmlBinding.cpp": "7a096e953e5790d70b42c9f9071be7ca19dffdaa526ce2a81f7a07dd4c1680b1",
+  "src/gui/ui/screens/management6b/Management6BController.cpp": "3301647ff8cd38ea120a90e947cc8e791e1c1b1d211a06e4bbf559160c526401",
+  "src/gui/ui/screens/management6b/Management6BRmlBinding.cpp": "fb73f44074658ab2e29126fb9c2e86520c59e3e56d3cf05545755da7c9cb6ab7",
+  "src/gui/ui/screens/management6b/Management6BState.h": "9f4cf2199a8f1aa14f81097077cc0e91226250462d29bae1059e49bd1953e255",
+  "src/gui/ui/screens/management6b/Management6BText.h": "eb0b3bdad7421d38ad6c52964a1ad76edee5640e3f29070c2cafad5cc7b85185",
+  "src/gui/ui/screens/management6a/Management6ARmlBinding.cpp": "a15afa8cdf901d2224f9ab44921b7b7b3753b03577b397097a6c524ffa9b446a",
+  "src/gui/mainwindow.cpp": "1be4643e460a69564b361041fd8b24b6675591bee3ad6ad185f63f4d64853079",
+  "content/rmlui/modals/confirm_destructive.rml": "f83a70bb97366292b7d585808a67278125627f8e408b060082c8ae06f0b7f91e",
+  "content/rmlui/windows/population_manager.rml": "01691aa7cf7ec193e5494e169d44cc59357582e072829cdede1af81376e7a739",
+  "content/rmlui/screens/loading.rml": "22228dd9e5fd98f217d3242bb7bfda90bb0a1e0d835539b296cad6d65b543201",
+  "content/rmlui/styles/components.rcss.in": "dcedcf97e0d976ed3a30f966cbd7f65a06f0d64e6a0b15751b3bc5c30cf2a6ef",
+  "content/rmlui/styles/components.rcss": "ad6f616edd723ded1c5f9993557d717994975d004a998a61e786f19b00d68a8b",
+  "tests/ui-stage07/dialog_tests.cpp": "72cdf989f3964289196d017705b39f67e46e7cef628ed66a1a8d8cba07ecd54d",
+  "tests/ui-stage07/CMakeLists.txt": "a13e3fe3fbc799eb1f64f6288fcb5817cdf69058b1c69792cd5603ef57365dee"
+}

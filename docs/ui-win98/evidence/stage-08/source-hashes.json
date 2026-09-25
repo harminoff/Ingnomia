@@ -1,0 +1,10 @@
+{
+  "content/rmlui/windows/inventory_browser.rml": "0ad9c64ef5a3e6e01b8cbd797c378d6382f7990743d1cbc6435119f2a32fb9d1",
+  "content/rmlui/windows/management6b.rcss": "542969f55dec046870759d866e23cfa8b976cd9237f5afc7b65974601c4f4b2d",
+  "src/gui/ui/screens/management6b/Management6BRmlBinding.cpp": "f2fc5d9e1cb00d033492ed0fb379b3cbc7a690ce2cb65d5cc1e12b96aee0faf3",
+  "src/gui/ui/screens/management6b/Management6BRmlBinding.h": "6deff5cb3766b93a6b44bc6e3d5cea202dff00a04c57f75ca2df09888e2cda2f",
+  "src/gui/ui/screens/management6b/Management6BController.cpp": "70ac38cd9f4c6a162bf21687282714caea99b883af57ba1acb54f4b337d893f5",
+  "src/gui/ui/screens/management6b/Management6BController.h": "c79ba415d3b196aa0f12c2cb44a8c871f3848e7c7161c24a686e2b0245a385f1",
+  "src/gui/ui/screens/management6b/Management6BText.h": "7b9b5cf601c30e647eb7df7624c67bd8af85cccd570c7b1752d7950e8fcc5d6c",
+  "tests/ui-stage08/inventory_tests.cpp": "2a66cac0633835956c47643786e9c122b3ff8e3e8d366260f5d147d401129486"
+}

@@ -1,183 +1,202 @@
 <rml>
-<head><link type="text/rcss" href="../styles/base.rcss"/><link type="text/rcss" href="../styles/components.rcss"/><link type="text/rcss" href="../styles/accessibility.rcss"/><link type="text/rcss" href="inspector.rcss"/></head>
+<head><title>Properties</title><link type="text/rcss" href="../styles/base.rcss"/><link type="text/rcss" href="../styles/components.rcss"/><link type="text/rcss" href="win98_classic.rcss"/><link type="text/rcss" href="inspector.rcss"/><link type="text/rcss" href="../styles/accessibility.rcss"/></head>
 <body id="inspector_root" class="l-inspector-root is-hidden">
-  <div id="tile_world_label" class="c-tile-world-label is-hidden" aria-live="polite"><span id="tile_world_label_text"></span></div>
-  <div id="selection_pointer_tip" class="c-selection-pointer-tip is-hidden" aria-live="polite"><strong id="selection_pointer_tool"></strong><span id="selection_pointer_size"></span></div>
-  <!-- Priority controls receive authoritative aria-disabled/disabled state during projection. -->
-  <section id="creature_preview" class="c-window l-creature-preview is-hidden" role="dialog" aria-labelledby="creature_preview_title">
-    <header class="c-title-bar">
-      <handle id="creature_preview_drag_handle" class="c-title-bar__drag-handle" move_target="creature_preview" edge_margin="52dp 12dp 54dp 12dp"><div class="c-title-bar__mark"></div><div class="c-creature-preview-heading"><small id="creature_preview_kind" data-l10n="inspector.preview.creature">Creature</small><h2 id="creature_preview_title"></h2><span id="creature_preview_camera_position" class="c-creature-preview-heading-coords"></span></div></handle>
-      <button id="creature_preview_close" class="c-button c-button--compact"><span id="creature_preview_close_label" data-l10n="common.close">Close</span></button>
-    </header>
-    <div class="c-window__body c-creature-preview-body">
-      <aside class="c-creature-preview-rail" aria-label="Inspector views">
-        <div class="c-creature-preview-rail-heading" data-l10n="inspector.preview.views">Views</div>
-        <nav class="c-creature-preview-nav" role="tablist" aria-label="Inspector views" aria-orientation="vertical">
-          <button id="creature_preview_nav_camera" class="c-button is-selected" role="tab" aria-selected="true" aria-controls="creature_preview_camera_panel" tab-index="0"><span data-l10n="inspector.preview.nav_camera">Camera</span></button>
-          <button id="creature_preview_nav_stats" class="c-button" role="tab" aria-selected="false" aria-controls="creature_preview_stats_panel" tab-index="-1"><span data-l10n="inspector.preview.show_stats">Stats</span></button>
-          <button id="creature_preview_nav_expertise" class="c-button" role="tab" aria-selected="false" aria-controls="creature_preview_expertise_panel" tab-index="-1"><span data-l10n="inspector.preview.expertise">Expertise</span></button>
-          <button id="creature_preview_nav_equipment" class="c-button" role="tab" aria-selected="false" aria-controls="creature_preview_equipment_panel" tab-index="-1"><span data-l10n="inspector.static.equipment">Equipment</span></button>
-          <button id="creature_preview_nav_inventory" class="c-button" role="tab" aria-selected="false" aria-controls="creature_preview_inventory_panel" tab-index="-1"><span data-l10n="inspector.static.inventory">Inventory</span></button>
-        </nav>
-        <div id="creature_preview_skill_sort" class="c-creature-preview-skill-sort is-hidden" role="group" aria-labelledby="creature_preview_skill_sort_heading">
-          <div id="creature_preview_skill_sort_heading" class="c-creature-preview-rail-heading" data-l10n="inspector.preview.order_by">Order by</div>
-          <button id="creature_preview_skill_sort_name" class="c-button is-selected" aria-pressed="true"><span data-l10n="inspector.preview.sort_name">Name</span></button>
-          <button id="creature_preview_skill_sort_level" class="c-button" aria-pressed="false"><span data-l10n="inspector.preview.sort_level">Level</span></button>
-          <button id="creature_preview_skill_sort_active" class="c-button" aria-pressed="false"><span data-l10n="inspector.preview.sort_active">Active</span></button>
-        </div>
-        <div id="creature_preview_camera_actions" class="c-creature-preview-camera-actions" role="group" aria-labelledby="creature_preview_camera_actions_heading">
-          <div id="creature_preview_camera_actions_heading" class="c-creature-preview-rail-heading" data-l10n="inspector.preview.actions">Actions</div>
-          <button id="creature_preview_locate" class="c-button c-creature-preview-locate"><span id="creature_preview_locate_label" data-l10n="inspector.static.inspector_locate">Center on map</span></button>
-        </div>
-      </aside>
-      <main class="c-creature-preview-content">
-        <section id="creature_preview_camera_panel" class="c-creature-preview-panel" role="tabpanel" aria-labelledby="creature_preview_nav_camera">
-          <div class="c-creature-preview-camera" aria-label="Camera view">
-            <div class="c-creature-preview-camera__scene"><img id="creature_preview_camera_image" class="c-creature-preview-camera__image" src="?camera-preview://selected" /></div>
-          </div>
-          <div class="c-creature-preview-activity-line"><span id="creature_preview_activity"></span></div>
-        </section>
-        <section id="creature_preview_stats_panel" class="c-creature-preview-panel is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_stats">
-          <h3 id="creature_preview_attributes_heading" data-l10n="inspector.static.attributes">Attributes</h3>
-          <div class="c-creature-preview-stats">
-            <div id="creature_preview_strength_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.strength">Strength</span><strong id="creature_preview_strength"></strong></div>
-            <div id="creature_preview_dexterity_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.dexterity">Dexterity</span><strong id="creature_preview_dexterity"></strong></div>
-            <div id="creature_preview_constitution_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.constitution">Constitution</span><strong id="creature_preview_constitution"></strong></div>
-            <div id="creature_preview_intelligence_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.intelligence">Intelligence</span><strong id="creature_preview_intelligence"></strong></div>
-            <div id="creature_preview_wisdom_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.wisdom">Wisdom</span><strong id="creature_preview_wisdom"></strong></div>
-            <div id="creature_preview_charisma_stat" class="c-creature-preview-stat"><span data-l10n="inspector.preview.charisma">Charisma</span><strong id="creature_preview_charisma"></strong></div>
-          </div>
-          <h3 id="creature_preview_needs_heading" data-l10n="inspector.static.needs">Needs</h3>
-          <div class="c-creature-preview-needs">
-            <div id="creature_preview_hunger_need" class="c-creature-preview-need"><span data-l10n="inspector.preview.hunger">Hunger</span><div class="c-creature-preview-meter"><span id="creature_preview_hunger_meter"></span></div><strong id="creature_preview_hunger"></strong></div>
-            <div id="creature_preview_thirst_need" class="c-creature-preview-need"><span data-l10n="inspector.preview.thirst">Thirst</span><div class="c-creature-preview-meter"><span id="creature_preview_thirst_meter"></span></div><strong id="creature_preview_thirst"></strong></div>
-            <div id="creature_preview_sleep_need" class="c-creature-preview-need"><span data-l10n="inspector.preview.sleep">Sleep</span><div class="c-creature-preview-meter"><span id="creature_preview_sleep_meter"></span></div><strong id="creature_preview_sleep"></strong></div>
-            <div id="creature_preview_happiness_need" class="c-creature-preview-need"><span data-l10n="inspector.preview.happiness">Happiness</span><div class="c-creature-preview-meter"><span id="creature_preview_happiness_meter"></span></div><strong id="creature_preview_happiness"></strong></div>
-          </div>
-          <p id="creature_preview_stats_empty" class="is-hidden" data-l10n="inspector.static.not_reported">Not reported</p>
-        </section>
-        <section id="creature_preview_expertise_panel" class="c-creature-preview-panel is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_expertise">
-          <div class="c-toolbar c-creature-preview-profession-editor">
-            <div class="c-creature-preview-profession-field">
-              <label id="creature_preview_profession_heading" data-l10n="inspector.static.profession">Profession</label>
-              <button id="creature_preview_profession_toggle" class="c-creature-preview-profession-toggle" aria-haspopup="listbox" aria-expanded="false">
-                <span id="creature_preview_profession_value"></span><span class="c-creature-preview-profession-arrow" aria-hidden="true">v</span>
-              </button>
-            </div>
-            <div id="creature_preview_profession_menu" class="c-creature-preview-profession-menu is-hidden" role="listbox" aria-labelledby="creature_preview_profession_heading"></div>
-            <p id="creature_preview_professions_empty" data-l10n="inspector.static.no_profession_choices">No profession choices available</p>
-          </div>
-          <div id="creature_preview_skills_scroll" class="c-list c-scroll-region c-creature-preview-skills-scroll" tab-index="0"><div id="creature_preview_skills"></div></div>
-          <p id="creature_preview_skills_empty" data-l10n="inspector.static.no_skills">No skills reported</p>
-        </section>
-        <section id="creature_preview_equipment_panel" class="c-creature-preview-panel is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_equipment">
-          <h3 data-l10n="inspector.static.equipment">Equipment</h3>
-          <p id="creature_preview_equipment_scope" class="c-equipment-scope"></p>
-          <div class="c-equipment-workbench">
-          <div id="creature_preview_equipment" class="c-equipment-doll" role="group" aria-label="Equipment slots">
-            <div class="c-equipment-doll__row c-equipment-doll__row--top">
-              <div class="c-equipment-slot c-equipment-slot--decorative" aria-hidden="true"><span class="c-equipment-slot__empty">N</span></div>
-              <button id="creature_equipment_slot_head" class="c-equipment-slot"></button>
-              <button id="creature_equipment_slot_back" class="c-equipment-slot"></button>
-            </div>
-            <div class="c-equipment-doll__row">
-              <button id="creature_equipment_slot_arms" class="c-equipment-slot"></button>
-              <button id="creature_equipment_slot_chest" class="c-equipment-slot"></button>
-              <button id="creature_equipment_slot_hands" class="c-equipment-slot"></button>
-            </div>
-            <div class="c-equipment-doll__row c-equipment-doll__row--rings" aria-hidden="true">
-              <div class="c-equipment-slot c-equipment-slot--decorative"><span class="c-equipment-slot__empty">O</span></div>
-              <div class="c-equipment-doll__spacer"></div>
-              <div class="c-equipment-slot c-equipment-slot--decorative"><span class="c-equipment-slot__empty">O</span></div>
-            </div>
-            <div class="c-equipment-doll__row">
-              <button id="creature_equipment_slot_right_hand" class="c-equipment-slot"></button>
-              <button id="creature_equipment_slot_legs" class="c-equipment-slot"></button>
-              <button id="creature_equipment_slot_left_hand" class="c-equipment-slot"></button>
-            </div>
-            <div class="c-equipment-doll__row c-equipment-doll__row--feet">
-              <div class="c-equipment-doll__spacer"></div>
-              <button id="creature_equipment_slot_feet" class="c-equipment-slot"></button>
-              <div class="c-equipment-doll__spacer"></div>
-            </div>
-          </div>
-          <p id="creature_preview_equipment_empty">Assign a military role to choose equipment.</p>
-          <section id="creature_preview_equipment_editor" class="c-equipment-editor is-hidden" aria-labelledby="creature_preview_equipment_editor_title">
-            <h3 id="creature_preview_equipment_editor_title">Change equipment</h3>
-            <p id="creature_preview_equipment_current"></p>
-            <div class="c-equipment-editor__label">Type</div>
-            <div id="creature_preview_equipment_types" class="c-equipment-editor__choices"></div>
-            <div class="c-equipment-editor__label">Material</div>
-            <div id="creature_preview_equipment_materials" class="c-equipment-editor__choices"></div>
-            <div class="c-equipment-editor__actions">
-              <button id="creature_preview_equipment_apply" class="c-button">Apply</button>
-              <button id="creature_preview_equipment_cancel" class="c-button">Cancel</button>
-            </div>
-          </section>
-          </div>
-        </section>
-        <section id="creature_preview_inventory_panel" class="c-creature-preview-panel is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_inventory">
-          <h3 data-l10n="inspector.static.inventory">Inventory</h3>
-          <div id="creature_preview_inventory"></div>
-          <p id="creature_preview_inventory_empty" data-l10n="inspector.static.no_inventory">No carried items</p>
-        </section>
-      </main>
+  <div id="tile_world_label" class="c-tile-world-label w98-tooltip is-hidden" aria-live="polite"><span id="tile_world_label_text"></span></div>
+  <div id="selection_pointer_tip" class="c-selection-pointer-tip w98-tooltip is-hidden" aria-live="polite"><strong id="selection_pointer_tool"></strong><span id="selection_pointer_size"></span></div>
+
+  <!-- Creature inspector: a Windows 98 property inspector in a palette window (PDF p.167, p.180-181).
+       It follows the selected creature, applies edits immediately and has no OK, Cancel or Apply button.
+       Pages are tabs (PDF p.147) and never scroll; only the list views inside them do. -->
+  <section id="creature_preview" class="l-creature-preview w98-sheet w98-palette is-hidden" role="dialog" aria-labelledby="creature_preview_title">
+    <div class="w98-caption">
+      <handle id="creature_preview_drag_handle" class="c-title-bar__drag-handle" move_target="creature_preview" edge_margin="52dp 12dp 54dp 12dp"><h1 id="creature_preview_title" class="c-title-bar__title"></h1></handle>
+      <button id="creature_preview_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.creature_preview_close.title" aria-label="Close"><span id="creature_preview_close_label">&#x00D7;</span></button>
     </div>
-    <span class="c-window__resize-grip" aria-hidden="true"></span>
-  </section>
-  <aside id="inspector_panel" class="l-inspector-panel" role="dialog" aria-labelledby="inspector_title">
-    <header class="l-inspector-title"><handle id="inspector_drag_handle" class="c-title-bar__drag-handle" move_target="inspector_panel" edge_margin="76dp 12dp 58dp 12dp"><div class="c-title-bar__mark" aria-hidden="true"></div><div><small id="inspector_kind" data-l10n="inspector.static.inspector_kind">Selection</small><h2 id="inspector_title" data-l10n="inspector.static.inspector_title">Selected target</h2></div></handle><button id="inspector_back" class="c-button" data-l10n="inspector.static.inspector_back">Back</button><button id="inspector_close" class="c-button"><span id="inspector_close_label" data-l10n="inspector.static.inspector_close">Close</span></button></header>
-    <div class="l-inspector-toolbar"><span id="inspector_position"></span><button id="inspector_locate" class="c-button" data-l10n="inspector.static.inspector_locate">Center on map</button><button id="inspector_refresh" class="c-button" data-l10n="inspector.static.inspector_refresh">Refresh</button></div>
-    <div id="live_tile_columns" class="c-live-tile-columns" role="row"><span data-l10n="inspector.preview.sort_name">Name</span><span data-l10n="inspector.preview.actions">Actions</span></div>
-     <div id="inspector_scroll" class="l-inspector-scroll" tab-index="0">
-      <section id="inspector_blueprint" class="c-inspector-section c-blueprint-inspector is-hidden">
-        <div id="blueprint_status" class="c-blueprint-status" data-l10n="inspector.static.blueprint_waiting">Waiting for materials</div>
-        <section class="c-blueprint-group">
-          <h3 data-l10n="inspector.static.blueprint_missing_resources">Missing resources</h3>
-          <div class="c-blueprint-list-head"><span data-l10n="inspector.static.blueprint_item">Item</span><span data-l10n="inspector.static.blueprint_material">Material</span><span data-l10n="inspector.static.blueprint_status">Status</span><span data-l10n="inspector.static.blueprint_needed">Needed</span></div>
-          <div id="blueprint_missing_items" class="c-blueprint-list"></div>
-          <p id="blueprint_resources_ready" class="is-hidden" data-l10n="inspector.static.blueprint_resources_ready">All construction materials are available.</p>
+    <div class="w98-sheet__body">
+      <nav id="creature_preview_tabs" class="c-tabs w98-tabs" role="tablist" aria-label="Inspector pages">
+        <button id="creature_preview_nav_camera" class="c-tabs__tab is-selected" role="tab" aria-selected="true" aria-controls="creature_preview_camera_panel" tab-index="0" data-l10n="win98.inspector.preview_nav_camera">General</button>
+        <button id="creature_preview_nav_stats" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="creature_preview_stats_panel" tab-index="-1" data-l10n="win98.inspector.preview_nav_stats">Attributes</button>
+        <button id="creature_preview_nav_expertise" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="creature_preview_expertise_panel" tab-index="-1" data-l10n="win98.inspector.preview_nav_expertise">Skills</button>
+        <button id="creature_preview_nav_equipment" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="creature_preview_equipment_panel" tab-index="-1" data-l10n="win98.inspector.preview_nav_equipment">Equipment</button>
+        <button id="creature_preview_nav_inventory" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="creature_preview_inventory_panel" tab-index="-1" data-l10n="win98.inspector.preview_nav_inventory">Inventory</button>
+      </nav>
+      <div class="w98-page-frame">
+        <section id="creature_preview_camera_panel" class="w98-page w98-col" role="tabpanel" aria-labelledby="creature_preview_nav_camera">
+          <div class="w98-well w98-grow c-creature-preview-camera" aria-label="Camera view"><img id="creature_preview_camera_image" src="?camera-preview://selected" /></div>
+          <div class="w98-gap"></div>
+          <div class="w98-line"><span class="w98-label" data-l10n="win98.inspector.type">Type:</span><p id="creature_preview_kind" class="w98-text w98-grow"></p></div>
+          <div class="w98-line"><span class="w98-label" data-l10n="win98.inspector.activity">Activity:</span><p id="creature_preview_activity" class="w98-text w98-grow"></p></div>
+          <div id="creature_preview_camera_actions" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.position">Position:</span><p id="creature_preview_camera_position" class="w98-text w98-grow"></p><button id="creature_preview_locate" class="w98-button"><span id="creature_preview_locate_label"></span></button></div>
         </section>
-        <section class="c-blueprint-group">
-          <h3 data-l10n="inspector.static.blueprint_construction_job">Construction job</h3>
-          <div class="c-blueprint-detail"><span data-l10n="inspector.static.blueprint_worker">Worker</span><strong id="blueprint_worker" data-l10n="inspector.static.blueprint_unassigned">Unassigned</strong></div>
-          <div class="c-blueprint-detail"><span data-l10n="inspector.static.blueprint_priority">Priority</span><strong id="blueprint_priority">0</strong></div>
-          <div id="blueprint_skill_row" class="c-blueprint-detail"><span data-l10n="inspector.static.blueprint_skill">Skill</span><strong id="blueprint_skill"></strong></div>
-          <div id="blueprint_tool_row" class="c-blueprint-detail"><span data-l10n="inspector.static.blueprint_tool">Tool</span><strong id="blueprint_tool"></strong></div>
+
+        <section id="creature_preview_stats_panel" class="w98-page w98-row w98-row--fill is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_stats">
+          <div class="w98-group w98-grow c-inspector-half"><span id="creature_preview_attributes_heading" class="w98-group__title" data-l10n="win98.inspector.preview_attributes_heading">Attributes</span>
+            <div id="creature_preview_strength_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.strength">Strength:</span><p id="creature_preview_strength" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_dexterity_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.dexterity">Dexterity:</span><p id="creature_preview_dexterity" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_constitution_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.constitution">Constitution:</span><p id="creature_preview_constitution" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_intelligence_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.intelligence">Intelligence:</span><p id="creature_preview_intelligence" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_wisdom_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.wisdom">Wisdom:</span><p id="creature_preview_wisdom" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_charisma_stat" class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.charisma">Charisma:</span><p id="creature_preview_charisma" class="w98-text w98-grow"></p></div>
+          </div>
+          <div class="w98-group w98-grow c-inspector-half"><span id="creature_preview_needs_heading" class="w98-group__title" data-l10n="win98.inspector.preview_needs_heading">Needs</span>
+            <div id="creature_preview_hunger_need" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.hunger">Hunger:</span><p id="creature_preview_hunger" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_thirst_need" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.thirst">Thirst:</span><p id="creature_preview_thirst" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_sleep_need" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.sleep">Sleep:</span><p id="creature_preview_sleep" class="w98-text w98-grow"></p></div>
+            <div id="creature_preview_happiness_need" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.happiness">Happiness:</span><p id="creature_preview_happiness" class="w98-text w98-grow"></p></div>
+            <p class="w98-text" data-l10n="win98.inspector.needs_run_from_0_to">Needs run from 0 to 100; 100 means fully met.</p>
+          </div>
+          <p id="creature_preview_stats_empty" class="w98-text is-hidden" data-l10n="win98.inspector.preview_stats_empty">Not reported</p>
         </section>
-        <div class="l-inspector-actions c-blueprint-actions"><button id="blueprint_cancel_job" class="c-button c-button--danger" data-l10n="inspector.static.blueprint_cancel">Cancel blueprint</button><button id="blueprint_raise_job" class="c-button" data-l10n="inspector.static.tile_raise_job">Raise priority</button><button id="blueprint_lower_job" class="c-button" data-l10n="inspector.static.tile_lower_job">Lower priority</button></div>
-      </section>
-       <div id="live_tile_rows" class="is-hidden" role="list"></div>
-        <p id="tile_inspection_empty" class="is-hidden" data-l10n="inspector.live.empty">Click a tile on the map to inspect it. Its details stay here while you choose an action.</p>
-       <section id="inspector_tile" class="c-inspector-section is-hidden"><h3 data-l10n="inspector.static.tile_overview">Tile overview</h3><div id="tile_terrain"></div><section id="tile_construction_section" class="is-hidden"><h3 data-l10n="inspector.static.construction">Construction</h3><p id="tile_construction"></p></section><section id="tile_contents_section" class="is-hidden"><h3 data-l10n="inspector.static.contents">Contents</h3><div id="tile_contents"></div></section><section id="tile_creatures_section" class="is-hidden"><h3 data-l10n="inspector.static.creatures">Creatures</h3><div id="tile_creatures"></div><button id="tile_open_creature" class="c-button" data-l10n="inspector.static.tile_open_creature">Inspect first creature</button></section><section id="tile_job_section" class="is-hidden"><h3 data-l10n="inspector.static.active_job">Active job</h3><p id="tile_job"></p><p id="tile_job_work_positions"></p><section id="tile_job_requirements_section" class="is-hidden"><h3 data-l10n="inspector.static.required_items">Required items</h3><div id="tile_job_requirements"></div></section><div class="l-inspector-actions"><button id="tile_cancel_job" class="c-button" data-l10n="inspector.static.tile_cancel_job">Cancel job</button><button id="tile_raise_job" class="c-button" data-l10n="inspector.static.tile_raise_job">Raise priority</button><button id="tile_lower_job" class="c-button" data-l10n="inspector.static.tile_lower_job">Lower priority</button></div></section><section id="tile_links_section" class="is-hidden"><h3 data-l10n="inspector.static.designation_links">Designation / links</h3><p id="tile_links"></p></section><section><h3 data-l10n="inspector.static.context_actions">Context actions</h3><div class="l-inspector-actions"><button id="tile_mine" class="c-button" data-l10n="inspector.static.tile_mine">Mine wall</button><button id="tile_remove_floor" class="c-button" data-l10n="inspector.static.tile_remove_floor">Remove floor</button><button id="tile_harvest" class="c-button" data-l10n="inspector.static.tile_harvest">Harvest</button><button id="tile_fell" class="c-button" data-l10n="inspector.static.tile_fell">Fell tree</button><button id="tile_remove_plant" class="c-button" data-l10n="inspector.static.tile_remove_plant">Remove plant</button><button id="tile_delete_stockpile" class="c-button" title="Delete the entire stockpile designation; keep its items." data-l10n="inspector.tile.delete_stockpile">Delete stockpile</button><button id="tile_manage" class="c-button" data-l10n="inspector.static.tile_manage">Manage</button></div></section></section>
-      <section id="inspector_creature" class="c-inspector-section is-hidden"><h3 data-l10n="inspector.static.creature">Creature</h3><p id="creature_profession"></p><p id="creature_profession_choices_heading" data-l10n="inspector.static.profession_choices">Set profession</p><div id="creature_professions" class="l-inspector-actions" role="listbox"></div><p id="creature_professions_empty" data-l10n="inspector.static.no_profession_choices">No profession choices available</p><p id="creature_activity"></p><h3 id="creature_skills_heading" data-l10n="inspector.static.skills">Skills</h3><div id="creature_skills"></div><p id="creature_skills_empty" data-l10n="inspector.static.no_skills">No skills reported</p><h3 id="creature_attributes_heading" data-l10n="inspector.static.attributes">Attributes</h3><div id="creature_attributes" class="c-creature-attribute-grid"></div><h3 id="creature_needs_heading" data-l10n="inspector.static.needs">Needs</h3><div id="creature_needs" class="c-creature-needs-summary"></div><h3 data-l10n="inspector.static.equipment">Equipment</h3><div id="creature_equipment"></div><p id="creature_equipment_empty" data-l10n="inspector.static.no_equipment">No worn items</p><h3 data-l10n="inspector.static.inventory">Inventory</h3><div id="creature_inventory"></div><p id="creature_inventory_empty" data-l10n="inspector.static.no_inventory">No carried items</p></section>
-      <section id="inspector_workshop" class="c-inspector-section is-hidden"><h3 data-l10n="inspector.static.workshop_inspection">Workshop inspection</h3><p id="workshop_summary"></p><p id="workshop_options"></p><button id="workshop_toggle_suspended" class="c-button" data-l10n="inspector.static.workshop_toggle_suspended">Suspend</button></section>
-      <section id="inspector_stockpile" class="c-inspector-section c-stockpile-inspector is-hidden">
-        <div id="stockpile_status" class="c-stockpile-status">Active</div>
-        <section class="c-stockpile-group">
-          <h3 data-l10n="inspector.static.stockpile_overview">Overview</h3>
-          <div class="c-stockpile-metrics">
-            <div class="c-stockpile-metric"><span data-l10n="inspector.static.stockpile_priority">Priority</span><strong id="stockpile_priority"></strong></div>
-            <div class="c-stockpile-metric"><span data-l10n="inspector.static.stockpile_capacity">Capacity</span><strong id="stockpile_capacity"></strong></div>
-            <div class="c-stockpile-metric"><span data-l10n="inspector.static.stockpile_reserved">Reserved</span><strong id="stockpile_reserved"></strong></div>
+
+        <section id="creature_preview_expertise_panel" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_expertise">
+          <div class="w98-line"><label id="creature_preview_profession_heading" class="w98-label" for="creature_preview_profession" data-l10n="win98.inspector.preview_profession_heading">Profession:</label><select id="creature_preview_profession" class="w98-select" aria-labelledby="creature_preview_profession_heading"></select></div>
+          <p id="creature_preview_professions_empty" class="w98-text is-hidden" data-l10n="win98.inspector.preview_professions_empty">No profession choices available.</p>
+          <div class="w98-gap"></div>
+          <div class="w98-listview w98-grow">
+            <div id="creature_preview_skill_sort" class="w98-listview__header" role="row">
+              <button id="creature_preview_skill_sort_name" class="w98-listview__heading w98-cell--grow" aria-pressed="true">Skill<span id="creature_preview_skill_mark_name" class="w98-sort-mark"></span></button>
+              <button id="creature_preview_skill_sort_level" class="w98-listview__heading w98-w-state" aria-pressed="false">Level<span id="creature_preview_skill_mark_level" class="w98-sort-mark is-descending is-hidden"></span></button>
+              <button id="creature_preview_skill_sort_active" class="w98-listview__heading w98-w-state" aria-pressed="false">Active<span id="creature_preview_skill_mark_active" class="w98-sort-mark is-descending is-hidden"></span></button>
+            </div>
+            <div id="creature_preview_skills_scroll" class="w98-list" tab-index="0" role="listbox" aria-label="Skills"><div id="creature_preview_skills"></div></div>
+          </div>
+          <p id="creature_preview_skills_empty" class="w98-text is-hidden" data-l10n="win98.inspector.preview_skills_empty">No skills reported.</p>
+        </section>
+
+        <section id="creature_preview_equipment_panel" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_equipment">
+          <p id="creature_preview_equipment_scope" class="w98-text"></p>
+          <div class="w98-gap"></div>
+          <div class="w98-listview w98-grow">
+            <div class="w98-listview__header"><span class="w98-w-slot" data-l10n="win98.inspector.slot">Slot</span><span style="flex: 1 1 auto;" data-l10n="win98.inspector.item">Item</span></div>
+            <div id="creature_preview_equipment" class="w98-list" role="listbox" aria-label="Equipment slots">
+              <button id="creature_equipment_slot_head" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_chest" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_arms" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_hands" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_legs" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_feet" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_right_hand" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_left_hand" class="w98-list-item" role="option"></button>
+              <button id="creature_equipment_slot_back" class="w98-list-item" role="option"></button>
+            </div>
+          </div>
+          <div id="creature_preview_equipment_editor" class="w98-group is-hidden"><span id="creature_preview_equipment_editor_title" class="w98-group__title"></span>
+            <div class="w98-line"><label class="w98-label" for="creature_preview_equipment_type" data-l10n="win98.inspector.preview_equipment_type">Type:</label><select id="creature_preview_equipment_type" class="w98-select"></select></div>
+            <div class="w98-line"><label class="w98-label" for="creature_preview_equipment_material" data-l10n="win98.inspector.preview_equipment_material">Material:</label><select id="creature_preview_equipment_material" class="w98-select"></select></div>
+            <div class="w98-line w98-line--end"><button id="creature_preview_equipment_apply" class="w98-button" data-l10n="win98.common.apply">Apply</button><button id="creature_preview_equipment_cancel" class="w98-button" data-l10n="win98.common.cancel">Cancel</button></div>
           </div>
         </section>
-        <section class="c-stockpile-group">
-          <h3 data-l10n="inspector.static.stockpile_settings">Settings</h3>
-          <div class="c-stockpile-setting"><span data-l10n="inspector.static.stockpile_pull_from_others">Pull from other stockpiles</span><strong id="stockpile_pull_from_others"></strong></div>
-          <div class="c-stockpile-setting"><span data-l10n="inspector.static.stockpile_allow_pull">Allow other stockpiles to pull</span><strong id="stockpile_allow_pull"></strong></div>
+
+        <section id="creature_preview_inventory_panel" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="creature_preview_nav_inventory">
+          <div class="w98-listview w98-grow">
+            <div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.inspector.carried_item">Carried item</span></div>
+            <div id="creature_preview_inventory" class="w98-list" role="listbox" aria-label="Carried items"></div>
+          </div>
+          <p id="creature_preview_inventory_empty" class="w98-text is-hidden" data-l10n="win98.inspector.preview_inventory_empty">No carried items.</p>
         </section>
-        <section class="c-stockpile-group c-stockpile-contents-group">
-          <h3 data-l10n="inspector.static.stockpile_contents">Contents</h3>
-          <div class="c-stockpile-list-head" role="row"><span data-l10n="inspector.static.stockpile_item">Item</span><span data-l10n="inspector.static.stockpile_material">Material</span><span data-l10n="inspector.static.stockpile_quantity">Qty</span></div>
-          <div id="stockpile_contents" class="c-stockpile-list" role="rowgroup"></div>
-          <p id="stockpile_contents_empty" class="c-stockpile-empty is-hidden" data-l10n="inspector.static.stockpile_empty">This stockpile is empty.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tile, construction, workshop, stockpile and agriculture inspector: a palette window with one page
+       (PDF p.167, p.180-181). Commands act on the inspected object at once; lists are the only scrolling parts. -->
+  <aside id="inspector_panel" class="l-inspector-panel w98-sheet w98-palette" role="dialog" aria-labelledby="inspector_title">
+    <div class="w98-caption">
+      <handle id="inspector_drag_handle" class="c-title-bar__drag-handle" move_target="inspector_panel" edge_margin="76dp 12dp 58dp 12dp"><h1 id="inspector_title" class="c-title-bar__title"></h1></handle>
+      <button id="inspector_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.close.title" aria-label="Close"><span id="inspector_close_label">&#x00D7;</span></button>
+    </div>
+    <div class="w98-sheet__body">
+      <div class="w98-line"><p id="inspector_kind" class="w98-text"></p><p id="inspector_position" class="w98-text w98-grow"></p></div>
+      <div id="inspector_scroll" class="w98-page-frame">
+        <p id="tile_inspection_empty" class="w98-text is-hidden" data-l10n="win98.inspector.inspection_empty">Click a tile on the map to inspect it. Its details stay here while you choose a command.</p>
+
+        <!-- Tile: one list view of everything on the tile; the commands below act on the tile, and Inspect
+             opens the creature selected in the list (so a crowded tile is chosen by ID, not by position). -->
+        <section id="inspector_tile" class="w98-page w98-col is-hidden">
+          <div class="w98-listview w98-grow">
+            <div id="live_tile_columns" class="w98-listview__header" role="row"><span class="w98-w-slot" data-l10n="win98.inspector.type_2">Type</span><span style="flex: 1 1 auto;" data-l10n="win98.inspector.name">Name</span></div>
+            <div id="live_tile_rows" class="w98-list" role="listbox" aria-label="On this tile"></div>
+          </div>
+          <div class="w98-gap"></div>
+          <div id="live_tile_commands" class="w98-commands"></div>
         </section>
-        <div class="l-inspector-actions c-stockpile-actions"><button id="stockpile_toggle_suspended" class="c-button" data-l10n="inspector.static.stockpile_toggle_suspended">Suspend</button></div>
-      </section>
-      <section id="inspector_agriculture" class="c-inspector-section is-hidden"><h3 id="agriculture_kind" data-l10n="inspector.static.agriculture_kind">Agriculture</h3><p id="agriculture_summary"></p><p id="agriculture_options"></p><div class="l-inspector-actions"><button id="agriculture_toggle_suspended" class="c-button" data-l10n="inspector.static.agriculture_toggle_suspended">Suspend</button><button id="agriculture_toggle_primary" class="c-button" data-l10n="inspector.static.agriculture_toggle_primary">Toggle harvest</button></div></section>
-      <section id="selection_configuration" class="c-inspector-section is-hidden"><h3 data-l10n="inspector.static.selection_configuration">Selection configuration</h3><p id="selection_action"></p><p id="selection_geometry"></p><div class="l-inspector-actions"><button id="selection_rotate" class="c-button" data-l10n="inspector.static.selection_rotate">Rotate</button><button id="selection_cancel" class="c-button" data-l10n="inspector.static.selection_cancel">Cancel selection</button></div></section>
-      <p id="inspector_status" class="c-status"></p>
+
+        <section id="inspector_blueprint" class="w98-page w98-col is-hidden">
+          <p id="blueprint_status" class="w98-text"></p>
+          <div class="w98-group w98-grow"><span class="w98-group__title" data-l10n="win98.inspector.missing_materials">Missing materials</span>
+            <div class="w98-listview w98-grow">
+              <div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.inspector.item">Item</span><span class="w98-w-profession" data-l10n="win98.inspector.material">Material</span><span class="w98-w-amount" data-l10n="win98.inspector.needed">Needed</span></div>
+              <div id="blueprint_missing_items" class="w98-list" role="listbox" aria-label="Missing materials"></div>
+            </div>
+            <p id="blueprint_resources_ready" class="w98-text is-hidden" data-l10n="win98.inspector.resources_ready">All construction materials are available.</p>
+          </div>
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.inspector.construction_job">Construction job</span>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.inspector.worker">Worker:</span><p id="blueprint_worker" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.inspector.priority">Priority:</span><p id="blueprint_priority" class="w98-text w98-grow"></p><button id="blueprint_raise_job" class="w98-button" data-l10n="win98.inspector.raise_job">Raise Priority</button><button id="blueprint_lower_job" class="w98-button" data-l10n="win98.inspector.lower_job">Lower Priority</button></div>
+            <div id="blueprint_skill_row" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.skill">Skill:</span><p id="blueprint_skill" class="w98-text w98-grow"></p></div>
+            <div id="blueprint_tool_row" class="w98-line"><span class="w98-label" data-l10n="win98.inspector.tool">Tool:</span><p id="blueprint_tool" class="w98-text w98-grow"></p></div>
+          </div>
+          <div class="w98-separator"></div>
+          <div class="w98-line"><p class="w98-text w98-grow" data-l10n="win98.inspector.cancelling_removes_the_blueprint_from">Cancelling removes the blueprint from the map.</p><button id="blueprint_cancel_job" class="w98-button" data-l10n="win98.inspector.cancel_job">Cancel Blueprint</button></div>
+        </section>
+
+        <section id="inspector_workshop" class="w98-page w98-col is-hidden">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.inspector.workshop">Workshop</span>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.status">Status:</span><p id="workshop_state" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.priority">Priority:</span><p id="workshop_priority" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.products">Products:</span><p id="workshop_products" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.queued_jobs">Queued jobs:</span><p id="workshop_queued" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.generated_items">Generated items:</span><p id="workshop_generated" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.craft_missing">Craft missing:</span><p id="workshop_auto" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.stockpile_link">Stockpile link:</span><p id="workshop_link" class="w98-text w98-grow"></p></div>
+          </div>
+          <div class="w98-gap"></div>
+          <div class="w98-commands"><button id="workshop_toggle_suspended" class="w98-button"></button></div>
+        </section>
+
+        <section id="inspector_stockpile" class="w98-page w98-col is-hidden">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.inspector.general">General</span>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.status">Status:</span><p id="stockpile_status" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.priority">Priority:</span><p id="stockpile_priority" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.items_stored">Items stored:</span><p id="stockpile_capacity" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.reserved">Reserved:</span><p id="stockpile_reserved" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.pulls_from_others">Pulls from others:</span><p id="stockpile_pull_from_others" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.others_may_pull">Others may pull:</span><p id="stockpile_allow_pull" class="w98-text w98-grow"></p></div>
+          </div>
+          <div class="w98-gap"></div>
+          <div class="w98-listview w98-grow">
+            <div class="w98-listview__header" role="row"><span style="flex: 1 1 auto;" data-l10n="win98.inspector.item">Item</span><span class="w98-w-profession" data-l10n="win98.inspector.material">Material</span><span class="w98-w-amount" data-l10n="win98.inspector.quantity">Quantity</span></div>
+            <div id="stockpile_contents" class="w98-list" role="listbox" aria-label="Contents"></div>
+          </div>
+          <p id="stockpile_contents_empty" class="w98-text is-hidden" data-l10n="win98.inspector.stockpile_contents_empty">This stockpile is empty.</p>
+          <div class="w98-gap"></div>
+          <div class="w98-commands"><button id="stockpile_toggle_suspended" class="w98-button"></button></div>
+        </section>
+
+        <section id="inspector_agriculture" class="w98-page w98-col is-hidden">
+          <div class="w98-group"><span id="agriculture_kind" class="w98-group__title"></span>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.status">Status:</span><p id="agriculture_state" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.priority">Priority:</span><p id="agriculture_priority" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.product">Product:</span><p id="agriculture_product" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.plots">Plots:</span><p id="agriculture_plots" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.planted">Planted:</span><p id="agriculture_planted" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.ready">Ready:</span><p id="agriculture_ready" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label w98-label--wide" data-l10n="win98.inspector.harvest">Harvest:</span><p id="agriculture_harvest" class="w98-text w98-grow"></p></div>
+          </div>
+          <div class="w98-gap"></div>
+          <div class="w98-commands"><button id="agriculture_toggle_suspended" class="w98-button"></button><button id="agriculture_toggle_primary" class="w98-button"></button></div>
+        </section>
+
+        <section id="selection_configuration" class="w98-page w98-col is-hidden">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.inspector.selection">Selection</span>
+            <p id="selection_action" class="w98-text"></p>
+            <p id="selection_geometry" class="w98-text"></p>
+          </div>
+          <div class="w98-gap"></div>
+          <div class="w98-commands"><button id="selection_rotate" class="w98-button" data-l10n="win98.inspector.selection_rotate">Rotate</button><button id="selection_cancel" class="w98-button" data-l10n="win98.common.cancel">Cancel</button></div>
+        </section>
+      </div>
+      <div class="w98-buttonbar"><p id="inspector_status" class="w98-text w98-grow" role="status"></p><button id="inspector_back" class="w98-button is-hidden" data-l10n="win98.inspector.back">&lt; Back</button><button id="inspector_locate" class="w98-button" data-l10n="win98.inspector.locate">Center on Map</button><button id="inspector_refresh" class="w98-button" data-l10n="win98.inspector.refresh">Refresh</button></div>
     </div>
   </aside>
 </body></rml>

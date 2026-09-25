@@ -6,7 +6,8 @@ Scope: Wave 2 shared design-system content under `content/rmlui`.
 |---|---|---|---|
 | `styles/*.rcss`, `styles/tokens.json` | Original for Ingnomia | Project license (AGPL-3.0-or-later) | Shared runtime content |
 | `templates/*.rml`, `fixtures/components.rml` | Original for Ingnomia | Project license (AGPL-3.0-or-later) | Shared templates and non-player fixture |
-| Typographic geometry used as fixture glyphs (`+`, minus, multiplication sign, arrows, check, information mark, diamond) | Original arrangement of ordinary Unicode characters; no icon artwork copied or traced | No separate asset license | Text fallback only; always paired with a visible label or `title` in the fixture |
+| Chrome glyph roles (close, dropdown, spinner, sort, expand/collapse, warning) | Original close and warning text marks plus arrow geometry drawn with shared RCSS borders; no icon artwork copied or traced | No separate asset license | Text decorators and CSS triangles in shared RCSS; demonstrated in the component fixture; item sprites remain separate |
+| Typographic geometry used as fixture glyphs (`+`, minus, arrows, check, information mark, diamond) | Original arrangement of ordinary Unicode characters; no icon artwork copied or traced | No separate asset license | Text fallback only; always paired with a visible label or `title` in the fixture |
 | `smoke.rml`, `smoke.rcss`, `smoke.tga` | Wave 1 foundation evidence, outside Wave 2 authorship | Existing project worktree provenance | Preserved byte-for-byte by the Wave 2 verifier |
 
 ## Fonts
@@ -21,10 +22,10 @@ The authoritative RmlUi sample notice is retained at
 License 1.1 text and the Lato copyright/reserved-name terms. This notice must
 remain beside the binary in every installed/package output.
 
-The design contract requires a legible UI sans at the named regular/bold roles.
-Only the regular face is currently bundled; a bold face must not be referenced
-until its binary and matching notice are added with the same provenance and
-hash discipline.
+The Windows 98 shared type hierarchy uses the bundled licensed face for display,
+route, section, subheading, body, control, and metadata sizes. Only the regular
+face is currently bundled; a bold face must not be referenced until its binary
+and matching notice are added with the same provenance and hash discipline.
 
 ## Images and icons
 
@@ -48,3 +49,9 @@ installed with the RmlUi content:
 
 These are unmodified upstream notices. Packaging must retain both dependency
 notices and the font notice; this manifest does not replace their full text.
+
+## Original directional chrome atlas
+
+`icons/chrome-arrows.tga` contains four original, monochrome 7 by 4 pixel triangles centered in transparent 16 by 16 cells. No third-party icon art or font was used. It supplies dropdown and scrollbar decorators without missing font characters.
+
+- `icons/form-marks.tga`: original programmatic checkbox/check-dot geometry created for this project; same license as the UI source. No Windows artwork copied.

@@ -1,0 +1,152 @@
+[
+  {
+    "name": "new-game",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 37060,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "new-game-hc",
+    "scale": 1,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 66576,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "stockpile",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 33340,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "template-popup",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 80776,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-100",
+    "scale": 1,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 81820,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-125",
+    "scale": 1.25,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 26680,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-150",
+    "scale": 1.5,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 81276,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-200",
+    "scale": 2,
+    "high_contrast": false,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 47900,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-hc-100",
+    "scale": 1,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 12856,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  {
+    "name": "forms-hc-200",
+    "scale": 2,
+    "high_contrast": true,
+    "passed": true,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"pid\": 56944,\n  \"executable\": \"C:\\\\Programming\\\\Repos\\\\Ingnomia2\\\\Ingnomia\\\\build-wave8-root-msvc-link-priority2\\\\Ingnomia.exe\",\n  \"processes\": [],\n  \"running\": false\n}"
+        }
+      ],
+      "isError": false
+    }
+  }
+]

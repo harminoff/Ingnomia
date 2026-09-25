@@ -1,0 +1,22 @@
+Stage 00 live Inventory watch shortcut probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime HEAD: bca0bee3acf79d460360c5f6b96fde08db784585, with working-tree probe hooks
+Source save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-20260924-003012\copy-data\save\TutorialValley\1
+Probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-inventory-watch-f433390d16ea45df98b5c9ce6749f1cf\data
+Probe save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-inventory-watch-f433390d16ea45df98b5c9ce6749f1cf\data\save\TutorialValley\1
+Source save files copied: 21
+Probe save hashes before/after process: equal (21 files)
+
+Route: explicit load -> live HUD -> `hud_open_inventory` -> detached `workbench.inventory`.
+Input: focus `inventory_rows`; send Down and Space key press/release events to the detached Qt window. The production window forwards the keys through `RmlUiQtInputAdapter` to `Management6BRmlBinding`.
+Target: `Drinks/Alcoholic/Wine/Apple`, InventoryDepth::Material (depth 3).
+Before: watched=false, Inventory revision=2.
+After Space: watched=true in the controller's immediate state, revision=2.
+After queued `watch.set` and category refresh: watched=true in the returned snapshot, Inventory revision=3.
+Action path: `Management6BRmlBinding` Space handler -> `Management6BController::toggleSelectedWatch` -> typed `watch.set`/`WatchPayload` with stable `InventoryRowId` -> `Management6BQtCommandPort` queues `AggregatorInventory::onSetActive` and `onRequestCategories` -> new snapshot.
+
+Capture: `stage-00-route-inventory-watch-live.png` (detached production Inventory report).
+Capture SHA-256: 7E1DC68077DC9740E67FB5EF5262902CF4E4781D8944C9EA526E7976722E47AD
+Trace: `stage-00-route-inventory-watch-live-trace.log`.
+The probe did not issue a save command; the copied save retained all 21 original file hashes. Key events were injected by the opt-in automation seam, so this is not physical-input evidence.

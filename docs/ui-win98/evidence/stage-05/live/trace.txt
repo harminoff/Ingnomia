@@ -1,0 +1,5 @@
+2026-09-24T14:00:11.434 explicit_load dispatched=true path=C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\stage05-live-20260924-140008\data\save\TutorialValley\1
+2026-09-24T14:00:17.936 PASS created one-field Stockpile at 287500 with item=1000519
+2026-09-24T14:00:20.432 PASS Stockpile manager opened and capture requested
+2026-09-24T14:00:21.540 PASS invalid priority blocked authoritative Apply
+2026-09-24T14:00:23.937 PASS form name priority and hauling reached authoritative Stockpile

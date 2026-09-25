@@ -1,0 +1,48 @@
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/DartConfiguration.tcl
+UpdateCTestConfiguration  from :C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/DartConfiguration.tcl
+Parse Config file:C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/DartConfiguration.tcl
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: ui_stage04
+
+1: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage04\ui_stage04.exe "C:/Programming/Repos/Ingnomia2/Ingnomia/content/rmlui"
+1: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04
+1: Test timeout computed to be: 1500
+1: Stage04 PASS checks=82
+1/4 Test #1: ui_stage04 .......................   Passed    0.35 sec
+test 2
+    Start 2: ui_shell_controller
+
+2: Test command: C:\Programming\Repos\Ingnomia2\Ingnomia\.verification\ui-stage04\shell\ui_shell_controller.exe
+2: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/shell
+2: Test timeout computed to be: 1500
+2: ui shell controller tests passed
+2/4 Test #2: ui_shell_controller ..............   Passed    0.01 sec
+test 3
+    Start 3: ui_shell_rml_contract
+
+3: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-rml.cmake"
+3: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/shell
+3: Test timeout computed to be: 1500
+3: -- Wave 3 shell RML contract check passed
+3/4 Test #3: ui_shell_rml_contract ............   Passed    0.02 sec
+test 4
+    Start 4: ui_shell_integration_contract
+
+4: Test command: "C:\Program Files\lua\lua\tools\bin\cmake.exe" "-P" "C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-shell/verify-shell-integration.cmake"
+4: Working Directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage04/shell
+4: Test timeout computed to be: 1500
+4: -- Wave 3 shell host/Qt integration contract passed
+4/4 Test #4: ui_shell_integration_contract ....   Passed    0.02 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   0.41 sec

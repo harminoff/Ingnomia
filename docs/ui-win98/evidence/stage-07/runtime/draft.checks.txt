@@ -1,0 +1,1 @@
+dialogs open=1 restored=1 native_close_guard=1 kept=1

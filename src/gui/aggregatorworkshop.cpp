@@ -108,7 +108,7 @@ AggregatorWorkshop::~AggregatorWorkshop()
 void AggregatorWorkshop::init( Game* game )
 {
 	g = game;
-	m_info = {};
+	m_info = {};m_tradeWorkshopID=0;m_traderID=0;m_traderStock.clear();m_playerStock.clear();m_traderOfferValue=m_playerOfferValue=0;++m_tradeRevision;
 	m_contentDirty = false;
 	m_lastRefresh.invalidate();
 }
@@ -178,7 +178,7 @@ bool AggregatorWorkshop::aggregate( unsigned int workshopID )
 
 			m_info.products.clear();
 
-			if ( m_info.gui.isEmpty() )
+			if ( ws->gui().isEmpty() )
 			{
 				for ( auto craft : ws->crafts() )
 				{
@@ -189,11 +189,9 @@ bool AggregatorWorkshop::aggregate( unsigned int workshopID )
 					m_info.products.append( gwp );
 				}
 			}
-			else if ( m_info.gui == "Butcher" )
-			{
-				m_info.butcherExcess  = ws->butcherExcess();
-				m_info.butcherCorpses = ws->butcherCorpses();
-			}
+			// Reset per workshop so a previously opened Butcher's options never leak into another snapshot.
+			m_info.butcherExcess  = m_info.gui == "Butcher" && ws->butcherExcess();
+			m_info.butcherCorpses = m_info.gui == "Butcher" && ws->butcherCorpses();
 			m_info.catchFish = ws->fish();
 			m_info.processFish = ws->processFish();
 
@@ -337,6 +335,11 @@ void AggregatorWorkshop::onCraftItem(unsigned int workshopID, QString craftID, i
 {
     bool accepted=false;
     if(g) if(auto* ws=g->wsm()->workshop(workshopID)) {
+        if(!ws->crafts().contains(craftID) || mode<0 || mode>2 || number<1 || number>999) {emit signalCraftOrderResult(workshopID,false);return;}
+        GuiWorkshopProduct product;product.g=g;product.sid=craftID;product.updateComponents();
+        bool legal=mats.size()==product.components.size();
+        if(legal)for(int i=0;i<mats.size();++i){bool found=false;for(const auto& choice:product.components[i].materials)found|=choice.sid==mats[i];legal &= found;}
+        if(!legal){emit signalCraftOrderResult(workshopID,false);return;}
         const auto before=ws->jobList().size();
         ws->addJob(craftID,mode,number,mats);
 		accepted=ws->jobList().size()>before;
@@ -400,10 +403,12 @@ void AggregatorWorkshop::onCraftJobParams( unsigned int workshopID, unsigned int
 /// @param workshopID Trading Post workshop UID.
 void AggregatorWorkshop::onRequestAllTradeItems( unsigned int workshopID )
 {
+ m_tradeWorkshopID=workshopID;m_traderStock.clear();m_playerStock.clear();m_traderID=0;
 	if( !g ) return;
 	updateTraderStock( workshopID );
 	
 	updatePlayerStock( workshopID );
+ updateTraderValue();updatePlayerValue();publishTrade();
 }
 
 /// @brief Finds the trader associated with @p workshopID and rebuilds m_traderStock from
@@ -822,4 +827,58 @@ void AggregatorWorkshop::onTrade( unsigned int workshopID )
 			}
 		}
 	}
+}
+
+// A complete targeted snapshot is delivered once after each transaction.
+void AggregatorWorkshop::publishTrade()
+{
+ emit signalTradeSnapshot(m_tradeWorkshopID,m_traderID,++m_tradeRevision,m_traderStock,m_playerStock,m_traderOfferValue,m_playerOfferValue);
+}
+bool AggregatorWorkshop::validTradeTarget(unsigned int workshopID,unsigned int traderID,quint64 revision)
+{
+ auto* ws=g?g->wsm()->workshop(workshopID):nullptr;
+ if(!ws || workshopID!=m_tradeWorkshopID || !traderID || ws->assignedGnome()!=traderID || traderID!=m_traderID || !g->gm()->trader(traderID) || revision!=m_tradeRevision) {
+  emit signalWorkshopRejected(workshopID,"The merchant or offers changed. Refresh and review the trade again.");return false;
+ }
+ return true;
+}
+void AggregatorWorkshop::onSetTradeOffer(unsigned int workshopID,unsigned int traderID,quint64 revision,bool trader,QString item,QString material,unsigned char quality,int count)
+{
+ if(!validTradeTarget(workshopID,traderID,revision))return;
+ auto& rows=trader?m_traderStock:m_playerStock;
+ for(const auto& row:rows)if(row.itemSID==item && row.materialSIDorGender==material && row.quality==quality) {
+  if(count<0 || count>row.count){emit signalWorkshopRejected(workshopID,"Offer quantity is outside the available stock.");return;}
+  const int delta=count-row.reserved;
+  if(delta!=0) {
+   if(trader) {if(delta>0)onTraderStocktoOffer(workshopID,item,material,quality,delta);else onTraderOffertoStock(workshopID,item,material,quality,-delta);}
+   else {if(delta>0)onPlayerStocktoOffer(workshopID,item,material,quality,delta);else onPlayerOffertoStock(workshopID,item,material,quality,-delta);}
+  }
+  publishTrade();return;
+ }
+ emit signalWorkshopRejected(workshopID,"The selected trade item is no longer available.");
+}
+void AggregatorWorkshop::onReviewedTrade(unsigned int workshopID,unsigned int traderID,quint64 revision)
+{
+ if(!validTradeTarget(workshopID,traderID,revision))return;
+ auto* trader=g->gm()->trader(traderID);
+ bool valid=trader->inventory().size()==m_traderStock.size(),offered=false;
+ qint64 sellerValue=0,buyerValue=0;
+ for(const auto& row:m_traderStock) {
+  bool found=false;
+  for(const auto& item:trader->inventory())if(item.itemSID==row.itemSID && (item.type=="Animal"?item.gender:item.materialSID)==row.materialSIDorGender && item.quality==row.quality) {
+   found=item.amount==row.count && item.reserved==row.reserved && item.value==row.value;break;
+  }
+  valid &= found;offered |= row.reserved>0;sellerValue+=static_cast<qint64>(row.reserved)*row.value;
+ }
+ for(const auto& row:m_playerStock)if(row.reserved>0) {
+  const auto items=DB::select("HasQuality","Items",row.itemSID).toBool()?g->inv()->tradeInventory(row.itemSID,row.materialSIDorGender,row.quality):g->inv()->tradeInventory(row.itemSID,row.materialSIDorGender);
+  valid &= items.size()>=row.reserved && g->inv()->getTradeValue(row.itemSID,row.materialSIDorGender,row.quality)==row.value;
+  offered=true;buyerValue+=static_cast<qint64>(row.reserved)*row.value;
+ }
+ valid &= offered && buyerValue>=sellerValue && buyerValue==m_playerOfferValue && sellerValue==m_traderOfferValue;
+ if(!valid){emit signalWorkshopRejected(workshopID,"Trade inventory or values changed. No items exchanged. Refresh and review again.");return;}
+ // Validate and exchange synchronously on the game thread; no queued gap remains.
+ ++m_tradeRevision;
+ onTrade(workshopID);
+ publishTrade();
 }

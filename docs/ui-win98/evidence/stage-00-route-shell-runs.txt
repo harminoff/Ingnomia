@@ -1,0 +1,30 @@
+Stage 00 shell route probes
+Date: 2026-09-24
+Runtime revision: bca0bee3acf79d460360c5f6b96fde08db784585
+
+New Game route
+- Route activation: shell.main_menu -> shell.new_game (`shell-new-setup`)
+- Data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-new-game-7362faf286a8485e9bfee1080f5348e7\data
+- Capture: stage-00-route-new-game.png
+- Trace: stage-00-route-new-game-trace.log (activated=true; capture armed)
+- No world was started or save written.
+
+Load Game route
+- Route activation: shell.main_menu -> shell.load_game (`shell-load`)
+- Data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-load-game-b3a27bad21be41fca3659262fe740ec7\data
+- Capture: stage-00-route-load-game.png; this is the live no-kingdoms/empty-save state.
+- Trace: stage-00-route-load-game-trace.log (activated=true; capture armed)
+- No world was loaded or save written.
+
+Pause and in-game Settings routes
+- Data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-pause-5fc41b0fd65e4a6285b2a94678533a60\data
+- A copied Tutorial Valley was loaded; `hud_pause` was dispatched and `pause-settings` opened Settings.
+- Captures: stage-00-route-pause.png and stage-00-route-game-settings.png.
+- Trace: stage-00-route-pause-settings-trace.log. The first pause capture ran before the pause-route overlay had settled, so it is not used as evidence of `game.pause`.
+
+Registered pause-menu route
+- Data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-route-pause-menu-repeat-3e1d92a3249d434fadd2caf01d15a110\data
+- A copied Tutorial Valley was loaded; an opt-in Escape key event followed MainWindow's host-level path into `game.pause`.
+- Capture: stage-00-route-pause-menu.png. The valid final capture was taken during the repeated run after normal probe shutdown; the earlier attempt was truncated when its process was stopped before PNG writing finished.
+- Trace: stage-00-route-pause-menu-trace.log (contains both attempts; the second completed and shows `pause_menu_escape accepted=true` and capture armed).
+- No save command was issued.

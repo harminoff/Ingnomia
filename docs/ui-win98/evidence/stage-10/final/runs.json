@@ -1,0 +1,34 @@
+﻿[
+    {
+        "scale":  "1",
+        "pass":  40,
+        "fail":  0,
+        "captures":  10,
+        "capture_px":  "384x380",
+        "saves_unchanged":  true
+    },
+    {
+        "scale":  "1.25",
+        "pass":  40,
+        "fail":  0,
+        "captures":  10,
+        "capture_px":  "384x380",
+        "saves_unchanged":  true
+    },
+    {
+        "scale":  "1.5",
+        "pass":  40,
+        "fail":  0,
+        "captures":  10,
+        "capture_px":  "768x760",
+        "saves_unchanged":  true
+    },
+    {
+        "scale":  "2",
+        "pass":  40,
+        "fail":  0,
+        "captures":  10,
+        "capture_px":  "768x760",
+        "saves_unchanged":  true
+    }
+]

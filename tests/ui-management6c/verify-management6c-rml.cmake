@@ -17,6 +17,9 @@ file(READ "${DIPLOMACY}" diplomacy)
 file(READ "${STYLE}" style)
 file(READ "${BINDING}" binding)
 file(READ "${TEXT}" text_catalog)
+# The catalog includes the shared Windows 98 window text (Stage 21c).
+file(READ "${CMAKE_CURRENT_LIST_DIR}/../../src/gui/ui/localization/UiTextWin98Entries.inc" win98_text)
+string(APPEND text_catalog "${win98_text}")
 
 foreach(tab IN ITEMS "military_tab_squads" "military_tab_roles" "military_tab_priorities"
     "military_tab_neighbors" "military_tab_missions" "diplomacy_tab_squads"
@@ -34,12 +37,28 @@ foreach(document IN ITEMS military diplomacy)
       message(FATAL_ERROR "${document} shared management-window template missing ${needle}")
     endif()
   endforeach()
-  foreach(needle IN ITEMS "role=\"tablist\"" "role=\"tab\"" "aria-selected=\"false\"" "c-management-shell" "c-management-rail" "c-management-main" "aria-orientation=\"vertical\"" "data-l10n-title=" "data-l10n-aria-label=")
-    string(FIND "${${document}}" "${needle}" tab_contract)
-    if(tab_contract LESS 0)
-      message(FATAL_ERROR "${document} side-menu contract missing ${needle}")
-    endif()
-  endforeach()
+endforeach()
+# Stage 14: Military is a Windows 98 property sheet with connected tabs and a Close button.
+foreach(needle IN ITEMS "w98-sheet" "w98-caption" "c-connected-tabs" "role=\"tablist\"" "role=\"tab\"" "aria-selected=\"false\"" "w98-buttonbar" "military_close_button"
+    "military_tab_members" "military_tab_uniforms" "military_member_destination" "member_move_to" "role_civilian" "type=\"radio\" name=\"military_attitude\"")
+  string(FIND "${military}" "${needle}" sheet_contract)
+  if(sheet_contract LESS 0)
+    message(FATAL_ERROR "military property-sheet contract missing ${needle}")
+  endif()
+endforeach()
+foreach(needle IN ITEMS "military_views_toggle" "military_rail" "member_move_up" "role_toggle_civilian" "military_confirm_layer")
+  string(FIND "${military}" "${needle}" removed)
+  if(NOT removed LESS 0)
+    message(FATAL_ERROR "military must not keep the replaced control ${needle}")
+  endif()
+endforeach()
+# Stage 15: Diplomacy is a Windows 98 property sheet; missions are planned in the Send Mission wizard.
+foreach(needle IN ITEMS "w98-sheet" "w98-caption" "c-connected-tabs" "role=\"tablist\"" "aria-selected=\"false\"" "w98-buttonbar" "diplomacy_close_button"
+    "mission_wizard" "w98-wizard" "wizard_back" "wizard_next" "mission_start" "wizard_cancel" "type=\"radio\" name=\"mission_type\"" "type=\"radio\" name=\"mission_action\"")
+  string(FIND "${diplomacy}" "${needle}" sheet_contract)
+  if(sheet_contract LESS 0)
+    message(FATAL_ERROR "diplomacy property-sheet and wizard contract missing ${needle}")
+  endif()
 endforeach()
 if(NOT military MATCHES "<body id=\"military_root\" class=\"[^\"]*is-hidden")
   message(FATAL_ERROR "military_root must initialize hidden")
@@ -64,7 +83,7 @@ foreach(document IN ITEMS military diplomacy)
     endif()
   endforeach()
 endforeach()
-if(NOT military MATCHES "_loading" OR NOT military MATCHES "_empty" OR NOT military MATCHES "_error"
+if(NOT military MATCHES "_loading" OR NOT military MATCHES "_error"
     OR NOT diplomacy MATCHES "_loading" OR NOT diplomacy MATCHES "_empty" OR NOT diplomacy MATCHES "_error")
   message(FATAL_ERROR "Each management document needs loading, empty, and error states")
 endif()
@@ -80,8 +99,8 @@ endif()
 
 foreach(required IN ITEMS
     "military_squad_rows" "military_role_rows" "military_member_rows" "military_priority_rows"
-    "military_uniform_rows" "military_search" "military_confirm_layer" "member_assign_squad"
-    "diplomacy_neighbor_rows" "diplomacy_mission_rows" "diplomacy_gnome_rows" "diplomacy_search")
+    "military_uniform_rows" "member_assign_squad"
+    "diplomacy_neighbor_rows" "diplomacy_mission_rows" "diplomacy_gnome_rows")
   if(NOT military MATCHES "id=\"${required}\"" AND NOT diplomacy MATCHES "id=\"${required}\"")
     message(FATAL_ERROR "Missing required keyboard/delegation surface: ${required}")
   endif()
@@ -92,12 +111,10 @@ foreach(surface IN ITEMS Squads Roles Members Unassigned Priorities UniformSlots
     message(FATAL_ERROR "Generated list ${surface} is not explicitly DOM-window bounded")
   endif()
 endforeach()
-foreach(surface IN ITEMS UniformTypes UniformMaterials MemberRoles)
-  if(NOT binding MATCHES "choices\\( RowSurface::${surface}" OR NOT binding MATCHES "windowFor\\( surface"
-      OR NOT binding MATCHES "appendWindowControls\\( result, surface")
-    message(FATAL_ERROR "Choice ${surface} must preserve bounded options and accessible paging")
-  endif()
-endforeach()
+# Uniform, role and destination drop-down lists are rebuilt through the select API (SelectOptions.h).
+if(NOT binding MATCHES "setSelectOptions")
+  message(FATAL_ERROR "Military drop-down lists must be rebuilt through setSelectOptions")
+endif()
 if(NOT binding MATCHES "handleWindowPage" OR NOT binding MATCHES "data-window-start")
   message(FATAL_ERROR "Bounded dynamic lists require real native paging controls")
 endif()
@@ -105,11 +122,9 @@ if(NOT binding MATCHES "renderedRml_\.try_emplace" OR NOT binding MATCHES "cache
   message(FATAL_ERROR "Unchanged bounded row windows must not reconstruct their DOM")
 endif()
 
-if(NOT military MATCHES "id=\"military_confirm_layer\" class=\"c-modal-scrim"
-    OR NOT binding MATCHES "military_confirm_cancel[^\n]*Focus\(\)"
-    OR NOT binding MATCHES "lastDestructiveKind_"
-    OR NOT binding MATCHES "squad_remove[^\n]*role_remove")
-  message(FATAL_ERROR "Destructive confirmation must own a real blocker, safe initial focus, and trigger focus restoration")
+# Deletions use the shared Windows 98 message box (a real modal document with focus restoration).
+if(NOT binding MATCHES "win98_message_box.rml" OR NOT binding MATCHES "confirmDestructive" OR NOT binding MATCHES "cancelDestructive")
+  message(FATAL_ERROR "Destructive confirmation must use the shared modal message box")
 endif()
 
 foreach(required IN ITEMS

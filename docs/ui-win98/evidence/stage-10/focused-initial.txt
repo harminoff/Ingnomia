@@ -1,0 +1,48 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[1/6] Building CXX object CMakeFiles\ui_Stage10.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6ARmlBinding.cpp.obj
+[2/6] Building CXX object management6a\CMakeFiles\ui_management6a_controller.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+[3/6] Building CXX object CMakeFiles\ui_Stage10.dir\C_\Programming\Repos\Ingnomia2\Ingnomia\src\gui\ui\screens\management6a\Management6AController.cpp.obj
+[4/6] Linking CXX executable management6a\ui_management6a_controller.exe
+[5/6] Building CXX object CMakeFiles\ui_Stage10.dir\workshop_tests.cpp.obj
+[6/6] Linking CXX executable ui_Stage10.exe
+Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/.verification/ui-stage10
+      Start  1: ui_Stage10
+ 1/10 Test  #1: ui_Stage10 .............................***Failed    0.92 sec
+FAIL invalid craft quantity blocked
+
+      Start  2: ui_shell_controller
+ 2/10 Test  #2: ui_shell_controller ....................   Passed    0.01 sec
+      Start  3: ui_shell_rml_contract
+ 3/10 Test  #3: ui_shell_rml_contract ..................   Passed    0.02 sec
+      Start  4: ui_shell_integration_contract
+ 4/10 Test  #4: ui_shell_integration_contract ..........   Passed    0.02 sec
+      Start  5: ui_management6a_controller
+ 5/10 Test  #5: ui_management6a_controller .............   Passed    0.22 sec
+      Start  6: ui_management6a_rml_contract
+ 6/10 Test  #6: ui_management6a_rml_contract ...........   Passed    0.04 sec
+      Start  7: ui_management6a_integration_contract
+ 7/10 Test  #7: ui_management6a_integration_contract ...***Failed    0.03 sec
+CMake Error at C:/Programming/Repos/Ingnomia2/Ingnomia/tests/ui-management6a/verify-management6a-integration.cmake:20 (message):
+  Missing authoritative management 6A command route: onTrade
+
+
+
+      Start  8: ui_management6b_controller
+ 8/10 Test  #8: ui_management6b_controller .............   Passed    0.10 sec
+      Start  9: ui_management6b_rml_contract
+ 9/10 Test  #9: ui_management6b_rml_contract ...........   Passed    0.03 sec
+      Start 10: ui_management6b_integration_contract
+10/10 Test #10: ui_management6b_integration_contract ...   Passed    0.03 sec
+
+80% tests passed, 2 tests failed out of 10
+
+Total Test time (real) =   1.44 sec
+
+The following tests FAILED:
+	  1 - ui_Stage10 (Failed)
+	  7 - ui_management6a_integration_contract (Failed)
+Errors while running CTest

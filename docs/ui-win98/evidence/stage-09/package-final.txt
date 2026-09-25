@@ -1,0 +1,6 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.5.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[0/2] Re-checking globbed directories...
+[1/2] Incrementally staging content to C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2/./content

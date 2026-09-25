@@ -1,0 +1,17 @@
+Stage 00 live Loading route probe
+Date: 2026-09-24
+Application: build-wave8-root-msvc-link-priority2/Ingnomia.exe
+Runtime HEAD: bca0bee3acf79d460360c5f6b96fde08db784585, with working-tree route-probe hooks
+Source save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-20260924-003012\copy-data\save\TutorialValley\1
+Probe data root: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-loading-378b3e84ddbe43ee8f863bf4273f0c68\data
+Probe save: C:\Users\harmi\AppData\Local\Temp\Ingnomia-Win98-Stage00-loading-378b3e84ddbe43ee8f863bf4273f0c68\data\save\TutorialValley\1
+Source save files copied: 21
+Probe save hashes before/after process: equal (21 files)
+
+Action: load only the copied save through `EventConnector::onLoadGame`.
+Route: `shell.loading` observed by the live route watcher before transition completion.
+Visible loading message: “Preparing kingdom”.
+Capture: `stage-00-route-loading-live.png` (primary production RmlUi framebuffer).
+Capture SHA-256: 2162A9834D2F0B5F8DC55EB23D9CF47AAF35337BE1DE51B9D222B0242B0D5845
+Trace: `stage-00-route-loading-live-trace.log`.
+No save command was issued; all copied save-file hashes remained unchanged. Loading error and retry states are not covered by this successful-load probe.

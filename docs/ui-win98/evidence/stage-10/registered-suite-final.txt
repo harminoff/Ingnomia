@@ -1,0 +1,40 @@
+﻿Internal ctest changing into directory: C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2
+Test project C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2
+      Start  1: ui_foundation_registry
+ 1/13 Test  #1: ui_foundation_registry ..................***Failed    0.01 sec
+      Start  2: ui_foundation_navigation_store
+ 2/13 Test  #2: ui_foundation_navigation_store ..........   Passed    0.01 sec
+      Start  3: ui_foundation_action_validation
+ 3/13 Test  #3: ui_foundation_action_validation .........   Passed    0.02 sec
+      Start  4: ui_foundation_release_registry
+ 4/13 Test  #4: ui_foundation_release_registry ..........   Passed    0.01 sec
+      Start  5: ui_foundation_tutorial_types
+ 5/13 Test  #5: ui_foundation_tutorial_types ............   Passed    0.01 sec
+      Start  6: ui_foundation_placement_math
+ 6/13 Test  #6: ui_foundation_placement_math ............   Passed    0.01 sec
+      Start  7: ui_foundation_designer_model
+ 7/13 Test  #7: ui_foundation_designer_model ............   Passed    0.01 sec
+      Start  8: ui_foundation_mainwindow_rmlui_wiring
+ 8/13 Test  #8: ui_foundation_mainwindow_rmlui_wiring ...***Failed    0.02 sec
+      Start  9: ui_foundation_rmlui_hot_reload
+ 9/13 Test  #9: ui_foundation_rmlui_hot_reload ..........***Failed    0.02 sec
+      Start 10: ui_foundation_ui_designer
+10/13 Test #10: ui_foundation_ui_designer ...............   Passed    0.02 sec
+      Start 11: ui_foundation_ui_designer_detached
+11/13 Test #11: ui_foundation_ui_designer_detached ......   Passed    0.03 sec
+      Start 12: ui_foundation_tutorial_contract
+12/13 Test #12: ui_foundation_tutorial_contract .........   Passed    0.02 sec
+      Start 13: water_flow_tests
+13/13 Test #13: water_flow_tests ........................   Passed    0.05 sec
+
+77% tests passed, 3 tests failed out of 13
+
+Total Test time (real) =   0.27 sec
+
+The following tests FAILED:
+	  1 - ui_foundation_registry (Failed)
+	  8 - ui_foundation_mainwindow_rmlui_wiring (Failed)
+	  9 - ui_foundation_rmlui_hot_reload (Failed)
+Errors while running CTest
+Output from these tests are in: C:/Programming/Repos/Ingnomia2/Ingnomia/build-wave8-root-msvc-link-priority2/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.
