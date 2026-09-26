@@ -82,3 +82,5 @@
 .l-shell-screen { background-color: #6b9fc4; }
 .l-shell-screen { padding: 12dp; }
 
+/* Cancel sits under Open in the right-hand button column (Open dialog box, PDF p.171). */
+.w98-sheet.l-load-dialog .w98-line > .l-load-cancel { margin-left: auto; }

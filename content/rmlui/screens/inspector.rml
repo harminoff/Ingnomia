@@ -10,7 +10,7 @@
   <section id="creature_preview" class="l-creature-preview w98-sheet w98-palette is-hidden" role="dialog" aria-labelledby="creature_preview_title">
     <div class="w98-caption">
       <handle id="creature_preview_drag_handle" class="c-title-bar__drag-handle" move_target="creature_preview" edge_margin="52dp 12dp 54dp 12dp"><h1 id="creature_preview_title" class="c-title-bar__title"></h1></handle>
-      <button id="creature_preview_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.creature_preview_close.title" aria-label="Close"><span id="creature_preview_close_label">&#x00D7;</span></button>
+      <button id="creature_preview_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.creature_preview_close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
     </div>
     <div class="w98-sheet__body">
       <nav id="creature_preview_tabs" class="c-tabs w98-tabs" role="tablist" aria-label="Inspector pages">
@@ -103,10 +103,10 @@
   <aside id="inspector_panel" class="l-inspector-panel w98-sheet w98-palette" role="dialog" aria-labelledby="inspector_title">
     <div class="w98-caption">
       <handle id="inspector_drag_handle" class="c-title-bar__drag-handle" move_target="inspector_panel" edge_margin="76dp 12dp 58dp 12dp"><h1 id="inspector_title" class="c-title-bar__title"></h1></handle>
-      <button id="inspector_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.close.title" aria-label="Close"><span id="inspector_close_label">&#x00D7;</span></button>
+      <button id="inspector_close" class="w98-caption__close" title="Close" data-l10n-title="win98.inspector.close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
     </div>
     <div class="w98-sheet__body">
-      <div class="w98-line"><p id="inspector_kind" class="w98-text"></p><p id="inspector_position" class="w98-text w98-grow"></p></div>
+      <div class="w98-line"><p id="inspector_kind" class="w98-text w98-grow"></p></div>
       <div id="inspector_scroll" class="w98-page-frame">
         <p id="tile_inspection_empty" class="w98-text is-hidden" data-l10n="win98.inspector.inspection_empty">Click a tile on the map to inspect it. Its details stay here while you choose a command.</p>
 

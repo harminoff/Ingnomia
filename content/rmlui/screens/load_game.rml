@@ -24,7 +24,7 @@
       <div id="load-saves-empty" class="u-hidden"><p id="load-saves-empty-title" class="w98-text"></p><p id="load-saves-empty-detail" class="w98-text"></p></div>
       <div class="w98-gap"></div>
       <div class="w98-line"><label class="w98-label" for="load-file-name" data-l10n="win98.load_game.load_file_name">Save name:</label><input id="load-file-name" class="w98-field w98-field--wide" type="text" readonly="readonly" /><button id="load-selected" class="w98-button w98-button--default" data-default-action="true" data-l10n="win98.load_game.load_selected">Open</button></div>
-      <div class="w98-line"><p id="load-status" class="w98-text w98-grow"></p><button id="shell-back" class="w98-button" data-l10n="win98.common.cancel">Cancel</button></div>
+      <div class="w98-line"><p id="load-status" class="w98-text w98-grow"></p><button id="shell-back" class="w98-button l-load-cancel" data-l10n="win98.common.cancel">Cancel</button></div>
       <p id="load-error" class="w98-text l-shell-error u-hidden">The save list is unavailable. <span id="load-error-detail"></span></p>
       <button id="load-refresh" class="u-hidden" tab-index="-1" data-l10n="win98.load_game.load_refresh">Refresh</button>
     </div>

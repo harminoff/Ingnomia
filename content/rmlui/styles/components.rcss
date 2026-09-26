@@ -999,38 +999,6 @@ input.range.c-slider:focus-visible sliderbar { border-top-color: #ffffff; border
 input.range.c-slider sliderarrowdec, input.range.c-slider sliderarrowinc { width: 0; height: 0; border-width: 0; decorator: none; }
 
 /* Shared report header/filter controls; column widths stay with each route. */
-#inventory_workbench .c-excel-header,
-#stockpile_workbench .c-excel-header { position: relative; min-height: 56dp; height: 56dp; padding: 3dp 4dp; align-items: stretch; overflow: visible; box-sizing: border-box; z-index: 50; }
-#inventory_workbench .c-excel-header__cell,
-#stockpile_workbench .c-excel-header__cell { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 2dp; min-height: 0; overflow: visible; }
-#inventory_workbench .c-excel-header__sort,
-#stockpile_workbench .c-excel-header__sort { display: flex; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; min-height: 23dp; align-items: center; justify-content: space-between; gap: 2dp; margin: 0; padding: 2dp 4dp; overflow: hidden; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; font-family: LatoLatin; font-size: 10dp; line-height: 14dp; text-align: left; white-space: nowrap; box-sizing: border-box; }
-#inventory_workbench .c-excel-header__sort.is-selected,
-#stockpile_workbench .c-excel-header__sort.is-selected,
-#inventory_workbench .c-excel-header__sort:active,
-#stockpile_workbench .c-excel-header__sort:active { padding: 3dp 3dp 1dp 5dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-#inventory_workbench .c-excel-header__filter,
-#stockpile_workbench .c-excel-header__filter { display: block; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; min-height: 23dp; margin: 0; padding: 2dp 4dp; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; font-family: LatoLatin; font-size: 10dp; line-height: 14dp; box-sizing: border-box; }
-#inventory_workbench .c-excel-filter-combo,
-#stockpile_workbench .c-excel-filter-combo { position: relative; display: flex; flex: 0 0 23dp; width: 100%; min-width: 0; height: 23dp; overflow: visible; z-index: 40; }
-#inventory_workbench .c-excel-filter-combo .c-excel-header__filter,
-#stockpile_workbench .c-excel-filter-combo .c-excel-header__filter { flex: 1 1 auto; width: auto; min-width: 0; }
-#inventory_workbench .c-excel-filter-combo__toggle,
-#stockpile_workbench .c-excel-filter-combo__toggle { flex: 0 0 23dp; width: 23dp; min-width: 23dp; height: 23dp; min-height: 23dp; margin-left: -2dp; padding: 2dp; color: #000000; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; font-family: LatoLatin; font-size: 10dp; text-align: center; box-sizing: border-box; }
-#inventory_workbench .c-excel-filter-combo__toggle.is-selected,
-#stockpile_workbench .c-excel-filter-combo__toggle.is-selected,
-#inventory_workbench .c-excel-filter-combo__toggle:active,
-#stockpile_workbench .c-excel-filter-combo__toggle:active { padding: 3dp 1dp 1dp 3dp; background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-#inventory_workbench .c-excel-filter-combo__options,
-#stockpile_workbench .c-excel-filter-combo__options { position: absolute; display: block; left: 0; top: 22dp; width: 100%; min-width: 100%; max-height: 196dp; overflow-x: hidden; overflow-y: auto; color: #000000; background-color: #ffffff; border-width: 2dp; border-top-color: #404040; border-left-color: #404040; border-right-color: #404040; border-bottom-color: #404040; box-sizing: border-box; pointer-events: auto; z-index: 80; }
-#inventory_workbench .c-excel-filter-combo__options.is-hidden,
-#stockpile_workbench .c-excel-filter-combo__options.is-hidden { display: none; }
-#inventory_workbench .c-excel-filter-combo__option,
-#stockpile_workbench .c-excel-filter-combo__option { display: block; width: 100%; min-width: 100%; max-width: none; min-height: 23dp; margin: 0; padding: 3dp 5dp; overflow: hidden; color: #000000; background-color: #ffffff; border-width: 0 0 1dp 0; border-bottom-color: #c0c0c0; font-family: LatoLatin; font-size: 10dp; text-align: left; text-overflow: ellipsis; white-space: nowrap; box-sizing: border-box; pointer-events: auto; }
-#inventory_workbench .c-excel-filter-combo__option:hover,
-#stockpile_workbench .c-excel-filter-combo__option:hover,
-#inventory_workbench .c-excel-filter-combo__option.is-selected,
-#stockpile_workbench .c-excel-filter-combo__option.is-selected { color: #ffffff; background-color: #000080; }
 
 .c-report-sort { display: inline-block; flex: 0 0 8dp; width: 8dp; height: 8dp; decorator: image(win98-up scale-none center center); }
 .c-report-sort.is-descending { decorator: image(win98-down scale-none center center); }
@@ -1042,12 +1010,6 @@ scrollbarvertical:disabled, scrollbarhorizontal:disabled { opacity: 0.5; }
 .c-matrix-cell:focus-visible { decorator: win98-focus(#000000); }
 
 /* Inactive native windows retain selection without the active navy highlight. */
-.is-window-inactive #inventory_workbench .l-inventory-flat-row.is-selected,
-.is-window-inactive #stockpile_workbench .c-stockpile-flat-row.is-selected { color: #000000; background-color: #c0c0c0; decorator: none; }
-.is-window-inactive #inventory_workbench .l-inventory-flat-row.is-selected > span,
-.is-window-inactive #stockpile_workbench .c-stockpile-flat-row.is-selected > span { color: #000000; }
-#inventory_workbench .c-excel-filter-combo.has-filter .c-excel-header__filter,
-#stockpile_workbench .c-excel-filter-combo.has-filter .c-excel-header__filter { border-bottom: 3dp #000080; }
 
 /* Stage 07: classic secondary windows and non-interactive help. */
 body.c-modal-stage { position: absolute; width: 100%; height: 100%; background-color: transparent; border-width: 0; }
@@ -1064,4 +1026,3 @@ body.c-modal-stage .c-alert-row { background-color: transparent; border-width: 0
 
 body.c-modal-stage .c-modal__actions .c-button { min-width: 75dp; min-height: 23dp; padding: 2dp 6dp; font-size: 13dp; line-height: 17dp; }
 body.c-modal-stage .c-alert-row__detail { font-size: 13dp; line-height: 18dp; }
-body.c-modal-stage #confirm-cancel { box-shadow: 0 0 0 1dp #000000; }

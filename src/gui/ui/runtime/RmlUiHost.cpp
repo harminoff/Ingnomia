@@ -1,6 +1,7 @@
 #include "RmlUiHost.h"
 #include "ClassicFocusDecorator.h"
 #include "ConnectedTabs.h"
+#include "ScrollArrows.h"
 
 #include "IngnomiaRmlUiRenderer.h"
 #include "QtRmlFileInterface.h"
@@ -357,7 +358,7 @@ bool RmlUiHost::updateDetached( RmlUiDetachedContext& detached )
     // native surface is selected explicitly by renderDetached() below.
     applyHighContrast( *detached.context() );
     const bool result = detached.context()->Update();
-    if ( connected_tabs::reconcile(*detached.context()) | updateTitleOverflow( *detached.context() ) ) (void)detached.context()->Update();
+    if ( connected_tabs::reconcile(*detached.context()) | updateTitleOverflow( *detached.context() ) | scroll_arrows::reconcile( *detached.context() ) ) (void)detached.context()->Update();
     setSystemWindow( m_ownerWindow.data() );
     return result;
 }
@@ -417,7 +418,7 @@ bool RmlUiHost::update()
     setSystemWindow( m_ownerWindow.data() );
     applyHighContrast( *m_context );
     const bool result = m_context->Update();
-    if ( connected_tabs::reconcile(*m_context) | updateTitleOverflow( *m_context ) ) (void)m_context->Update();
+    if ( connected_tabs::reconcile(*m_context) | updateTitleOverflow( *m_context ) | scroll_arrows::reconcile( *m_context ) ) (void)m_context->Update();
     return result;
 }
 

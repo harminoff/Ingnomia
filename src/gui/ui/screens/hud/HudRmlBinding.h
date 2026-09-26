@@ -40,6 +40,8 @@ public:
 	void setInspectionActive( bool active );
 	/// Called with true while a tool is armed, so the game window can show the mode in its pointer (PDF p.154, p.355).
 	void setToolCursorHandler( std::function<void( bool )> handler ) { toolCursor_ = std::move( handler ); }
+	/// Called when the What's This? toolbar button is chosen (PDF p.285).
+	void setWhatsThisHandler( std::function<void()> handler ) { whatsThis_ = std::move( handler ); }
 	void restoreWorkbenchFocus(FocusToken);
 private:
 	class Callback final : public Rml::EventListener { public: Callback( std::function<void()> fn ):fn_(std::move(fn)){} Callback( std::function<void(Rml::Event&)> fn ):eventFn_(std::move(fn)){} void ProcessEvent(Rml::Event&) override; private: std::function<void()> fn_; std::function<void(Rml::Event&)> eventFn_; };
@@ -73,6 +75,7 @@ private:
 	std::string hoverStatus_;
 	std::string renderedWatch_;
 	std::function<void( bool )> toolCursor_;
+	std::function<void()> whatsThis_;
 	bool buildMenuOpen_{};
 	std::string selectedBuild_;
 	std::string selectedBuildCategory_;

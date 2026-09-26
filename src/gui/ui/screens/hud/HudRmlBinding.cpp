@@ -75,6 +75,7 @@ constexpr StatusText statusTexts[] = {
 	{ "hud_tool_view", "Shows or hides map overlays.", nullptr },
 	{ "hud_tool_cancel", "Cancels the current tool.", "Unavailable because no tool is active." },
 	{ "hud_tool_rotate", "Rotates the object being placed.", "Unavailable because the current tool places nothing that turns." },
+	{ "hud_whats_this", "Explains the next item you click in the game window.", nullptr },
 	{ "hud_mine_walls", "Marks walls for mining.", nullptr },
 	{ "hud_mine_explorative", "Marks an area for exploratory mining.", nullptr },
 	{ "hud_mine_remove_floor", "Removes the floor from the selected area.", nullptr },
@@ -162,6 +163,7 @@ bool HudRmlBinding::initialize( HudController& controller )
 	bind( "hud_tool_designations", [this] { if( presentation_ == Presentation::Full ) toggleActionMenu( "designations" ); else if( openOrdersTools_ ) openOrdersTools_( "hud_tool_designations" ); } );
 	bind( "hud_tool_jobs", [this] { if( presentation_ == Presentation::Full ) toggleActionMenu( "jobs" ); else if( openOrdersTools_ ) openOrdersTools_( "hud_tool_jobs" ); } );
 	bind( "hud_tool_view", [this] { toggleActionMenu( "view" ); } );
+	bind( "hud_whats_this", [this] { if ( whatsThis_ ) whatsThis_(); } );
 	bind( "hud_tool_build", [this]
 	{
 		closeMenus();

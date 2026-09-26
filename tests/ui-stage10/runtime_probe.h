@@ -22,10 +22,25 @@ inline void scheduleStage10Captures(QApplication& app,int start)
  const auto click=[](const char* id){automationTrace(QString(MainWindow::getInstance().activateManagementElement(id)?"PASS ":"FAIL ")+"activated "+id);};
  // The backend probe opened the market through the aggregator; return to the Carpenter first.
  at(start-600,[=]{open("INGNOMIA_PROBE_WORKSHOP_TILE");});
+ at(start+50,[=]{click("workshop_view_craft");});
+ at(start+250,[=]{capture("craft");});
  at(start+400,[=]{click("workshop_view_queue");automationTrace(QString::fromStdString(MainWindow::getInstance().workshopStage10Probe("select-first-job")));});
  at(start+800,[=]{state();capture("queue");});
  at(start+1800,[=]{click("workshop_view_settings");});
  at(start+2400,[=]{state();capture("settings");});
+ // What's This? (PDF p.157, p.285-286): the ? title bar button starts the mode with the Help pointer; clicking the
+ // Priority box explains it; the next click only closes the pop-up.
+ at(start+2500,[=]{
+  const auto mode=QString::fromStdString(MainWindow::getInstance().workshopWhatsThisProbe("press:workshop_help"));
+  automationTrace(QString(mode.contains("mode=1 cursor="+QString::number(int(Qt::WhatsThisCursor)))?"PASS ":"FAIL ")+"the ? button starts What's This? mode: "+mode);
+  const auto shown=QString::fromStdString(MainWindow::getInstance().workshopWhatsThisProbe("press:workshop_priority"));
+  automationTrace(QString(shown.contains("mode=0")&&shown.contains("popup=Sets")?"PASS ":"FAIL ")+"clicking Priority explains it: "+shown);
+  capture("whats-this");
+ });
+ at(start+2650,[=]{
+  const auto closed=QString::fromStdString(MainWindow::getInstance().workshopWhatsThisProbe("press:workshop_priority"));
+  automationTrace(QString(closed.contains("popup=-")?"PASS ":"FAIL ")+"the next click only closes the pop-up: "+closed);
+ });
  at(start+2700,[=]{click("workshop_view_stockpiles");});
  at(start+3200,[=]{capture("stockpiles");});
  at(start+3700,[=]{click("workshop_view_settings");});

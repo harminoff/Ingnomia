@@ -39,6 +39,10 @@ This file is part of Ingnomia https://github.com/rschurade/Ingnomia    Copyright
 #include "ui/controllers/shell/ShellQtCommandPort.h"
 #include "ui/navigation/WorkbenchCoordinator.h"
 #include "ui/runtime/RmlUiHost.h"
+#include "ui/runtime/MainWindowFrame.h"
+#include "ui/runtime/AccessKeys.h"
+#include "ui/runtime/WindowMenu.h"
+#include "ui/runtime/WhatsThis.h"
 #include "ui/runtime/RmlUiDetachedWindow.h"
 #include "ui/designer/UiDesignerRmlBinding.h"
 #include "ui/screens/hud/HudRmlBinding.h"
@@ -248,6 +252,9 @@ MainWindow::MainWindow( QWidget* parent ) :
 	format.setSwapInterval( 0 ); // Disable vsync for max performance
 	setFormat( format );
 	setSurfaceType( QWindow::OpenGLSurface );
+	// The Windows 98 frame is drawn by MainWindowFrame, so the native one is removed. The system menu and the
+	// Minimize and Maximize styles stay so the taskbar button and Alt+Space keep working.
+	setFlags( Qt::Window | Qt::FramelessWindowHint | Qt::WindowSystemMenuHint | Qt::WindowMinMaxButtonsHint );
 	connect( Global::eventConnector, &EventConnector::signalExit, this, &MainWindow::onExit );
 	connect( this, &MainWindow::signalWindowSize, Global::eventConnector, &EventConnector::onWindowSize );
 	connect( this, &MainWindow::signalViewLevel, Global::eventConnector, &EventConnector::onViewLevel );
@@ -1131,6 +1138,29 @@ bool MainWindow::activateManagementElement( std::string_view id )
 	if ( m_management6cBinding && m_management6cBinding->activateElement( id ) ) return true;
 	return false;
 }
+// What's This? in the workshop property sheet through the native pointer (Stage 10 probe): "press:<id>" presses the
+// primary button on an element of the sheet; the result reports the mode and the pop-up.
+std::string MainWindow::workshopWhatsThisProbe( std::string_view action )
+{
+	auto* window = m_management6aWindow.get();
+	if ( !window || !window->nativeWindow || !window->binding || !window->binding->workshopDocument() ) return "FAIL workshop sheet not open";
+	auto* native = window->nativeWindow.get();
+	auto& help   = native->whatsThis();
+	if ( action.starts_with( "press:" ) )
+	{
+		auto* element = window->binding->workshopDocument()->GetElementById( std::string( action.substr( 6 ) ) );
+		if ( !element ) return "FAIL no element";
+		const auto at = element->GetAbsoluteOffset( Rml::BoxArea::Border );
+		const QPointF pos( ( at.x + element->GetOffsetWidth() / 2.f ) / native->devicePixelRatio(), ( at.y + element->GetOffsetHeight() / 2.f ) / native->devicePixelRatio() );
+		QMouseEvent press( QEvent::MouseButtonPress, pos, native->mapToGlobal( pos ), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier );
+		QCoreApplication::sendEvent( native, &press );
+		QMouseEvent release( QEvent::MouseButtonRelease, pos, native->mapToGlobal( pos ), Qt::LeftButton, Qt::NoButton, Qt::NoModifier );
+		QCoreApplication::sendEvent( native, &release );
+	}
+	auto* popup = help.popupElement();
+	return "PASS whats mode=" + std::to_string( help.mode() ) + " cursor=" + std::to_string( int( native->cursor().shape() ) )
+		+ " popup=" + ( popup ? QString::fromStdString( popup->GetInnerRML() ).left( 40 ).replace( ' ', '_' ).toStdString() : std::string( "-" ) );
+}
 bool MainWindow::clickManagementFarmCropForProbe( std::string_view crop )
 {
 	if ( !m_agricultureWindow || !m_agricultureWindow->nativeWindow || !m_agricultureWindow->binding ) return false;
@@ -1160,57 +1190,6 @@ std::string MainWindow::managementFarmSelectedCropForProbe() const
 	// The Crops page list chooses the pending default crop (Stage 11 property sheet).
 	return m_management6a->controller( ingnomia::ui::management6a::ManagementView::Agriculture )->state().agriculture.draft.options.product.value;
 }
-bool MainWindow::clickInventoryDetailForProbe( std::string_view target )
-{
-	if ( !m_inventoryWindow || !m_inventoryWindow->nativeWindow || !m_inventoryWindow->binding || !m_inventoryWindow->context ) return false;
-	auto* document = m_inventoryWindow->binding->inventoryDocument();
-	if ( !document || !document->IsVisible() ) return false;
-    document->UpdateDocument();
-	Rml::Element* element = nullptr;
-	if ( target == "back" ) element = document->GetElementById( "inventory_detail_back" );
-	else
-	{
-		const char* containerId = target == "product" || target == "product_last" ? "inventory_detail_used_in" : target == "ingredient" ? "inventory_detail_made_by" : "inventory_detail_locations";
-		const char* attribute = target == "stockpile" ? "data-stockpile-link" : target == "product" || target == "product_last" ? "data-product-link" : "data-item-link";
-		if ( auto* container = document->GetElementById( containerId ) )
-		{
-			const auto findLink = [&]( auto&& self, Rml::Element* node ) -> Rml::Element* {
-				if ( node->HasAttribute( attribute ) )
-				{
-					if ( target != "product_last" ) return node;
-					auto* card = container->GetParentNode();
-					const auto cardOffset = card->GetAbsoluteOffset( Rml::BoxArea::Border );
-					const auto cardSize = card->GetBox().GetSize();
-					const auto nodeOffset = node->GetAbsoluteOffset( Rml::BoxArea::Border );
-					const auto nodeSize = node->GetBox().GetSize();
-					const float centerY = nodeOffset.y + nodeSize.y * 0.5f;
-					if ( centerY >= cardOffset.y + 4.f && centerY <= cardOffset.y + cardSize.y - 4.f ) element = node;
-				}
-				for ( auto* child = node->GetFirstChild(); child; child = child->GetNextSibling() )
-					if ( auto* match = self( self, child ); match && target != "product_last" ) return match;
-				return nullptr;
-			};
-			if ( target == "product_last" ) findLink( findLink, container );
-			else element = findLink( findLink, container );
-		}
-	}
-	if ( !element || !element->IsVisible( true ) ) return false;
-    element->ScrollIntoView();
-    document->UpdateDocument();
-	const auto offset = element->GetAbsoluteOffset( Rml::BoxArea::Border );
-	const auto size = element->GetBox().GetSize();
-	const qreal dpr = qMax<qreal>( 0.01, m_inventoryWindow->nativeWindow->devicePixelRatio() );
-	const QPointF point( ( offset.x + size.x * 0.5f ) / dpr, ( offset.y + size.y * 0.5f ) / dpr );
-	auto* window = m_inventoryWindow->nativeWindow.get();
-	QMouseEvent move( QEvent::MouseMove, point, window->mapToGlobal( point.toPoint() ), Qt::NoButton, Qt::NoButton, Qt::NoModifier );
-	QCoreApplication::sendEvent( window, &move );
-	QMouseEvent press( QEvent::MouseButtonPress, point, window->mapToGlobal( point.toPoint() ), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier );
-	QCoreApplication::sendEvent( window, &press );
-	QMouseEvent release( QEvent::MouseButtonRelease, point, window->mapToGlobal( point.toPoint() ), Qt::LeftButton, Qt::NoButton, Qt::NoModifier );
-	QCoreApplication::sendEvent( window, &release );
-	return true;
-}
-
 bool MainWindow::dispatchShellClickForProbe( std::string_view id, std::string* focusedTarget )
 {
     return m_shellBinding && m_shellBinding->dispatchElementClickForProbe( id, focusedTarget );
@@ -1232,48 +1211,6 @@ std::string MainWindow::shellRouteForProbe() const
 std::string MainWindow::shellFocusedElementForProbe() const
 {
     return m_shellBinding ? m_shellBinding->focusedElementIdForProbe() : std::string {};
-}
-std::string MainWindow::inventoryDetailItemForProbe() const
-{
-	if ( !m_management6bController ) return {};
-	const auto& detail = m_management6bController->state().inventoryDetail;
-	return detail ? detail->item.value : std::string {};
-}
-int MainWindow::openLongestInventoryProductsForProbe()
-{
-	if ( !m_management6bController || !m_management6bController->state().inventoryOpen ) return 0;
-	const auto& rows = m_management6bController->state().inventory;
-	const auto row = std::ranges::max_element( rows, {}, []( const auto& value ) { return value.usedIn.size(); } );
-	if ( row == rows.end() || row->usedIn.empty() ) return 0;
-	m_management6bController->openInventoryDetail( row->id );
-	return static_cast<int>( row->usedIn.size() );
-}
-bool MainWindow::scrollInventoryProductsForProbe()
-{
-	if ( !m_inventoryWindow || !m_inventoryWindow->nativeWindow || !m_inventoryWindow->binding ) return false;
-	auto* document = m_inventoryWindow->binding->inventoryDocument();
-	auto* content = document ? document->GetElementById( "inventory_detail_used_in" ) : nullptr;
-	auto* card = content ? content->GetParentNode() : nullptr;
-	if ( !card ) return false;
-	const auto offset = card->GetAbsoluteOffset( Rml::BoxArea::Border );
-	const auto size = card->GetBox().GetSize();
-	const qreal dpr = qMax<qreal>( 0.01, m_inventoryWindow->nativeWindow->devicePixelRatio() );
-	const QPointF point( ( offset.x + size.x * 0.5f ) / dpr, ( offset.y + size.y * 0.5f ) / dpr );
-	auto* window = m_inventoryWindow->nativeWindow.get();
-	QMouseEvent move( QEvent::MouseMove, point, window->mapToGlobal( point.toPoint() ), Qt::NoButton, Qt::NoButton, Qt::NoModifier );
-	QCoreApplication::sendEvent( window, &move );
-	QWheelEvent wheel( point, window->mapToGlobal( point.toPoint() ), QPoint {}, QPoint( 0, -960 ), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false );
-	QCoreApplication::sendEvent( window, &wheel );
-	return true;
-}
-std::string MainWindow::inventoryProductScrollStatusForProbe() const
-{
-	if ( !m_inventoryWindow || !m_inventoryWindow->binding ) return {};
-	auto* document = m_inventoryWindow->binding->inventoryDocument();
-	auto* content = document ? document->GetElementById( "inventory_detail_used_in" ) : nullptr;
-	auto* card = content ? content->GetParentNode() : nullptr;
-	if ( !card ) return {};
-	return std::to_string( card->GetScrollTop() ) + ":" + std::to_string( card->GetScrollHeight() ) + ":" + std::to_string( card->GetClientHeight() );
 }
 bool MainWindow::requestManagementCaptureForProbe( std::string_view kind, const QString& path )
 {
@@ -1474,6 +1411,107 @@ std::string MainWindow::shellStage18Probe( std::string_view action )
 		+ " settingsPage=" + settingsPage + " inGame=" + std::to_string( doc && doc->IsClassSet( "is-in-game" ) ) + " loadingError=" + std::to_string( shown( "loading-error" ) ) + " retry=" + std::to_string( shown( "loading-retry" ) )
 		+ " confirm=" + std::to_string( dialog ) + " paused=" + std::to_string( s.authoritativePaused ) + " cursor=" + std::to_string( int( cursor().shape() ) );
 }
+// Primary window frame probe: reports the frame's state and geometry (physical pixels), clicks its caption buttons,
+// double-clicks its caption, and restores a minimized window so the run can continue.
+std::string MainWindow::windowFrameProbe( std::string_view action )
+{
+	if ( qEnvironmentVariable( "INGNOMIA_AUTOMATE_HUD_STAGE17_LIVE" ) != "1" || !m_windowFrame || !m_windowFrame->document() || !m_rmlUiHost ) return "FAIL frame probe unavailable";
+	auto* doc = m_windowFrame->document();
+	if ( action.starts_with( "click:" ) )
+	{
+		auto* element = doc->GetElementById( Rml::String( action.substr( 6 ) ) );
+		if ( !element ) return "FAIL no frame element " + std::string( action.substr( 6 ) );
+		element->Click();
+		return "PASS clicked " + std::string( action.substr( 6 ) );
+	}
+	if ( action == "restore" )
+	{
+		showNormal();
+		return "PASS restored";
+	}
+	const auto menuState = []( ingnomia::ui::window_menu::WindowMenu* menu ) -> std::string
+	{
+		if ( !menu || !menu->isOpen() ) return "closed";
+		Rml::ElementList items;
+		menu->element()->QuerySelectorAll( items, "button.w98-menu__item" );
+		std::string out = "open";
+		for ( auto* item : items )
+			out += " " + item->GetAttribute<Rml::String>( "data-command", "" ) + ( item->HasAttribute( "disabled" ) ? "-" : "+" ) + item->GetAttribute<Rml::String>( "accesskey", "?" ) + ( item->IsClassSet( "is-checked" ) ? "*" : "" );
+		return out;
+	};
+	// Window menu: "menu" opens it as Alt+Space does and lists its commands (command, + or - for available, access
+	// letter); "menu-key:<letter>" types a letter into it.
+	if ( action == "menu" ) return m_windowFrame->openMenuFromKeyboard() ? "PASS menu " + menuState( m_windowFrame->menu() ) : "FAIL menu did not open";
+	// What's This? in the game window: "whats-this" chooses the toolbar button; "whats-click:<id>" clicks a HUD element
+	// through the native pointer; "whats-state" reports the mode, pointer and pop-up.
+	if ( action == "whats-this" || action.starts_with( "whats-click:" ) || action == "whats-state" )
+	{
+		auto* hud = m_hudBinding ? m_hudBinding->document() : nullptr;
+		if ( !hud ) return "FAIL no game window document";
+		if ( action == "whats-this" )
+		{
+			auto* button = hud->GetElementById( "hud_whats_this" );
+			if ( !button ) return "FAIL no What's This? button";
+			button->Click();
+		}
+		else if ( action.starts_with( "whats-click:" ) )
+		{
+			auto* element = hud->GetElementById( std::string( action.substr( 12 ) ) );
+			if ( !element ) return "FAIL no element";
+			const auto at = element->GetAbsoluteOffset( Rml::BoxArea::Border );
+			const QPointF pos( ( at.x + element->GetOffsetWidth() / 2.f ) / devicePixelRatio(), ( at.y + element->GetOffsetHeight() / 2.f ) / devicePixelRatio() );
+			QMouseEvent press( QEvent::MouseButtonPress, pos, mapToGlobal( pos ), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier );
+			mousePressEvent( &press );
+			QMouseEvent release( QEvent::MouseButtonRelease, pos, mapToGlobal( pos ), Qt::LeftButton, Qt::NoButton, Qt::NoModifier );
+			mouseReleaseEvent( &release );
+		}
+		auto* popup = whatsThis().popupElement();
+		return "PASS whats mode=" + std::to_string( whatsThis().mode() ) + " cursor=" + std::to_string( int( cursor().shape() ) )
+			+ " popup=" + ( popup ? QString::fromStdString( popup->GetInnerRML() ).left( 40 ).replace( ' ', '_' ).toStdString() : std::string( "-" ) );
+	}
+	if ( action.starts_with( "menu-key:" ) )
+	{
+		const char letter = action.back();
+		if ( !ingnomia::ui::access_keys::activate( *m_rmlUiHost->context(), letter, false ) ) return "FAIL letter not taken";
+		return "PASS typed " + std::string( 1, letter ) + " menu " + menuState( m_windowFrame->menu() );
+	}
+	if ( action == "dblclick" )
+	{
+		auto* title = doc->GetElementById( "frame_title" );
+		if ( !title ) return "FAIL no caption title";
+		const auto at = title->GetAbsoluteOffset( Rml::BoxArea::Border );
+		const QPointF pos( ( at.x + title->GetOffsetWidth() / 2.f ) / devicePixelRatio(), ( at.y + title->GetOffsetHeight() / 2.f ) / devicePixelRatio() );
+		QMouseEvent event( QEvent::MouseButtonDblClick, pos, mapToGlobal( pos ), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier );
+		event.setAccepted( false );
+		mouseDoubleClickEvent( &event );
+		return event.isAccepted() ? "PASS caption double-clicked" : "FAIL the caption did not take the double-click";
+	}
+	const auto rect = []( Rml::Element* e ) -> std::string
+	{
+		if ( !e ) return "-";
+		const auto at = e->GetAbsoluteOffset( Rml::BoxArea::Border );
+		return std::to_string( int( at.x + 0.5f ) ) + "," + std::to_string( int( at.y + 0.5f ) ) + "," + std::to_string( int( e->GetOffsetWidth() + 0.5f ) ) + "x" + std::to_string( int( e->GetOffsetHeight() + 0.5f ) );
+	};
+	std::string hud = "-", grip = "-";
+	if ( m_hudBinding && m_hudBinding->document() )
+	{
+		hud = m_hudBinding->document()->GetAttribute<Rml::String>( "data-frame-client", "-" );
+		if ( auto* g = m_hudBinding->document()->GetElementById( "hud_size_grip" ); g && g->IsVisible( true ) ) grip = rect( g );
+	}
+	auto* maximize = doc->GetElementById( "frame_maximize" );
+	auto* title    = doc->GetElementById( "frame_title" );
+	const std::string tip = maximize ? maximize->GetAttribute<Rml::String>( "title", "-" ) : "-";
+	const auto states     = windowStates();
+	const QRect work      = screen() ? screen()->availableGeometry() : QRect();
+	const auto size       = m_rmlUiHost->context()->GetDimensions();
+	return "state visible=" + std::to_string( doc->IsVisible() ) + " frameMax=" + std::to_string( doc->IsClassSet( "is-maximized" ) )
+		+ " maximized=" + std::to_string( states.testFlag( Qt::WindowMaximized ) ) + " minimized=" + std::to_string( states.testFlag( Qt::WindowMinimized ) )
+		+ " fullScreen=" + std::to_string( states.testFlag( Qt::WindowFullScreen ) ) + " fillsWork=" + std::to_string( geometry() == work )
+		+ " context=" + std::to_string( size.x ) + "x" + std::to_string( size.y ) + " caption=" + rect( doc->GetElementById( "frame_caption" ) )
+		+ " icon=" + rect( doc->GetElementById( "frame_icon" ) ) + " min=" + rect( doc->GetElementById( "frame_minimize" ) ) + " max=" + rect( maximize )
+		+ " close=" + rect( doc->GetElementById( "frame_close" ) ) + " client=" + rect( doc->GetElementById( "frame_client" ) ) + " hud=" + hud + " grip=" + grip + " maxTip=" + tip
+		+ " title=" + ( title ? QString::fromStdString( title->GetInnerRML() ).replace( ' ', '_' ).toStdString() : std::string( "-" ) );
+}
 // Stage 17 live probe: drives the game window's toolbar, menus and status bar and the Build window through their
 // production documents. "build|<action>" acts on the Build window; "hover:<id>" moves the pointer onto a control;
 // "prompt" queues an information message box; "state" reports what the player would see.
@@ -1484,6 +1522,63 @@ std::string MainWindow::hudStage17Probe( std::string_view action )
 	Rml::ElementDocument* buildDoc = nullptr;
 	for ( auto& window : m_ordersToolsWindows )
 		if ( window && window->panelKey == "build" && window->binding && window->nativeWindow && window->nativeWindow->isVisible() ) buildDoc = window->binding->document();
+	// The Build palette's window menu (PDF p.113, p.181): "build|menu" opens it as Alt+Space does and lists its
+	// commands; "build|menu-key:<letter>" types a letter into it.
+	if ( action == "build|menu" || action.starts_with( "build|menu-key:" ) )
+	{
+		ingnomia::ui::RmlUiDetachedWindow* native = nullptr;
+		Rml::Context* context = nullptr;
+		for ( auto& window : m_ordersToolsWindows )
+			if ( window && window->panelKey == "build" && window->nativeWindow && window->nativeWindow->isVisible() && window->context )
+			{
+				native  = window->nativeWindow.get();
+				context = window->context->context();
+			}
+		if ( !native || !context ) return "FAIL Build window not open";
+	const auto menuState = []( ingnomia::ui::window_menu::WindowMenu* menu ) -> std::string
+	{
+		if ( !menu || !menu->isOpen() ) return "closed";
+		Rml::ElementList items;
+		menu->element()->QuerySelectorAll( items, "button.w98-menu__item" );
+		std::string out = "open";
+		for ( auto* item : items )
+			out += " " + item->GetAttribute<Rml::String>( "data-command", "" ) + ( item->HasAttribute( "disabled" ) ? "-" : "+" ) + item->GetAttribute<Rml::String>( "accesskey", "?" ) + ( item->IsClassSet( "is-checked" ) ? "*" : "" );
+		return out;
+	};
+		if ( action == "build|menu" ) return native->openWindowMenu() ? "PASS menu " + menuState( native->windowMenu() ) + " onTop=" + std::to_string( native->alwaysOnTop() ) : "FAIL no title bar";
+		const char letter = action.back();
+		if ( !ingnomia::ui::access_keys::activate( *context, letter, false ) ) return "FAIL letter not taken";
+		auto* help = native->whatsThis().popupElement();
+		return "PASS typed " + std::string( 1, letter ) + " menu " + menuState( native->windowMenu() ) + " onTop=" + std::to_string( native->alwaysOnTop() )
+			+ " help=" + ( help ? std::string( "open" ) : std::string( "closed" ) );
+	}
+	// What's This? in the Build palette through the native pointer: "build|right:<id>" presses the secondary button on
+	// the element; "build|help" reports the What's This? menu and pop-up.
+	if ( action.starts_with( "build|right:" ) || action == "build|help" || action == "build|activate" )
+	{
+		ingnomia::ui::RmlUiDetachedWindow* native = nullptr;
+		for ( auto& window : m_ordersToolsWindows )
+			if ( window && window->panelKey == "build" && window->nativeWindow && window->nativeWindow->isVisible() ) native = window->nativeWindow.get();
+		if ( !native || !buildDoc ) return "FAIL Build window not open";
+		auto& help = native->whatsThis();
+		if ( action == "build|activate" )
+		{
+			native->requestActivate();
+			return "PASS activated";
+		}
+		if ( action.starts_with( "build|right:" ) )
+		{
+			auto* element = buildDoc->GetElementById( std::string( action.substr( 12 ) ) );
+			if ( !element ) return "FAIL no element";
+			const auto at  = element->GetAbsoluteOffset( Rml::BoxArea::Border );
+			const QPointF pos( ( at.x + element->GetOffsetWidth() / 2.f ) / native->devicePixelRatio(), ( at.y + element->GetOffsetHeight() / 2.f ) / native->devicePixelRatio() );
+			QMouseEvent press( QEvent::MouseButtonPress, pos, native->mapToGlobal( pos ), Qt::RightButton, Qt::RightButton, Qt::NoModifier );
+			QCoreApplication::sendEvent( native, &press );
+		}
+		const bool menuOpen = help.menu() && help.menu()->isOpen();
+		auto* popup = help.popupElement();
+		return "PASS help menu=" + std::to_string( menuOpen ) + " popup=" + ( popup ? QString::fromStdString( popup->GetInnerRML() ).left( 40 ).replace( ' ', '_' ).toStdString() : std::string( "-" ) );
+	}
 	if ( action.starts_with( "build|" ) )
 	{
 		if ( !buildDoc ) return "FAIL Build window not open";
@@ -2019,6 +2114,21 @@ MainWindow::keyPressEvent( QKeyEvent* event )
 
 {
     if(event->key()==Qt::Key_Escape && event->isAutoRepeat()) { event->accept(); return; }
+	// What's This? (PDF p.286-287): any key closes the Help pop-up; Esc cancels the mode; Shift+F1 starts or cancels the
+	// mode; F1 explains the control that has the input focus.
+	if ( m_rmlUiHost && m_rmlUiHost->context() && ( event->key() == Qt::Key_F1 || event->key() == Qt::Key_Escape || ( m_whatsThis && m_whatsThis->popupOpen() ) ) )
+	{
+		const auto rmlKey = event->key() == Qt::Key_F1 ? Rml::Input::KI_F1 : event->key() == Qt::Key_Escape ? Rml::Input::KI_ESCAPE : Rml::Input::KI_UNKNOWN;
+		const bool wasMode = whatsThis().mode();
+		if ( whatsThis().key( *m_rmlUiHost->context(), rmlKey, event->modifiers().testFlag( Qt::ShiftModifier ), false ) )
+		{
+			if ( whatsThis().mode() ) setCursor( Qt::WhatsThisCursor );
+			else if ( wasMode ) unsetCursor();
+			event->accept();
+			redraw();
+			return;
+		}
+	}
 	if ( m_rmlUiHost && event->key() == Qt::Key_F5 && m_rmlUiHost->hotReloadEnabled() )
 	{
 		m_rmlUiHost->requestDocumentReload();
@@ -2482,6 +2592,11 @@ MainWindow::mouseMoveEvent( QMouseEvent* event )
 	if ( rmlUiActive() )
 
 	{
+		if ( m_windowFrame && m_windowFrame->move( event->position(), event->buttons() ) )
+		{
+			event->accept();
+			return;
+		}
 		if ( m_rmlWindowDragging )
 		{
 			updateRmlWindowDrag( event->position() );
@@ -2490,6 +2605,7 @@ MainWindow::mouseMoveEvent( QMouseEvent* event )
 		}
 
 		const auto hover = m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
+		if ( m_whatsThis && m_whatsThis->mode() ) setCursor( Qt::WhatsThisCursor );
 		// Hover inspection must retain its map target while the player enters
 		// any UI surface to read details or choose an action.
 		if ( m_tileInspectionActive && (hover.owner == ingnomia::ui::PointerOwner::Ui || hover.uiInteracting) )
@@ -2640,6 +2756,55 @@ MainWindow::mousePressEvent( QMouseEvent* event )
 		return;
 	}
 #endif
+	if ( event->button() == Qt::LeftButton && m_windowFrame )
+	{
+		m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
+		if ( m_windowFrame->press( m_rmlUiHost->context()->GetHoverElement(), event->position() ) )
+		{
+			event->accept();
+			redraw();
+			return;
+		}
+	}
+	if ( event->button() == Qt::RightButton && m_windowFrame )
+	{
+		m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
+		const auto at = event->position() * devicePixelRatio();
+		if ( m_windowFrame->contextPress( m_rmlUiHost->context()->GetHoverElement(), Rml::Vector2f( float( at.x() ), float( at.y() ) ) ) )
+		{
+			event->accept();
+			redraw();
+			return;
+		}
+	}
+	// What's This? (PDF p.285-287): in the mode the next click explains the item (or cancels the mode); the secondary
+	// button on a control with Help offers the What's This? shortcut menu. Choosing the toolbar button again cancels.
+	if ( event->button() == Qt::LeftButton || event->button() == Qt::RightButton )
+	{
+		m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
+		auto* hover = m_rmlUiHost->context()->GetHoverElement();
+		bool onButton = false;
+		for ( auto* e = hover; e; e = e->GetParentNode() )
+			if ( e->GetId() == "hud_whats_this" ) onButton = true;
+		const auto at = event->position() * devicePixelRatio();
+		const bool wasMode = whatsThis().mode();
+		bool taken = false;
+		if ( onButton && wasMode && event->button() == Qt::LeftButton )
+		{
+			whatsThis().cancel();
+			taken = true;
+		}
+		else if ( !( onButton && event->button() == Qt::LeftButton ) )
+			taken = whatsThis().press( hover, Rml::Vector2f( float( at.x() ), float( at.y() ) ), event->button() == Qt::RightButton );
+		if ( taken )
+		{
+			if ( whatsThis().mode() ) setCursor( Qt::WhatsThisCursor );
+			else if ( wasMode ) unsetCursor();
+			event->accept();
+			redraw();
+			return;
+		}
+	}
 	if ( event->button() == Qt::LeftButton && beginRmlWindowDrag( event->position() ) )
 	{
 		event->accept();
@@ -2685,6 +2850,42 @@ MainWindow::mousePressEvent( QMouseEvent* event )
 	}
 }
 
+/// @brief What's This? for the game window (PDF p.285-287), created on first use.
+ingnomia::ui::whats_this::Controller& MainWindow::whatsThis()
+{
+	if ( !m_whatsThis ) m_whatsThis = std::make_unique<ingnomia::ui::whats_this::Controller>();
+	return *m_whatsThis;
+}
+
+/// @brief Native message hook: Alt+Space opens the window menu drawn by the frame instead of the system's own menu
+///        (PDF p.113).
+bool MainWindow::nativeEvent( const QByteArray& eventType, void* message, qintptr* result )
+{
+	using ingnomia::ui::native_window::AltSpace;
+	const auto altSpace = ingnomia::ui::native_window::altSpace( eventType, message );
+	if ( altSpace == AltSpace::None || !m_windowFrame ) return QWindow::nativeEvent( eventType, message, result );
+	if ( altSpace == AltSpace::Open && m_windowFrame->openMenuFromKeyboard() ) redraw();
+	if ( result ) *result = 0;
+	return true;
+}
+
+/// @brief Qt double-click override: double-clicking the frame caption maximizes or restores the window;
+///        Qt has already delivered the second press, so nothing else is done here.
+void MainWindow::mouseDoubleClickEvent( QMouseEvent* event )
+{
+	if ( rmlUiActive() && m_windowFrame && event->button() == Qt::LeftButton )
+	{
+		m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
+		if ( m_windowFrame->doubleClick( m_rmlUiHost->context()->GetHoverElement() ) )
+		{
+			event->accept();
+			return;
+		}
+	}
+	QWindow::mouseDoubleClickEvent( event );
+}
+
+
 /// @brief Qt mouse-release override: commits a click to the selection aggregator if the
 
 ///        button was pressed and not classified as a drag. Forwards to RmlUi otherwise.
@@ -2701,6 +2902,11 @@ MainWindow::mouseReleaseEvent( QMouseEvent* event )
 	const auto gp = this->mapFromGlobal( event->globalPosition().toPoint() );
 	m_mouseX      = gp.x();
 	m_mouseY      = gp.y();
+	if ( event->button() == Qt::LeftButton && m_windowFrame && m_windowFrame->release() )
+	{
+		event->accept();
+		return;
+	}
 	if ( m_rmlWindowDragging && event->button() == Qt::LeftButton )
 	{
 		endRmlWindowDrag();
@@ -2712,6 +2918,7 @@ MainWindow::mouseReleaseEvent( QMouseEvent* event )
 		m_inspectorController->setSelectionPointer( ingnomia::ui::inspector::PointerPosition { m_mouseX, m_mouseY } );
 	m_rmlUiHost->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
 	const auto dispatch = m_rmlUiHost->input().mouseButtonUp( event->button(), event->modifiers() );
+	if ( m_whatsThis && m_whatsThis->mode() ) setCursor( Qt::WhatsThisCursor );
 	if ( dispatch.owner == ingnomia::ui::PointerOwner::Ui )
 	{
 
@@ -3051,6 +3258,12 @@ MainWindow::initializeRmlUi()
 	m_inspectorBinding = inspectorBinding;
 	hudBinding->setInspectionHandler([this]{setTileInspection(!m_tileInspectionActive);});
 	hudBinding->setToolCursorHandler( [this]( bool armed ) { if ( m_rmlUiHost ) m_rmlUiHost->setMapCursor( armed ? Qt::CrossCursor : Qt::ArrowCursor ); } );
+	// The What's This? toolbar button starts the mode, or cancels it when chosen again (PDF p.286).
+	hudBinding->setWhatsThisHandler( [this] {
+		whatsThis().toggleMode();
+		if ( whatsThis().mode() ) setCursor( Qt::WhatsThisCursor ); else unsetCursor();
+		redraw();
+	} );
 	// High Contrast is read at start-up and then checked every second, so a change in Windows applies without a
 	// restart (PDF p.373-374). INGNOMIA_AUTOMATE_HIGH_CONTRAST=1 forces it on for tests.
 	{
@@ -3214,6 +3427,7 @@ MainWindow::initializeRmlUi()
 	 {
 			if ( m_shellBinding ) m_shellBinding->setInMenu( inMenu );
 			if ( inMenu && m_shellController ) { refreshContinueSave(); m_shellController->endWorld(); }
+			if ( inMenu ) setTitle( QStringLiteral( "Ingnomia" ) );
 
 if( inMenu ) {
 
@@ -3612,7 +3826,10 @@ m_management6bController->applyProfessionSkills(m_management6bController->state(
 			 {
 
 
-if( m_hudController ) m_hudController->setSettlement( { name.toStdString(), gnomes, animals, items } ); }, Qt::QueuedConnection );
+if( m_hudController ) m_hudController->setSettlement( { name.toStdString(), gnomes, animals, items } );
+// The title bar names the open kingdom, then the application (PDF p.93).
+const QString title = name.isEmpty() ? QStringLiteral( "Ingnomia" ) : name + QStringLiteral( " - Ingnomia" );
+if( this->title() != title ) setTitle( title ); }, Qt::QueuedConnection );
 
 	connect( Global::eventConnector, &EventConnector::signalHudClock, this, [this]( int minute, int hour, int day, const QString& season, int year, bool daylight, int nextSunMinute )
 
@@ -3752,6 +3969,8 @@ rows.push_back( { ingnomia::ui::SaveKingdomId{ key }, value.name.toStdString(), 
 
 
 auto state = ingnomia::ui::shell::ShellDataAdapter::saves( std::move( rows ), {} );
+// "Look in" keeps the kingdom the last game was opened from; Cancel never changes it (PDF p.171).
+if( const auto last = m_shellCommands->lastOpenedKingdom(); last && std::ranges::any_of( state.kingdoms, [&]( const auto& row ) { return row.id == *last; } ) ) state.selectedKingdom = last;
 const auto firstKingdom = state.selectedKingdom;
 m_shellController->setLoadGameState( std::move( state ) );
 if ( firstKingdom ) m_shellController->selectKingdom( *firstKingdom ); }, Qt::QueuedConnection );
@@ -3859,6 +4078,23 @@ for( const auto& row : state.saves ) if( row.compatible ) { state.selectedSlot =
 		}
 	}
 #endif
+
+	m_windowFrame = std::make_unique<ingnomia::ui::MainWindowFrame>( *this, *m_rmlUiHost->context() );
+	if ( !m_windowFrame->document() )
+	{
+		qWarning() << "RmlUi window frame document failed to load";
+		m_windowFrame.reset();
+	}
+	connect( this, &QWindow::windowStateChanged, this, [this]( Qt::WindowState ) { redraw(); } );
+	connect( this, &QWindow::windowTitleChanged, this, [this]( const QString& ) { redraw(); } );
+	connect( qGuiApp, &QGuiApplication::applicationStateChanged, this, [this]( Qt::ApplicationState ) { redraw(); } );
+	// Clicking outside the game window cancels What's This? mode (PDF p.286).
+	connect( this, &QWindow::activeChanged, this, [this] {
+		if ( isActive() || !m_whatsThis || !( m_whatsThis->mode() || m_whatsThis->popupOpen() ) ) return;
+		m_whatsThis->cancel();
+		unsetCursor();
+		redraw();
+	} );
 
 	qInfo() << "RmlUi MainWindow host initialized at" << config.physicalSize << "DPR/UI ratio" << config.densityIndependentPixelRatio;
 
@@ -5156,6 +5392,8 @@ MainWindow::shutdownRmlUi()
 #endif
 
 	if (!m_context->makeCurrent(this)) qFatal("Cannot restore main context for RmlUi shutdown");
+	m_whatsThis.reset();
+	m_windowFrame.reset();
 	if ( !m_rmlUiHost->shutdown() )
 
 		qFatal( "RmlUi MainWindow shutdown failed" );
@@ -5551,6 +5789,7 @@ MainWindow::paintGL()
 	glBindBuffer( GL_ARRAY_BUFFER, 0 );
 	glUseProgram( 0 );
 	glActiveTexture( GL_TEXTURE0 );
+	if ( m_windowFrame ) m_windowFrame->sync();
 	if ( m_rmlUiHost ) (void)m_rmlUiHost->processHotReload();
     const bool uiUpdated = m_rmlUiHost && m_rmlUiHost->update();
 	const bool uiRendered = uiUpdated && m_rmlUiHost->render();

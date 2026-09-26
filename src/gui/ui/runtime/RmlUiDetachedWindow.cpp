@@ -1,4 +1,10 @@
 #include "RmlUiDetachedWindow.h"
+#include "NativeWindowCommands.h"
+#include "WindowMenu.h"
+#include "WhatsThis.h"
+
+#include <QGuiApplication>
+#include <vector>
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -60,6 +66,9 @@ RmlUiDetachedWindow::RmlUiDetachedWindow( RmlUiHost& host, QOpenGLContext* share
 
 RmlUiDetachedWindow::~RmlUiDetachedWindow()
 {
+    setAlwaysOnTop( false );
+    m_whatsThis.reset();
+    m_windowMenu.reset();
     m_closeHandler = {};
     m_closeGuard = {};
     m_designerFocusHandler = {};
@@ -109,6 +118,9 @@ void RmlUiDetachedWindow::doneCurrent()
 
 void RmlUiDetachedWindow::attachContext( RmlUiDetachedContext* context )
 {
+    m_whatsThis.reset();
+    m_windowMenu.reset();
+    m_menuCaption = nullptr;
     m_detachedContext = context;
     m_renderingEnabled = false;
     m_frameQueued = false;
@@ -338,6 +350,12 @@ void RmlUiDetachedWindow::focusOutEvent( QFocusEvent* event )
         setMouseGrabEnabled( false );
     }
     if ( m_detachedContext ) m_detachedContext->input().cancelInteraction();
+    if ( m_whatsThis && ( m_whatsThis->mode() || m_whatsThis->popupOpen() ) )
+    {
+        m_whatsThis->cancel();
+        unsetCursor();
+        queueRenderFrame();
+    }
     setChromeActive( false );
     QWindow::focusOutEvent( event );
 }
@@ -357,6 +375,18 @@ void RmlUiDetachedWindow::keyPressEvent( QKeyEvent* event )
     {
         event->accept();
         return;
+    }
+    if ( m_detachedContext->context() && ( event->key() == Qt::Key_F1 || event->key() == Qt::Key_Escape || ( m_whatsThis && m_whatsThis->popupOpen() ) ) )
+    {
+        const auto rmlKey = event->key() == Qt::Key_F1 ? Rml::Input::KI_F1 : event->key() == Qt::Key_Escape ? Rml::Input::KI_ESCAPE : Rml::Input::KI_UNKNOWN;
+        const bool wasMode = whatsThis().mode();
+        if ( whatsThis().key( *m_detachedContext->context(), rmlKey, event->modifiers().testFlag( Qt::ShiftModifier ), true ) )
+        {
+            if ( wasMode && !whatsThis().mode() ) unsetCursor();
+            queueRenderFrame();
+            event->accept();
+            return;
+        }
     }
     m_host.setSystemWindow( this );
     const auto key = m_detachedContext->input().keyDown( event->key(), event->modifiers(), event->isAutoRepeat() );
@@ -395,6 +425,8 @@ void RmlUiDetachedWindow::mouseMoveEvent( QMouseEvent* event )
     m_host.setSystemWindow( this );
     m_detachedContext->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
     m_host.setSystemWindow( nullptr );
+    // The context-sensitive Help pointer shows over this window while it is in What's This? mode (PDF p.286).
+    if ( m_whatsThis && m_whatsThis->mode() ) setCursor( Qt::WhatsThisCursor );
     event->accept();
 }
 
@@ -402,6 +434,62 @@ void RmlUiDetachedWindow::mousePressEvent( QMouseEvent* event )
 {
     if ( !m_detachedContext ) return;
     if ( m_designerFocusHandler ) m_designerFocusHandler();
+    // Window menu (PDF p.113): a click outside the open menu only closes it; the secondary button on a title bar
+    // opens it at the pointer.
+    if ( m_windowMenu && m_windowMenu->isOpen() )
+    {
+        const qreal dpr = std::max<qreal>( 0.01, devicePixelRatio() );
+        auto* hit = m_detachedContext->context() ? m_detachedContext->context()->GetElementAtPoint( Rml::Vector2f( float( event->position().x() * dpr ), float( event->position().y() * dpr ) ) ) : nullptr;
+        if ( !m_windowMenu->contains( hit ) )
+        {
+            m_windowMenu->close();
+            queueRenderFrame();
+            event->accept();
+            return;
+        }
+    }
+    else if ( event->button() == Qt::RightButton )
+    {
+        if ( auto* caption = captionAt( event->position() ) )
+        {
+            const qreal dpr = std::max<qreal>( 0.01, devicePixelRatio() );
+            openWindowMenu( caption, float( event->position().x() * dpr ), float( event->position().y() * dpr ), false );
+            event->accept();
+            return;
+        }
+    }
+    // What's This? (PDF p.285-287): the ? title bar button starts or cancels the mode; in the mode the next click
+    // explains the item; the secondary button on a control offers the What's This? shortcut menu.
+    if ( m_detachedContext->context() && ( event->button() == Qt::LeftButton || event->button() == Qt::RightButton ) )
+    {
+        const qreal dpr = std::max<qreal>( 0.01, devicePixelRatio() );
+        const Rml::Vector2f at( float( event->position().x() * dpr ), float( event->position().y() * dpr ) );
+        auto* hit = m_detachedContext->context()->GetElementAtPoint( at );
+        bool onHelpButton = false;
+        for ( auto* e = hit; e; e = e->GetParentNode() )
+            if ( e->IsClassSet( "w98-caption__help" ) ) onHelpButton = true;
+        const bool wasMode = whatsThis().mode();
+        bool taken = false;
+        if ( onHelpButton && event->button() == Qt::LeftButton && !whatsThis().popupOpen() )
+        {
+            whatsThis().toggleMode();
+            taken = true;
+        }
+        else
+        {
+            m_host.setSystemWindow( this );
+            taken = whatsThis().press( hit, at, event->button() == Qt::RightButton );
+            m_host.setSystemWindow( nullptr );
+        }
+        if ( taken )
+        {
+            if ( whatsThis().mode() ) setCursor( Qt::WhatsThisCursor );
+            else if ( wasMode ) unsetCursor();
+            queueRenderFrame();
+            event->accept();
+            return;
+        }
+    }
     if ( event->button() == Qt::LeftButton )
     {
         const auto edges = resizeEdgesAt( event->position() );
@@ -435,6 +523,139 @@ void RmlUiDetachedWindow::mousePressEvent( QMouseEvent* event )
     m_detachedContext->input().mouseButtonDown( event->button(), event->modifiers() );
     m_host.setSystemWindow( nullptr );
     event->accept();
+}
+
+Rml::Element* RmlUiDetachedWindow::captionAt( QPointF position ) const
+{
+    if ( !m_detachedContext || !m_detachedContext->context() ) return nullptr;
+    const qreal dpr = std::max<qreal>( 0.01, devicePixelRatio() );
+    auto* element = m_detachedContext->context()->GetElementAtPoint( Rml::Vector2f( float( position.x() * dpr ), float( position.y() * dpr ) ) );
+    for ( ; element; element = element->GetParentNode() )
+    {
+        if ( element->IsClassSet( "w98-caption__close" ) || element->IsClassSet( "w98-caption__button" ) ) return nullptr;
+        if ( element->IsClassSet( "w98-caption" ) ) return element;
+    }
+    return nullptr;
+}
+
+// The title bar Alt+Space belongs to: a message box or wizard over the window when one is shown, else the window's.
+Rml::Element* RmlUiDetachedWindow::topCaption() const
+{
+    if ( !m_detachedContext || !m_detachedContext->context() ) return nullptr;
+    auto* context = m_detachedContext->context();
+    Rml::Element* found = nullptr;
+    for ( int index = 0; index < context->GetNumDocuments(); ++index )
+    {
+        auto* document = context->GetDocument( index );
+        if ( !document || !document->IsVisible() ) continue;
+        Rml::ElementList captions;
+        document->QuerySelectorAll( captions, ".w98-caption" );
+        for ( auto* caption : captions )
+            if ( caption->IsVisible( true ) ) found = caption; // later captions are drawn over earlier ones
+    }
+    return found;
+}
+
+bool RmlUiDetachedWindow::openWindowMenu()
+{
+    auto* caption = topCaption();
+    if ( !caption ) return false;
+    const auto at = caption->GetAbsoluteOffset( Rml::BoxArea::Border );
+    openWindowMenu( caption, at.x, at.y + caption->GetOffsetHeight(), true );
+    return true;
+}
+
+// A secondary window's menu holds Move and Close (PDF p.113); these windows and the palettes are fixed-size, so there
+// is no Size command (PDF p.181).
+void RmlUiDetachedWindow::openWindowMenu( Rml::Element* caption, float x, float y, bool fromKeyboard )
+{
+    auto* document = caption ? caption->GetOwnerDocument() : nullptr;
+    if ( !document ) return;
+    if ( !m_windowMenu || !m_windowMenu->alive() || m_windowMenu->element()->GetOwnerDocument() != document )
+        m_windowMenu = std::make_unique<window_menu::WindowMenu>( *document, [this]( const std::string& command ) { runWindowCommand( command ); } );
+    m_menuCaption = caption;
+    m_host.setSystemWindow( this );
+    // A palette also offers Always on Top, a setting with a check mark (PDF p.113, p.181).
+    const bool palette = caption->GetParentNode() && caption->GetParentNode()->IsClassSet( "w98-palette" );
+    std::vector<window_menu::Item> items { { "move", true } };
+    if ( palette ) items.push_back( { "always_on_top", true, false, m_alwaysOnTop } );
+    items.push_back( { "close", true, true } );
+    m_windowMenu->open( items, Rml::Vector2f( x, y ), fromKeyboard );
+    m_host.setSystemWindow( nullptr );
+    queueRenderFrame();
+}
+
+void RmlUiDetachedWindow::runWindowCommand( const std::string& command )
+{
+    auto* caption = m_menuCaption;
+    m_menuCaption = nullptr;
+    if ( command == "move" )
+    {
+        native_window::beginKeyboardMove( *this );
+        return;
+    }
+    if ( command == "always_on_top" )
+    {
+        setAlwaysOnTop( !m_alwaysOnTop );
+        return;
+    }
+    if ( command != "close" ) return;
+    // Close acts as the title bar's Close button, so a window with pending changes still asks first.
+    Rml::ElementList buttons;
+    if ( caption ) caption->QuerySelectorAll( buttons, ".w98-caption__close" );
+    std::erase_if( buttons, []( Rml::Element* button ) { return button->IsClassSet( "w98-caption__help" ); } );
+    if ( !buttons.empty() ) buttons.front()->Click();
+    else requestClose();
+    queueRenderFrame();
+}
+
+whats_this::Controller& RmlUiDetachedWindow::whatsThis()
+{
+    if ( !m_whatsThis ) m_whatsThis = std::make_unique<whats_this::Controller>();
+    return *m_whatsThis;
+}
+
+namespace
+{
+// Palettes set Always on Top, in the order they were set. Whenever a window of the game becomes active they are raised
+// above it and its peers; when another application is active nothing is raised, so they never cover its windows.
+std::vector<RmlUiDetachedWindow*>& alwaysOnTopWindows()
+{
+    static std::vector<RmlUiDetachedWindow*> windows;
+    return windows;
+}
+void raiseAlwaysOnTop()
+{
+    if ( !QGuiApplication::focusWindow() ) return;
+    for ( auto* window : alwaysOnTopWindows() )
+        if ( window->isVisible() && window != QGuiApplication::focusWindow() ) window->raise();
+}
+} // namespace
+
+void RmlUiDetachedWindow::setAlwaysOnTop( bool value )
+{
+    auto& windows = alwaysOnTopWindows();
+    std::erase( windows, this );
+    m_alwaysOnTop = value;
+    if ( !value ) return;
+    windows.push_back( this );
+    static bool connected = false;
+    if ( !connected && qGuiApp )
+    {
+        QObject::connect( qGuiApp, &QGuiApplication::focusWindowChanged, qGuiApp, []( QWindow* ) { raiseAlwaysOnTop(); } );
+        connected = true;
+    }
+    raise();
+}
+
+bool RmlUiDetachedWindow::nativeEvent( const QByteArray& eventType, void* message, qintptr* result )
+{
+    using native_window::AltSpace;
+    const auto altSpace = native_window::altSpace( eventType, message );
+    if ( altSpace == AltSpace::None ) return QWindow::nativeEvent( eventType, message, result );
+    if ( altSpace == AltSpace::Open ) (void)openWindowMenu();
+    if ( result ) *result = 0;
+    return true;
 }
 
 bool RmlUiDetachedWindow::isNativeDragHandle( QPointF position ) const
@@ -503,6 +724,7 @@ void RmlUiDetachedWindow::mouseReleaseEvent( QMouseEvent* event )
     m_detachedContext->input().mouseMove( event->position(), devicePixelRatio(), event->modifiers() );
     m_detachedContext->input().mouseButtonUp( event->button(), event->modifiers() );
     m_host.setSystemWindow( nullptr );
+    if ( m_whatsThis && m_whatsThis->mode() ) setCursor( Qt::WhatsThisCursor );
     event->accept();
 }
 
