@@ -1,0 +1,119 @@
+name: CMake
+
+on: [push, workflow_dispatch]
+
+permissions:
+  contents: read
+
+env:
+  # CMake build type (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: RelWithDebInfo
+  # Base URL for prebuilt dependency packages
+  DEPS_URL: https://github.com/rschurade/IngnomiaBuildDeps/raw/master
+
+jobs:
+  build:
+    # Windows release gate for the Qt6 + GLAD + RmlUi + C++23 stack.
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive   # src/base/beehive
+
+    - name: Get latest CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.9.0'
+        host: windows
+        target: desktop
+        arch: win64_msvc2022_64
+        modules: 'qtimageformats'
+        cache: true
+
+    - name: Fetch dependencies
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        function Get-Dep($url, $out, $dest) {
+          Write-Host "Downloading $url"
+          Invoke-WebRequest -Uri $url -OutFile $out
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Expand-Archive -Path $out -DestinationPath $dest -Force
+        }
+        Get-Dep "$env:DEPS_URL/steamworks_sdk_164.zip"               steam.zip    steamworks_sdk
+        Get-Dep "$env:DEPS_URL/openal-1.25.1.zip"                    openal.zip   openal_sdk
+        Get-Dep "$env:DEPS_URL/tilesheet.zip"                        tiles.zip    content
+        Get-Dep "$env:DEPS_URL/audio.zip"                            audio.zip    content
+
+    - name: Create build directory
+      run: cmake -E make_directory build
+
+    - name: Configure CMake
+      working-directory: ${{ github.workspace }}/build
+      shell: pwsh
+      run: |
+        # BugSplat is intentionally disabled: its SDK header uses set_unexpected,
+        # removed in C++23. Matches the local/release build, which omits BUGSPLAT_DB.
+        $ws = "${{ github.workspace }}".Replace('\','/')
+        cmake -S .. -B . `
+          -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE `
+          -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" `
+          -DCMAKE_INSTALL_BINDIR="." `
+          -DSTEAM_SDK_ROOT="$ws/steamworks_sdk/sdk" `
+          -DOPENAL_ROOT="$ws/openal_sdk" `
+          -DGIT_REPO="${{ github.repository }}" `
+          -DGIT_REF="${{ github.ref }}" `
+          -DGIT_SHA="${{ github.sha }}" `
+          -DBUILD_ID="${{ github.run_id }}"
+
+    - name: Build
+      working-directory: ${{ github.workspace }}/build
+      run: cmake --build . --config ${{ env.BUILD_TYPE }} --target Ingnomia
+
+    - name: Install
+      working-directory: ${{ github.workspace }}/build
+      run: cmake --install . --prefix ../install --config ${{ env.BUILD_TYPE }}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: "windows-${{ github.run_id }}"
+        path: |
+          install/
+          !**/*.iobj
+          !**/*.ipdb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-2022
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download Windows build
+      uses: actions/download-artifact@v4
+      with:
+        name: "windows-${{ github.run_id }}"
+        path: package
+
+    - name: Package Windows release
+      shell: pwsh
+      run: |
+        $archiveName = "Ingnomia-$env:GITHUB_REF_NAME-windows-x64.zip"
+        Compress-Archive -Path "package/*" -DestinationPath $archiveName
+        "RELEASE_ARCHIVE=$archiveName" >> $env:GITHUB_ENV
+
+    - name: Publish GitHub release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: >-
+        gh release create "$env:GITHUB_REF_NAME" "$env:RELEASE_ARCHIVE"
+        --repo "$env:GITHUB_REPOSITORY"
+        --title "Ingnomia $env:GITHUB_REF_NAME"
+        --generate-notes
+        --verify-tag

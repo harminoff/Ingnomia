@@ -432,7 +432,10 @@ CLAUDE.md
 /resources/
 /tools/
 /scripts/
-/.github/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/cmake.yml
 /Changelog.md
 /DESIGN_ITEM_SYSTEM.md
 /devmessages.txt
