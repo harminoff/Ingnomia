@@ -141,16 +141,9 @@ target_compile_definitions(${PROJECT_NAME}
 		$<$<CONFIG:Debug>:INGNOMIA_DEVELOPER_UI=1>
 )
 
-option(INGNOMIA_BUILD_UI_FOUNDATION_TESTS "Build framework-neutral UI foundation tests" ${BUILD_TESTING})
 option(INGNOMIA_UI_DESIGNER "Compile the in-game RmlUi visual designer" OFF)
 if(INGNOMIA_UI_DESIGNER)
 	target_compile_definitions(${PROJECT_NAME} PRIVATE INGNOMIA_UI_DESIGNER=1)
-endif()
-if(INGNOMIA_BUILD_UI_FOUNDATION_TESTS)
-	add_subdirectory(tests/ui-foundation)
-endif()
-if(BUILD_TESTING)
-	add_subdirectory(tests/water)
 endif()
 
 configure_file(

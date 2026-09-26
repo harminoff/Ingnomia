@@ -425,3 +425,19 @@ CLAUDE.md
 /docs/ui-designer-plan.md
 /docs/ui-designer.md
 /docs/workshop-*.md
+
+# Local-only material, kept out of the repository (not needed to build the game).
+/docs/
+/spikes/
+/resources/
+/tools/
+/scripts/
+/.github/
+/Changelog.md
+/DESIGN_ITEM_SYSTEM.md
+/devmessages.txt
+/content/rmlui/fixtures/*README.md
+# tests/: only the runtime probe headers included by the game are tracked.
+/tests/**
+!/tests/**/
+!/tests/**/*_probe.h
