@@ -22,7 +22,7 @@ See [07-win98-design-reference.md](../07-win98-design-reference.md), section 3.9
 
 - **Pages:**
   - **Display:** a Screen group (Full screen, Match the monitor refresh rate, Frame rate limit) and an Interface and map group (Interface size, Minimum light).
-  - **Controls:** a Camera group (Keyboard pan speed, "The mouse wheel changes the level") and a Language note.
+  - **Controls:** a Camera group (Pan speed, "The mouse wheel changes the level") and a Language note.
   - **Sound:** Master volume.
   - **Saving:** Save every n days, and "Keep time running after an autosave".
 - **Sliders:**

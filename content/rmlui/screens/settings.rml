@@ -36,7 +36,7 @@
         </section>
         <section id="settings-page-controls" class="w98-page w98-col u-hidden" role="tabpanel" aria-labelledby="settings-tab-controls">
           <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.camera">Camera</span>
-            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-keyboard-speed" data-l10n="win98.settings.setting_keyboard_speed">Keyboard pan speed:</label><input id="setting-keyboard-speed" class="w98-slider" type="range" min="0" max="200" step="1" /><span id="setting-keyboard-speed-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-keyboard-speed" data-l10n="win98.settings.setting_keyboard_speed">Pan speed:</label><input id="setting-keyboard-speed" class="w98-slider" type="range" min="0" max="200" step="1" /><span id="setting-keyboard-speed-value" class="w98-text l-settings-value"></span></div>
             <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.slow">Slow</span><span class="w98-text" data-l10n="win98.settings.fast">Fast</span><span class="l-settings-value"></span></div>
             <label class="w98-check"><input id="setting-wheel-level" class="checkbox" type="checkbox" /><span data-l10n="win98.settings.the_mouse_wheel_changes_the">The mouse wheel changes the level</span></label>
           </div>

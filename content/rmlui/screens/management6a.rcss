@@ -1,13 +1,10 @@
 .l-m6a-root { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .l-m6a-panel { position: absolute; right: 12dp; top: 76dp; bottom: 58dp; width: 560dp; max-width: 55%; display: flex; flex-direction: column; pointer-events: auto; color: #f1eee6; background-color: #252d31; border: 2dp #7a858a; }
-#workshop_content { display: flex; flex: 1; min-width: 0; min-height: 0; }
-#agriculture_content { display: block; width: 510dp; }
 .c-m6a-help { color: #9fa9ad; font-size: 12dp; line-height: 15dp; }
 .c-m6a-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8dp; }
 .c-m6a-section-heading > div { flex: 1; min-width: 0; }
 .c-m6a-count { flex: 0 0 auto; color: #526a78; font-size: 12dp; font-weight: bold; white-space: nowrap; }
 #workshop_summary { display: block; width: 100%; margin: 7dp 0; }
-#agriculture_summary { display: block; width: 100%; margin: 7dp 0; }
 .l-m6a-actions { display: flex; width: auto; flex-wrap: wrap; gap: 7dp; margin-top: 8dp; }
 .c-m6a-list { background-color: #13191b; border: 1dp #596166; max-height: 210dp; overflow-y: auto; }
 .c-m6a-row { display: block; padding: 7dp 9dp; border-bottom: 1dp #30373a; color: #c8c7bf; }
@@ -53,10 +50,6 @@
 .c-m6a-filter-row.is-off .c-m6a-rule-check { color: #526a78; background-color: #d5dde0; }
 /* Placed workshop order editor: classic raised controls and inset data panes,
    matching the Inventory & Resources window while retaining workshop parity. */
-#workshop_workbench .c-m6a-list { background-color: #ffffff; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-#workshop_workbench .c-m6a-row-button { color: #000000; background-color: #ffffff; border-color: #c0c0c0; }
-#workshop_workbench .c-m6a-row-button:hover { color: #000000; background-color: #e7e7e7; }
-#workshop_workbench .c-m6a-row-button.is-selected { color: #ffffff; background-color: #000080; border-left-color: #000080; }
 
 /* Inventory-aligned Storage Management workbench. The stockpile retains its
    independent Contents and Allow-list state, but uses the compact Win98 rail,
@@ -75,66 +68,18 @@
 .c-excel-filter-combo__options scrollbarvertical sliderarrowinc { width: 16dp; height: 16dp; }
 
 /* Workshop: the same inset navigation rail and bounded panes as Stockpile. */
-#workshop_workbench { background-color: #c0c0c0; color: #000000; }
-#workshop_content { flex: 1 1 0dp; width: 100%; min-width: 0; min-height: 0; overflow: hidden; }
-#workshop_workbench h3 { display: block; flex: 0 0 auto; margin: 3dp 0 7dp; color: #000000; font-size: 14dp; }
-#workshop_workbench .c-m6a-list { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
-#workshop_workbench .c-m6a-row-button { box-sizing: border-box; min-height: 30dp; padding: 6dp; white-space: normal; }
-#workshop_workbench .c-m6a-help { flex: 0 0 auto; margin: 5dp 0; }
 #workshop_status { flex: 0 0 auto; min-height: 0; margin: 4dp 0 0; }
-#workshop_workbench .c-button { border-radius: 0; color: #000000; background-color: #c0c0c0; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
-#workshop_workbench .c-button.is-selected { background-color: #d4d0c8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-#workshop_workbench .is-hidden { display: none; }
-#workshop_workbench scrollbarvertical { width: 16dp; background-color: #c0c0c0; }
-#workshop_workbench scrollbarvertical slidertrack { background-color: #dfdfdf; border-left: 1dp #808080; }
-#workshop_workbench scrollbarvertical sliderbar { width: 16dp; min-height: 24dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
-#workshop_workbench scrollbarvertical sliderarrowdec,
-#workshop_workbench scrollbarvertical sliderarrowinc { width: 16dp; height: 16dp; background-color: #c0c0c0; }
-#workshop_workbench scrollbarvertical sliderarrowdec { decorator: image(win98-up scale-none center center); }
-#workshop_workbench scrollbarvertical sliderarrowinc { decorator: image(win98-down scale-none center center); }
-#workshop_workbench scrollbarhorizontal { height: 16dp; }
 
 /* Workshop Settings uses the Stockpile field and checkbox treatment. */
-#workshop_workbench #workshop_apply_basics { min-width: 64dp; min-height: 27dp; padding: 3dp 7dp; }
 
-#workshop_settings_pane { padding: 12dp; }
-#workshop_settings_pane .c-m6a-section-heading { padding: 10dp 4dp 4dp; border-bottom: 1dp #808080; }
-#workshop_settings_pane .c-m6a-section-heading h3 { margin: 0; }
-
-#workshop_order_feedback { min-height: 18dp; margin: 4dp 0 0; color: #245329; }
-#workshop_queue_once:active { background-color: #a8a8a8; border-top-color: #404040; border-left-color: #404040; border-right-color: #ffffff; border-bottom-color: #ffffff; }
 /* Agriculture uses the same inset rail and compact window chrome as Stockpile. */
-#agriculture_workbench {
-    position: absolute; left: 8dp; right: 8dp; top: 8dp; bottom: 8dp;
-    width: auto; max-width: none; height: auto; min-height: 0;
-    display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
-    color: #000000; background-color: #c0c0c0; border-width: 2dp;
-    border-top-color: #ffffff; border-left-color: #ffffff;
-    border-right-color: #404040; border-bottom-color: #404040;
-}
-#agriculture_workbench .l-m6a-drag-handle { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; }
-#agriculture_workbench .c-title-bar__mark { flex: 0 0 4dp; width: 4dp; height: 20dp; background-color: #f1ca4f; pointer-events: none; }
-#agriculture_content { display: flex; flex: 1 1 auto; flex-direction: column; width: auto; min-width: 0; min-height: 0; padding: 8dp; overflow: hidden; background-color: #c0c0c0; }
-#agriculture_content.is-hidden { display: none; }
-#agriculture_workbench #agriculture_current_product, #agriculture_workbench #agriculture_product_selection { width: 100%; }
-#agriculture_products, #agriculture_animals, #agriculture_foods { width: 100%; min-height: 90dp; max-height: 210dp; background-color: #ffffff; }
-#agriculture_workbench .l-m6a-actions { width: 100%; }
-#agriculture_workbench .c-m6a-row-button { color: #000000; background-color: #ffffff; }
-#agriculture_workbench .c-m6a-row-button:hover { background-color: #d4d0c8; }
-#agriculture_workbench .c-m6a-row-button.is-selected { color: #ffffff; background-color: #356c9d; }
-#agriculture_workbench #agriculture_current_product, #agriculture_workbench #agriculture_product_selection, #agriculture_product_counts, #agriculture_products, #agriculture_products_pane .l-m6a-actions { width: 500dp; }
+#agriculture_products { width: 100%; min-height: 90dp; max-height: 210dp; background-color: #ffffff; }
+#agriculture_product_counts, #agriculture_products, #agriculture_products_pane .l-m6a-actions { width: 500dp; }
 #agriculture_products { display: flex; flex-direction: column; max-height: 135dp; }
 #agriculture_products > .c-m6a-row-button { flex: 0 0 auto; width: 480dp; min-height: 30dp; padding: 6dp 8dp; white-space: nowrap; box-sizing: border-box; }
 #agriculture_products_pane.is-farm > h3, #agriculture_products_pane.is-farm > #agriculture_current_product,
 #agriculture_products_pane.is-farm > #agriculture_product_counts { display: none; }
 #agriculture_farm_search { flex: 0 0 30dp; width: 330dp; min-width: 330dp; }
-#agriculture_workbench scrollbarvertical { width: 16dp; background-color: #c0c0c0; }
-#agriculture_workbench scrollbarvertical slidertrack { background-color: #dfdfdf; border-left: 1dp #808080; }
-#agriculture_workbench scrollbarvertical sliderbar { width: 16dp; min-height: 24dp; background-color: #c0c0c0; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #404040; border-bottom-color: #404040; }
-#agriculture_workbench scrollbarvertical sliderarrowdec,
-#agriculture_workbench scrollbarvertical sliderarrowinc { width: 16dp; height: 16dp; background-color: #c0c0c0; }
-#agriculture_workbench scrollbarvertical sliderarrowdec { decorator: image(win98-up scale-none center center); }
-#agriculture_workbench scrollbarvertical sliderarrowinc { decorator: image(win98-down scale-none center center); }
 
 /* Report panes own horizontal scrolling; headers and records cannot drift apart. */
 

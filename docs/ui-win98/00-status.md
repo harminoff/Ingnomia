@@ -100,7 +100,7 @@ Stage 05 shared controls and production pilots are verified: 7/7 focused tests (
 - **Audit items:**
   - INV-01-04 and STO-01-07 are re-verified on the migrated windows.
   - NEW-001 is fixed (visible watch check box).
-  - SYS-31 is verified; the HUD menu access-key gap is recorded.
+  - SYS-31 is verified.
   - NEW-003 (agriculture priority not implemented in the game) remains open.
 - **Commands run and results:**
   - Canonical build.
@@ -116,8 +116,9 @@ Stage 05 shared controls and production pilots are verified: 7/7 focused tests (
 - **Follow-up work (outside the plan):**
   - Move text built at run time into the catalog.
   - Verify layouts with the qps-long pseudo-locale (30 percent expansion).
-  - Give HUD menu items access keys.
-  - Fix the 2 px list view heading offset.
-  - Remove the old opt-in Inventory detail probes.
-  - Test physical input and the Windows High Contrast switch.
-  - Resolve the MS W98 UI font licence before release.
+
+## Session handoff - 2026-09-25 (Stages 0-9 review)
+
+- **Status:** follow-up fixes after Stage 21, not yet committed. HUD menu access keys, the list view heading offset and the retired inventory probes are fixed; the Codex-era review fixed drop-down insets, legacy ID rules, caption capitalization, wizard coverage, the tile heading, the Inventory frame, Load Game's Cancel and the clipped Settings label. The game window now draws a Windows 98 frame and caption instead of the native one. Details: [Stage 21 follow-up](stages/21-cleanup-conformance.md#follow-up-review-of-stages-0-9-2026-09-25).
+- **Commands run and results:** canonical build; Stage 04-21 suites all pass; legacy suites all pass; canonical ctest 13/13; all 12 live probes pass at 1x (Stage 17 also at 2x, with the frame checks) with save hashes unchanged.
+- **Follow-up work:** move text built at run time into the catalog; verify layouts with qps-long; re-run the live probes at 125/150/200%; test physical input and the Windows High Contrast switch; resolve the MS W98 UI font licence before release.

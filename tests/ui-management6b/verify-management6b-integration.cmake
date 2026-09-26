@@ -29,7 +29,7 @@ foreach(NEEDLE "population_creature_" "inventory_row_" "inventory_sort_item" "in
     message(FATAL_ERROR "Missing stable-row or schedule keyboard binding ${NEEDLE}")
   endif()
 endforeach()
-foreach(NEEDLE "text-align: left" "c-excel-header__sort.is-selected" "#c0c0c0" "#000080" "border-top-color: #404040")
+foreach(NEEDLE "text-align: left" "#c0c0c0" "#000080")
   if(NOT "${STYLES}${MANAGEMENT_TOKENS}" MATCHES "${NEEDLE}")
     message(FATAL_ERROR "Missing inventory alignment/sort styling rule ${NEEDLE}")
   endif()

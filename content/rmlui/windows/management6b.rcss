@@ -6,7 +6,6 @@
 
 .l-m6b-root { position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 0; overflow: visible; background-color: transparent; pointer-events: none; }
 .l-m6b-window { position: absolute; right: 12dp; top: 76dp; width: 760dp; height: 80%; min-height: 320dp; max-height: 80%; margin: 0; display: flex; flex-direction: column; pointer-events: auto; }
-#population_workbench { right: 92dp; top: 96dp; }
 .l-m6b-body { flex: 1; width: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6dp; overflow: hidden; }
 #creature_detail { display: flex; flex-direction: column; width: 724dp; min-width: 724dp; overflow-y: auto; }
 #creature_back { width: 120dp; }
@@ -30,7 +29,6 @@
 
 /* Native detached sizing is part of the workbench contract. */
 .l-m6b-window { left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; min-height: 0; max-height: none; box-sizing: border-box; }
-#population_workbench { left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; min-height: 0; max-height: none; }
 .l-m6b-body { flex: 1 1 auto; width: 100%; min-height: 0; overflow: hidden; }
 #creature_detail { width: 100%; min-width: 0; }
 /* Stage 12 property sheet: the ID rules above must not override the hidden page state. */
@@ -52,9 +50,6 @@
 
 /* Population adopts the shared detached management frame. Inventory stays scoped above. */
 #population_workbench { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; min-height: 0; max-height: none; box-sizing: border-box; }
-#population_workbench .l-m6b-body { display: flex; flex: 1 1 0dp; min-width: 0; min-height: 0; padding: 0; gap: 0; overflow: hidden; }
-#population_workbench .c-button.is-disabled { color: #606060; background-color: #d4d0c8; border-color: #808080; }
-#population_workbench #creature_detail { width: 100%; min-width: 0; }
 @media (max-width: 760dp) {
     #population_workbench .l-population-split { flex-direction: column; }
     #population_workbench .l-population-list-pane { flex: 0 0 110dp; }

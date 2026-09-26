@@ -2,7 +2,7 @@ set(ROOT "${CMAKE_CURRENT_LIST_DIR}/../..")
 file(READ "${ROOT}/content/rmlui/screens/inspector.rml" RML)
 file(READ "${ROOT}/content/rmlui/screens/inspector.rcss" RCSS)
 # Stage 16: both inspectors are Windows 98 property inspectors in palette windows (PDF p.167, p.180-181).
-foreach(ID inspector_root inspector_panel inspector_drag_handle inspector_title inspector_kind inspector_position inspector_close inspector_back inspector_locate inspector_refresh inspector_status inspector_scroll
+foreach(ID inspector_root inspector_panel inspector_drag_handle inspector_title inspector_kind inspector_close inspector_back inspector_locate inspector_refresh inspector_status inspector_scroll
     creature_preview creature_preview_drag_handle creature_preview_title creature_preview_close creature_preview_tabs creature_preview_kind creature_preview_camera_image creature_preview_camera_position creature_preview_activity creature_preview_camera_actions creature_preview_locate creature_preview_locate_label
     creature_preview_nav_camera creature_preview_nav_stats creature_preview_nav_expertise creature_preview_nav_equipment creature_preview_nav_inventory
     creature_preview_camera_panel creature_preview_stats_panel creature_preview_expertise_panel creature_preview_equipment_panel creature_preview_inventory_panel

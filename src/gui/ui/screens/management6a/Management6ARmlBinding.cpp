@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+#include "../../runtime/CaptionText.h"
 #include "../ManagementTooltip.h"
 #include "../../runtime/CommandFeedback.h"
 #include "Management6ARmlBinding.h"
@@ -302,7 +303,7 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
         e.StopPropagation();
     });
     // Property sheet buttons: OK applies and closes, Cancel discards and closes, Apply applies and stays open.
-    const auto workshopTitle=[this]{const auto& n=controller_->state().workshop.value.name;return (n.empty()?std::string("Workshop"):n)+" Properties";};
+    const auto workshopTitle=[this]{const auto& n=controller_->state().workshop.value.name;return captionName( n.empty()?std::string("Workshop"):n ) + " Properties";};
     bindClick("workshop_apply",[this,workshopTitle]{if(committed(*workshopPriorityEditor_,"Priority",workshopTitle()))controller_->applyWorkshopDraft();});
     bindClick("workshop_ok",[this,workshopTitle]{
         if(!committed(*workshopPriorityEditor_,"Priority",workshopTitle()))return;
@@ -458,7 +459,7 @@ bool Management6ARmlBinding::initialize( Management6AController& controller )
 	// Typed limits are committed first; an unavailable (disabled) spin box has nothing to commit.
 	const auto limitsCommitted = [this] {
 		const auto& v    = controller_->state().agriculture.value;
-		const auto title = ( v.name.empty() ? kind( v.target.kind ) : v.name ) + " Properties";
+		const auto title = captionName( v.name.empty() ? kind( v.target.kind ) : v.name ) + " Properties";
 		return committed( *agricultureMaleEditor_, "Males", title ) && committed( *agricultureFemaleEditor_, "Females", title );
 	};
 	bindClick( "agriculture_apply", [this, limitsCommitted] { if ( limitsCommitted() ) controller_->applyAgricultureDraft(); } );
@@ -644,7 +645,7 @@ bool Management6ARmlBinding::canClose()
 		// The Close button is not Cancel: with pending changes, ask whether to apply them.
 		const auto& value = controller_->state().agriculture.value;
 		const auto name   = value.name.empty() ? kind( value.target.kind ) : value.name;
-		stockpileDialog_->show( name + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
+		stockpileDialog_->show( captionName( name ) + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
 			[this] { if ( controller_->applyAgricultureDraft() ) { if ( controller_->state().agriculture.draft.dirty ) closeAgricultureWhenApplied_ = true; else closeAgricultureWindow(); } },
 			[] {},
 			"No", [this] { controller_->revertAgricultureDraft(); closeAgricultureWindow(); } );
@@ -656,8 +657,8 @@ bool Management6ARmlBinding::canClose()
 		// The Close button is not Cancel: with pending changes, ask whether to apply them.
 		const auto& value = controller_->state().stockpile.value;
 		const auto name   = value.name.empty() ? std::string( "Stockpile" ) : value.name;
-		stockpileDialog_->show( name + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
-			[this, name] { if ( committed( *stockpilePriorityEditor_, "Priority", name + " Properties" ) && controller_->applyStockpileDraft() ) { if ( controller_->state().stockpile.draft.dirty ) closeStockpileWhenApplied_ = true; else closeStockpileWindow(); } },
+		stockpileDialog_->show( captionName( name ) + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
+			[this, name] { if ( committed( *stockpilePriorityEditor_, "Priority", captionName( name ) + " Properties" ) && controller_->applyStockpileDraft() ) { if ( controller_->state().stockpile.draft.dirty ) closeStockpileWhenApplied_ = true; else closeStockpileWindow(); } },
 			[] {},
 			"No", [this] { controller_->revertStockpileDraft(); stockpilePriorityEditor_->cancel(); closeStockpileWindow(); } );
 		return false;
@@ -666,7 +667,7 @@ bool Management6ARmlBinding::canClose()
 	if ( controller_->state().workshop.draft.pending ) return false;
 	// The Close button is not Cancel: with pending changes, ask whether to apply them.
 	const auto& name = controller_->state().workshop.value.name;
-	stockpileDialog_->show( name + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
+	stockpileDialog_->show( captionName( name ) + " Properties", "Do you want to apply the changes you made to " + name + "?", "Yes", "Cancel",
 		[this] { if ( controller_->applyWorkshopDraft() ) { if ( controller_->state().workshop.draft.dirty ) closeWorkshopWhenApplied_ = true; else closeWorkshopWindow(); } },
 		[] {},
 		"No", [this] { controller_->revertWorkshopDraft(); closeWorkshopWindow(); } );
@@ -783,7 +784,7 @@ void Management6ARmlBinding::renderWorkshop( const WorkshopState& s )
 	visible( "workshop_content", status == RequestStatus::Ready || status == RequestStatus::Stale );
 	text( "workshop_error", s.request.message );
 	// Property sheet caption: object name followed by "Properties".
-	text( "workshop_title", ( s.value.name.empty() ? textCatalog_.format( LocalizationKey{"workshop.title"} ) : s.value.name ) + " Properties" );
+	text( "workshop_title", captionName( s.value.name.empty() ? textCatalog_.format( LocalizationKey{"workshop.title"} ) : s.value.name ) + " Properties" );
 
 	const bool crafting = workshopSupportsCrafting( s.value );
 	const bool linking  = workshopSupportsStockpileLinks( s.value );
@@ -1045,7 +1046,7 @@ void Management6ARmlBinding::renderWorkshop( const WorkshopState& s )
 	if ( !s.feedback.empty() && s.feedback != shownWorkshopMessage_ && !stockpileDialog_->active() )
 	{
 		shownWorkshopMessage_ = s.feedback;
-		stockpileDialog_->show( ( s.value.name.empty() ? std::string( "Workshop" ) : s.value.name ) + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->workshopFeedback( "" ); } );
+		stockpileDialog_->show( captionName( s.value.name.empty() ? std::string( "Workshop" ) : s.value.name ) + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->workshopFeedback( "" ); } );
 	}
 	if ( s.feedback.empty() ) shownWorkshopMessage_.clear();
 	if ( closeWorkshopWhenApplied_ && !s.draft.pending )
@@ -1222,7 +1223,7 @@ void Management6ARmlBinding::bindStockpile()
 				   const auto name = *found, stockpile = s.value.name.empty() ? std::string( "Stockpile" ) : s.value.name;
 				   const auto id = s.value.id;
 				   const auto revision = s.revision;
-				   stockpileDialog_->show( stockpile + " Properties", "Replace the allow list of " + stockpile + " with the saved template '" + name + "'?", "Yes", "No",
+				   stockpileDialog_->show( captionName( stockpile ) + " Properties", "Replace the allow list of " + stockpile + " with the saved template '" + name + "'?", "Yes", "No",
 					   [this, id, revision, name] {
 						   const auto& current = controller_->state().stockpile;
 						   if ( current.value.id != id || current.revision != revision ) { controller_->stockpileFeedback( "The allow list changed. Choose Load again to use the template." ); return; }
@@ -1260,7 +1261,7 @@ void Management6ARmlBinding::bindStockpile()
 	optionBox( "stockpile_toggle_allow_pull", &StockpileOptions::allowPull );
 	optionBox( "stockpile_toggle_suspended", &StockpileOptions::suspended );
 	// Property sheet buttons: OK applies and closes, Cancel discards and closes, Apply applies and stays open.
-	const auto stockpileTitle = [this] { const auto& n = controller_->state().stockpile.value.name; return ( n.empty() ? std::string( "Stockpile" ) : n ) + " Properties"; };
+	const auto stockpileTitle = [this] { const auto& n = controller_->state().stockpile.value.name; return captionName( n.empty() ? std::string( "Stockpile" ) : n ) + " Properties"; };
 	bindClick( "stockpile_apply", [this, stockpileTitle] { if ( committed( *stockpilePriorityEditor_, "Priority", stockpileTitle() ) ) controller_->applyStockpileDraft(); } );
 	bindClick( "stockpile_ok", [this, stockpileTitle]
 			   {
@@ -1289,7 +1290,7 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	visible( "stockpile_error", status == RequestStatus::Error || status == RequestStatus::Stale );
 	visible( "stockpile_content", status == RequestStatus::Ready || status == RequestStatus::Stale );
 	text( "stockpile_error", s.request.message );
-	text( "stockpile_title", name + " Properties" );
+	text( "stockpile_title", captionName( name ) + " Properties" );
 
 	// ---- tabs (the sheet reopens on the page last viewed)
 	const auto pane = s.pane;
@@ -1431,7 +1432,7 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	enabled( "stockpile_template_save", !rulesPending && s.templateName.find_first_not_of( " 	" ) != std::string::npos );
 	text( "stockpile_template_note", rulesPending ? "Apply your changes before using templates." : "" );
 	if ( s.templateOverwriteConfirmationRequired && !stockpileDialog_->active() )
-		stockpileDialog_->show( name + " Properties", "Replace the saved template '" + s.pendingTemplateOverwrite + "' with the allow list of " + name + "?", "Yes", "No",
+		stockpileDialog_->show( captionName( name ) + " Properties", "Replace the saved template '" + s.pendingTemplateOverwrite + "' with the allow list of " + name + "?", "Yes", "No",
 			[this] { controller_->confirmStockpileTemplateOverwrite(); }, [this] { controller_->cancelStockpileTemplateOverwrite(); } );
 
 	// ---- General
@@ -1458,7 +1459,7 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	if ( !s.feedback.empty() && s.feedback != shownStockpileMessage_ && !stockpileDialog_->active() )
 	{
 		shownStockpileMessage_ = s.feedback;
-		stockpileDialog_->show( name + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->stockpileFeedback( "" ); } );
+		stockpileDialog_->show( captionName( name ) + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->stockpileFeedback( "" ); } );
 	}
 	if ( s.feedback.empty() ) shownStockpileMessage_.clear();
 	// A command the game refused is reported the same way.
@@ -1466,7 +1467,7 @@ void Management6ARmlBinding::renderStockpile( const StockpileState& s )
 	if ( !refused.empty() && refused != shownStockpileStatus_ && !stockpileDialog_->active() )
 	{
 		shownStockpileStatus_ = refused;
-		stockpileDialog_->show( name + " Properties", commandFeedbackText( textCatalog_, refused ), "", "OK", [] {}, [] {} );
+		stockpileDialog_->show( captionName( name ) + " Properties", commandFeedbackText( textCatalog_, refused ), "", "OK", [] {}, [] {} );
 	}
 	if ( refused.empty() ) shownStockpileStatus_.clear();
 	if ( closeStockpileWhenApplied_ && !s.draft.pending )
@@ -1544,7 +1545,7 @@ void Management6ARmlBinding::renderAgriculture( const AgricultureState& s )
 	visible( "agriculture_content", status == RequestStatus::Ready || status == RequestStatus::Stale );
 	text( "agriculture_error", s.request.message );
 	const auto kindName = kind( s.value.target.kind );
-	text( "agriculture_title", ( s.value.name.empty() ? kindName : s.value.name ) + " Properties" );
+	text( "agriculture_title", captionName( s.value.name.empty() ? kindName : s.value.name ) + " Properties" );
 	const auto k       = s.value.target.kind;
 	const bool farm    = k == AgricultureKind::Farm;
 	const bool grove   = k == AgricultureKind::Grove;
@@ -1814,7 +1815,7 @@ void Management6ARmlBinding::renderAgriculture( const AgricultureState& s )
 	if ( !s.feedback.empty() && s.feedback != shownAgricultureMessage_ && !stockpileDialog_->active() )
 	{
 		shownAgricultureMessage_ = s.feedback;
-		stockpileDialog_->show( ( s.value.name.empty() ? kindName : s.value.name ) + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->agricultureFeedback( "" ); } );
+		stockpileDialog_->show( captionName( s.value.name.empty() ? kindName : s.value.name ) + " Properties", s.feedback, "", "OK", [] {}, [this] { controller_->agricultureFeedback( "" ); } );
 	}
 	if ( s.feedback.empty() ) shownAgricultureMessage_.clear();
 	if ( closeAgricultureWhenApplied_ && !s.draft.pending )

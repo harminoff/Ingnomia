@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
+#include "../../runtime/CaptionText.h"
 #include "InspectorRmlBinding.h"
 #include "../../localization/RmlText.h"
 #include "../../runtime/SelectOptions.h"
@@ -809,7 +810,7 @@ void InspectorRmlBinding::stateChanged( const InspectorState& s )
 	{
 		const auto& c = *s.creature;
 		const bool gnome = c.professionReported || c.skillsReported;
-		text( "creature_preview_title", ( c.name.empty() ? std::string( gnome ? "Gnome" : "Creature" ) : c.name ) + " Properties" );
+		text( "creature_preview_title", captionName( c.name.empty() ? std::string( gnome ? "Gnome" : "Creature" ) : c.name ) + " Properties" );
 		text( "creature_preview_kind", gnome ? label( "inspector.preview.gnome", "Gnome" ) : label( "inspector.preview.creature", "Creature" ) );
 		text( "creature_preview_activity", c.activity.empty() ? std::string( "Unknown" ) : c.activity );
 		text( "creature_preview_locate_label", "Center on Map" );
@@ -898,13 +899,13 @@ void InspectorRmlBinding::stateChanged( const InspectorState& s )
 	}
 	if( s.creature )
 	{
-		title = ( s.creature->name.empty() ? std::string( "Creature" ) : s.creature->name ) + " Properties";
+		title = captionName( s.creature->name.empty() ? std::string( "Creature" ) : s.creature->name ) + " Properties";
 		kind = "Creature";
 	}
 	if( s.workshop )
 	{
 		const auto& w = *s.workshop;
-		title = w.name + " Properties";
+		title = captionName( w.name ) + " Properties";
 		kind = "Workshop";
 		text( "workshop_state", w.suspended ? "Suspended" : "Active" );
 		text( "workshop_priority", std::to_string( w.priority ) + " of " + std::to_string( w.maxPriority ) );
@@ -918,7 +919,7 @@ void InspectorRmlBinding::stateChanged( const InspectorState& s )
 	if( s.stockpile )
 	{
 		const auto& v = *s.stockpile;
-		title = v.name + " Properties";
+		title = captionName( v.name ) + " Properties";
 		kind = "Stockpile";
 		text( "stockpile_status", v.suspended ? "Suspended" : "Active" );
 		text( "stockpile_priority", std::to_string( v.priority + 1 ) + " of " + std::to_string( v.maxPriority ) );
@@ -944,7 +945,7 @@ void InspectorRmlBinding::stateChanged( const InspectorState& s )
 		const auto& a = *s.agriculture;
 		const bool grove = a.target.kind == AgricultureKind::Grove;
 		kind = a.target.kind == AgricultureKind::Farm ? "Farm" : a.target.kind == AgricultureKind::Pasture ? "Pasture" : "Grove";
-		title = a.name + " Properties";
+		title = captionName( a.name ) + " Properties";
 		text( "agriculture_kind", kind );
 		text( "agriculture_state", a.suspended ? "Suspended" : "Active" );
 		text( "agriculture_priority", std::to_string( a.priority ) + " of " + std::to_string( a.maxPriority ) );
@@ -957,8 +958,8 @@ void InspectorRmlBinding::stateChanged( const InspectorState& s )
 		text( "agriculture_toggle_primary", grove ? ( a.pick ? "Stop Picking" : "Pick Fruit" ) : ( a.harvest ? "Stop Harvest" : "Harvest" ) );
 	}
 	text( "inspector_title", title );
-	text( "inspector_kind", kind );
-	text( "inspector_position", pos );
+	// One sentence ("Tile at 31, 31, 70"): two paragraphs in a line would be spaced by the line gap, not a space.
+	text( "inspector_kind", pos.empty() ? kind : kind + " " + pos );
 	text( "creature_preview_camera_position", coords.empty() ? tr( "inspector.preview.camera_unavailable" ) : coords );
 	visible( "inspector_back", s.kind == InspectorKind::Creature && ( s.previous.has_value() || s.creatureDetailsOpen ) );
 	visible( "inspector_refresh", s.kind != InspectorKind::None && !pendingBlueprint && !stockpileInspection );

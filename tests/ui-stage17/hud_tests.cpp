@@ -2,10 +2,14 @@
 // Stage 17: the game window's toolbar, drop-down menus and status bar, the Build palette, the tutorial palette and the
 // event message box.
 #include "gui/ui/runtime/ClassicFocusDecorator.h"
+#include "gui/ui/runtime/AccessKeys.h"
+#include "gui/ui/runtime/WindowMenu.h"
+#include "gui/ui/runtime/WhatsThis.h"
 #include "gui/ui/screens/hud/HudRmlBinding.h"
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlSelect.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -289,6 +293,132 @@ int main( int argc, char** argv )
 			auto* bar = el( "hud_status_bar" );
 			check( bar->GetAbsoluteTop() + bar->GetOffsetHeight() <= 900.f * scale + 1.f, "status bar inside the window" );
 		}
+		// ---------------------------------------------------------------- Primary window frame (PDF p.311-314)
+		// A 4 px sizing border, an 18 px caption with the 16 px icon, Minimize and Maximize together and Close 2 px
+		// apart (16 x 14 each, 2 px from the caption's right end), and the client area below a 1 px line. Maximized,
+		// the border goes and the caption starts at the window's corner. Lengths scale with the snapped font.
+		auto* frameDoc = game->LoadDocument( "documents/window_frame.rml" );
+		check( frameDoc != nullptr, "window frame loads" );
+		frameDoc->Show( Rml::ModalFlag::None, Rml::FocusFlag::None );
+		for ( float scale : { 1.f, 1.25f, 1.5f, 2.f } )
+		{
+			game->SetDensityIndependentPixelRatio( scale );
+			game->SetDimensions( { int( 1600 * scale ), int( 900 * scale ) } );
+			for ( bool maximized : { false, true } )
+			{
+				frameDoc->SetClass( "is-maximized", maximized );
+				game->Update();
+				const float u = scale >= 1.5f ? 2.f : 1.f, w = 1600.f * scale, h = 900.f * scale, b = maximized ? 0.f : 4.f * u;
+				auto box = [&]( const char* id ) { auto* e = frameDoc->GetElementById( id ); check( e != nullptr, id ); return std::pair { e->GetAbsoluteOffset( Rml::BoxArea::Border ), Rml::Vector2f( e->GetOffsetWidth(), e->GetOffsetHeight() ) }; };
+				const auto [capAt, cap] = box( "frame_caption" );
+				const auto [minAt, min] = box( "frame_minimize" );
+				const auto [maxAt, max] = box( "frame_maximize" );
+				const auto [closeAt, close] = box( "frame_close" );
+				const auto [iconAt, icon] = box( "frame_icon" );
+				const auto [clientAt, client] = box( "frame_client" );
+				const auto eq = []( float a, float b ) { return std::abs( a - b ) < 0.5f; };
+				check( eq( capAt.x, b ) && eq( capAt.y, b ) && eq( cap.x, w - 2 * b ) && eq( cap.y, 18 * u ), maximized ? "maximized caption at the corner" : "caption inside the sizing border" );
+				check( eq( icon.x, 16 * u ) && eq( icon.y, 16 * u ) && eq( iconAt.x, b + 2 * u ), "caption small icon" );
+				check( eq( min.x, 16 * u ) && eq( min.y, 14 * u ) && eq( max.x, min.x ) && eq( max.y, min.y ) && eq( close.x, min.x ) && eq( close.y, min.y ) && eq( minAt.y, b + 2 * u ), "caption buttons 16 x 14" );
+				check( eq( maxAt.x, minAt.x + 16 * u ) && eq( closeAt.x, maxAt.x + 18 * u ) && eq( closeAt.x + close.x, w - b - 2 * u ), "Minimize and Maximize together, Close 2 px apart" );
+				check( eq( clientAt.y, b + 18 * u ) && eq( clientAt.x, b ) && eq( client.x, w - 2 * b ) && eq( clientAt.y + client.y, h - b ), "client area below the caption" );
+				check( frameDoc->GetElementById( "frame_size_n" )->IsVisible( true ) == !maximized, maximized ? "no sizing zones when maximized" : "sizing zones along the border" );
+			}
+		}
+		check( frameDoc->GetProperty<int>( "z-index" ) > doc->GetProperty<int>( "z-index" ), "the frame is drawn above the game window's contents" );
+		// Size grip (PDF p.100, p.155): hidden unless the window can be sized; then 12 x 12 at the status bar's far
+		// corner, reaching the lower right corner of the window's client area, after the last pane.
+		{
+			game->SetDensityIndependentPixelRatio( 1.f );
+			game->SetDimensions( { 1600, 900 } );
+			game->Update();
+			check( !el( "hud_size_grip" )->IsVisible( true ), "no size grip while the window cannot be sized" );
+			doc->SetClass( "is-window-sizable", true );
+			game->Update();
+			auto* grip = el( "hud_size_grip" );
+			const auto at = grip->GetAbsoluteOffset( Rml::BoxArea::Border );
+			auto* last = el( "hud_items" );
+			check( grip->IsVisible( true ) && std::abs( grip->GetOffsetWidth() - 12.f ) < 0.5f && std::abs( grip->GetOffsetHeight() - 12.f ) < 0.5f, "size grip is 12 x 12" );
+			check( std::abs( at.x + 12.f - 1600.f ) < 0.5f && std::abs( at.y + 12.f - 900.f ) < 0.5f, ( "size grip reaches the lower right corner " + std::to_string( at.x ) + "," + std::to_string( at.y ) ).c_str() );
+			check( last->GetAbsoluteLeft() + last->GetOffsetWidth() <= at.x + 0.5f, "the last status pane ends before the grip" );
+			doc->SetClass( "is-window-sizable", false );
+		}
+		// Window menu (PDF p.95, p.113): every title bar command with its access key, Close last after a separator and
+		// in bold as the default; unavailable commands engraved and skipped by the arrow keys; opened from the keyboard
+		// with the first available command highlighted; kept inside the window; letters, Enter and Esc work.
+		{
+			std::vector<std::string> ran;
+			window_menu::WindowMenu menu( *frameDoc, [&]( const std::string& command ) { ran.push_back( command ); } );
+			const std::vector<window_menu::Item> items { { "restore", false }, { "move", true }, { "size", true }, { "minimize", true }, { "maximize", true }, { "close", true, true } };
+			menu.open( items, { 1590.f, 10.f }, true );
+			game->Update();
+			auto* m = menu.element();
+			auto item = [&]( const char* command ) { auto* e = frameDoc->GetElementById( std::string( "window_menu_" ) + command ); check( e != nullptr, command ); return e; };
+			check( menu.isOpen() && m->IsVisible( true ), "window menu opens" );
+			check( m->GetAbsoluteLeft() + m->GetOffsetWidth() <= 1600.5f, "window menu stays inside the window" );
+			const char* keys[] = { "r", "m", "s", "n", "x", "c" };
+			const char* commands[] = { "restore", "move", "size", "minimize", "maximize", "close" };
+			for ( int i = 0; i < 6; ++i ) check( item( commands[i] )->GetAttribute<Rml::String>( "accesskey", "" ) == keys[i], "window menu access keys" );
+			check( item( "restore" )->HasAttribute( "disabled" ) && !item( "move" )->HasAttribute( "disabled" ), "unavailable commands are marked" );
+			check( item( "close" )->GetComputedValues().font_weight() == Rml::Style::FontWeight::Bold, "Close is the default command" );
+			Rml::ElementList separators;
+			m->QuerySelectorAll( separators, ".w98-menu__separator" );
+			check( separators.size() == 1, "a separator sets Close apart" );
+			check( game->GetFocusElement() == item( "move" ), "from the keyboard the first available command is highlighted" );
+			game->ProcessKeyDown( Rml::Input::KI_UP, 0 );
+			check( game->GetFocusElement() == item( "close" ), "Up skips the unavailable Restore and wraps to Close" );
+			game->ProcessKeyDown( Rml::Input::KI_RETURN, 0 );
+			check( ran.size() == 1 && ran.back() == "close" && !menu.isOpen(), "Enter carries out the highlighted command and closes the menu" );
+			menu.open( items, { 10.f, 10.f }, false );
+			game->Update();
+			check( access_keys::activate( *game, 'n', false ) && ran.back() == "minimize" && !menu.isOpen(), "typing N chooses Minimize" );
+			menu.open( items, { 10.f, 10.f }, false );
+			game->Update();
+			check( access_keys::activate( *game, 'r', false ) && ran.size() == 2 && menu.isOpen(), "the letter of an unavailable command does nothing" );
+			game->ProcessKeyDown( Rml::Input::KI_ESCAPE, 0 );
+			check( !menu.isOpen() && ran.size() == 2, "Esc closes the menu without a command" );
+		}
+		// What's This? (PDF p.285-288) in the game window.
+		{
+			whats_this::Controller help;
+			auto center = [&]( Rml::Element* e ) { const auto at = e->GetAbsoluteOffset( Rml::BoxArea::Border ); return Rml::Vector2f( at.x + e->GetOffsetWidth() / 2.f, at.y + e->GetOffsetHeight() / 2.f ); };
+			check( !help.mode(), "What's This? starts off" );
+			help.toggleMode();
+			check( help.mode(), "choosing What's This? starts the mode" );
+			auto* pause = el( "hud_pause" );
+			check( help.press( pause, center( pause ), false ) && !help.mode() && help.popupOpen(), "in the mode a click explains the item and ends the mode" );
+			game->Update();
+			auto* popup = help.popupElement();
+			check( popup && popup->GetInnerRML() == help.catalog().format( LocalizationKey{ "win98.help.hud_pause" } ), "the pop-up shows the item's Help" );
+			check( popup->GetAbsoluteLeft() >= 0.f && popup->GetAbsoluteLeft() + popup->GetOffsetWidth() <= 1600.5f && popup->GetAbsoluteTop() >= pause->GetAbsoluteTop() + pause->GetOffsetHeight(),
+				"the pop-up opens below the item, inside the window" );
+			check( popup->GetProperty<Rml::Colourb>( "background-color" ) == Rml::Colourb( 255, 255, 225 ), "the pop-up uses the ToolTip colors" );
+			check( help.press( pause, center( pause ), false ) && !help.popupOpen(), "the next click only closes the pop-up" );
+			help.toggleMode();
+			help.toggleMode();
+			check( !help.mode(), "choosing What's This? again cancels the mode" );
+			help.toggleMode();
+			auto* statusText = el( "tutorial_objective" );
+			check( help.press( statusText, center( statusText ), false ) && !help.mode() && !help.popupOpen(), "clicking static text cancels the mode" );
+			help.toggleMode();
+			check( help.key( *game, Rml::Input::KI_ESCAPE, false, false ) && !help.mode(), "Esc cancels the mode" );
+			check( help.press( pause, center( pause ), true ) && help.menu() && help.menu()->isOpen(), "the secondary button on a control offers What's This?" );
+			game->Update();
+			auto* command = doc->GetElementById( "window_menu_whats_this" );
+			check( command && command->GetAttribute<Rml::String>( "accesskey", "" ) == "w", "the shortcut menu command is What's This? with W" );
+			command->Click();
+			check( help.popupOpen() && !help.menu()->isOpen(), "choosing it explains the control at once" );
+			check( help.key( *game, Rml::Input::KI_A, false, false ) && !help.popupOpen(), "any key closes the pop-up" );
+			pause->Focus();
+			check( help.key( *game, Rml::Input::KI_F1, false, false ) && help.popupOpen(), "F1 explains the control with the focus" );
+			help.cancel();
+			check( help.key( *game, Rml::Input::KI_F1, true, false ) && help.mode(), "Shift+F1 starts the mode in the game window" );
+			help.cancel();
+			check( help.key( *game, Rml::Input::KI_F1, true, true ) && help.popupOpen() && !help.mode(), "Shift+F1 explains the focused control in a secondary window" );
+			help.cancel();
+			check( whats_this::helpKey( el( "hud_whats_this" ), help.catalog() ) == "win98.help.hud_whats_this", "the What's This? button explains itself" );
+		}
+		frameDoc->Close();
 		build.shutdown();
 		hud.shutdown();
 	}

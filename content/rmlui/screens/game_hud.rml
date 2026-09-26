@@ -17,6 +17,9 @@
       <button id="hud_tool_cancel" class="w98-tool"><span data-l10n="win98.hud.cancel_tool">Cancel Tool</span></button><button id="hud_tool_rotate" class="w98-tool"><span data-l10n="win98.hud.rotate">Rotate</span></button>
       <span class="w98-toolbar__separator"></span>
       <button id="hud_tool_view" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.view">View</span><span class="w98-tool__caret"></span></button>
+      <span class="w98-toolbar__separator"></span>
+      <!-- What's This? (PDF p.285): the next click on an item in the game window explains it. -->
+      <button id="hud_whats_this" class="w98-tool"><span data-l10n="win98.hud.whats_this">What's This?</span></button>
     </div>
   </nav>
 
@@ -71,7 +74,7 @@
   <section id="hud_build_panel" class="w98-sheet w98-palette l-hud-build-panel is-hidden" role="dialog" aria-labelledby="hud_build_heading">
     <div class="w98-caption">
       <handle id="hud_build_drag_handle" class="c-title-bar__drag-handle" move_target="hud_build_panel"><h1 id="hud_build_heading" class="c-title-bar__title" data-l10n="win98.hud.build_heading">Build</h1></handle>
-      <button id="hud_build_close" class="w98-caption__close" title="Close" data-l10n-title="win98.hud.build_close.title" aria-label="Close">&#x00D7;</button>
+      <button id="hud_build_close" class="w98-caption__close" title="Close" data-l10n-title="win98.hud.build_close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
     </div>
     <div class="w98-sheet__body">
       <div class="w98-page w98-row w98-row--fill">
@@ -125,5 +128,7 @@
     <span id="hud_animals" class="w98-statusbar__pane"></span>
     <span id="hud_items" class="w98-statusbar__pane"></span>
     <div id="hud_watch_rows" class="l-hud-watch"></div>
+    <!-- Size grip at the far corner of the status bar (PDF p.100, p.155); shown only while the window can be sized. -->
+    <span id="hud_size_grip" class="w98-statusbar__grip" aria-hidden="true"></span>
   </footer>
 </body></rml>

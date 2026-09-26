@@ -41,6 +41,8 @@ namespace Rml { class Element; }
 
 namespace ingnomia::ui {
 class RmlUiHost;
+class MainWindowFrame;
+namespace whats_this { class Controller; }
 class RmlUiDetachedContext;
 class RmlUiDetachedWindow;
 namespace shell { class ShellController; class ShellQtCommandPort; class ShellRmlBinding; }
@@ -152,6 +154,11 @@ public:
     std::string diplomacyStage15Probe(std::string_view action);
     std::string inspectorStage16Probe(std::string_view action);
     std::string hudStage17Probe(std::string_view action);
+    /// @brief Stage 17 live probe of the primary window frame: "state", "click:<id>", "dblclick" on the caption
+    ///        and "restore". Opt-in with INGNOMIA_AUTOMATE_HUD_STAGE17_LIVE.
+    std::string windowFrameProbe(std::string_view action);
+    /// @brief Stage 10 live probe of What's This? in the workshop property sheet ("press:<id>", "state").
+    std::string workshopWhatsThisProbe(std::string_view action);
     std::string shellStage18Probe(std::string_view action);
 	bool showManagementFarmFixture();
 	bool showInventoryFixture();
@@ -177,11 +184,6 @@ public:
 	bool activateManagementElement( std::string_view id );
 	bool clickManagementFarmCropForProbe( std::string_view crop );
 	std::string managementFarmSelectedCropForProbe() const;
-	bool clickInventoryDetailForProbe( std::string_view target );
-	std::string inventoryDetailItemForProbe() const;
-	int openLongestInventoryProductsForProbe();
-	bool scrollInventoryProductsForProbe();
-	std::string inventoryProductScrollStatusForProbe() const;
 	bool requestManagementCaptureForProbe( std::string_view kind, const QString& path );
 	bool createPopulationProfessionForProbe( std::string_view name );
 	bool populationHasProfessionForProbe( std::string_view name ) const;
@@ -226,6 +228,9 @@ protected:
 	void mouseMoveEvent( QMouseEvent* event ) override;
 	void mousePressEvent( QMouseEvent* event ) override;
 	void mouseReleaseEvent( QMouseEvent* event ) override;
+	void mouseDoubleClickEvent( QMouseEvent* event ) override;
+	bool nativeEvent( const QByteArray& eventType, void* message, qintptr* result ) override;
+	ingnomia::ui::whats_this::Controller& whatsThis();
 	void wheelEvent( QWheelEvent* event ) override;
 	void focusInEvent( QFocusEvent* e ) override;
 	void focusOutEvent( QFocusEvent* e ) override;
@@ -290,6 +295,8 @@ private:
 
 	MainWindowRenderer* m_renderer = nullptr;    ///< Game world renderer.
 	std::unique_ptr<ingnomia::ui::RmlUiHost> m_rmlUiHost; ///< UI host, owned before the GL context.
+	std::unique_ptr<ingnomia::ui::whats_this::Controller> m_whatsThis; ///< What's This? mode, pop-up and menu; released before m_rmlUiHost shuts down.
+	std::unique_ptr<ingnomia::ui::MainWindowFrame> m_windowFrame; ///< Windows 98 frame drawn in the main context; released before m_rmlUiHost shuts down.
 	ingnomia::ui::shell::ShellRmlBinding* m_shellBinding = nullptr; ///< Borrowed from m_rmlUiHost.
 	std::unique_ptr<ingnomia::ui::shell::ShellQtCommandPort> m_shellCommands;
 	std::unique_ptr<ingnomia::ui::shell::ShellController> m_shellController;

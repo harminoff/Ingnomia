@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 // Stage 12: population roster, skills and profession editor as a Windows 98 property sheet.
+#include "../ui-common/SheetFit.h"
 #include "gui/ui/runtime/RmlUiQtInputAdapter.h"
 #include "gui/ui/runtime/ConnectedTabs.h"
 #include "gui/ui/runtime/ClassicFocusDecorator.h"
@@ -273,6 +274,12 @@ int main( int argc, char** argv )
 		}
 
 		// ---------------------------------------------------------------- Fit and close
+		// A full skill catalog, as in the game, so long lists must scroll inside their field instead of growing the page.
+		{
+			std::vector<SkillCatalogRow> skills;
+			for ( int i = 0; i < 24; ++i ) skills.push_back( { CatalogId { "Skill" + std::to_string( i ) }, "Skill " + std::to_string( i ), "Group" } );
+			controller.applySkillCatalog( WorldEpoch { 12 }, skills );
+		}
 		for ( float scale : { 1.f, 1.25f, 1.5f, 2.f } )
 		{
 			c->SetDensityIndependentPixelRatio( scale );
@@ -291,6 +298,9 @@ int main( int argc, char** argv )
 					check( false, "page, tabs and Close stay inside the sheet" );
 				}
 				++checks;
+				const auto overflow = ingnomia::ui::test::pageOverflow( el( "population_scroll" ) );
+				if ( !overflow.empty() ) std::cerr << "view=" << int( view ) << " scale=" << scale << overflow << std::endl;
+				check( overflow.empty(), "every control of the page lies inside the page frame" );
 			}
 		}
 		c->SetDensityIndependentPixelRatio( 1.f );

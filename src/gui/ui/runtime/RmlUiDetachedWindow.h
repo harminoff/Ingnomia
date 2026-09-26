@@ -21,8 +21,12 @@ class QResizeEvent;
 class QTimer;
 class QWheelEvent;
 
+namespace Rml { class Element; }
+
 namespace ingnomia::ui
 {
+namespace window_menu { class WindowMenu; }
+namespace whats_this { class Controller; }
 
 /// Native, independently movable host for a secondary RmlUi context.
 /// The native surface uses the game's existing OpenGL context. RmlUi contexts
@@ -55,6 +59,16 @@ public:
     void resetView( QSize logicalSize );
     void requestAutomationCapture( QString path );
     void requestClose();
+    /// Opens the window menu (Move, Close) as Alt+Space does; for probes. Returns false without a title bar.
+    bool openWindowMenu();
+    /// The window menu while it exists, for probes.
+    [[nodiscard]] window_menu::WindowMenu* windowMenu() const noexcept { return m_windowMenu.get(); }
+    /// What's This? for this window (created on first use).
+    whats_this::Controller& whatsThis();
+    /// Always on Top (PDF p.113, p.181): a palette the player sets to stay above its peer windows and the game
+    /// window. It is never made topmost over other applications (PDF p.159).
+    [[nodiscard]] bool alwaysOnTop() const noexcept { return m_alwaysOnTop; }
+    void setAlwaysOnTop( bool value );
 
 protected:
     bool event( QEvent* ) override;
@@ -69,9 +83,14 @@ protected:
     void mousePressEvent( QMouseEvent* ) override;
     void mouseReleaseEvent( QMouseEvent* ) override;
     void wheelEvent( QWheelEvent* ) override;
+    bool nativeEvent( const QByteArray& eventType, void* message, qintptr* result ) override;
 
 private:
     bool isNativeDragHandle( QPointF position ) const;
+    Rml::Element* captionAt( QPointF position ) const;
+    Rml::Element* topCaption() const;
+    void openWindowMenu( Rml::Element* caption, float x, float y, bool fromKeyboard );
+    void runWindowCommand( const std::string& command );
     Qt::Edges resizeEdgesAt( QPointF position ) const;
     void updateResize( QPointF position );
     void updateResizeCursor( QPointF position );
@@ -110,6 +129,10 @@ private:
     bool m_renderingEnabled = false;
     bool m_frameQueued = false;
     bool m_rendering = false;
+    std::unique_ptr<window_menu::WindowMenu> m_windowMenu;
+    std::unique_ptr<whats_this::Controller> m_whatsThis;
+    bool m_alwaysOnTop = false;
+    Rml::Element* m_menuCaption = nullptr; // Valid while m_windowMenu is open: both live in the same document.
 };
 
 } // namespace ingnomia::ui

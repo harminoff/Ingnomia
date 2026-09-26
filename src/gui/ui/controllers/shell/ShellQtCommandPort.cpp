@@ -97,6 +97,9 @@ CommandResult ShellQtCommandPort::dispatch( const UiActionEnvelope& action )
 		const auto found = savePaths_.constFind( text( payload->slot.relativeKey ) );
 		if( found == savePaths_.cend() ) return reject( "ui.error.save_target_unavailable" );
 		const QString path = *found;
+		// Save keys are "<kingdom>/<save>"; the kingdom is remembered only once a game is actually opened.
+		const auto& key = payload->slot.relativeKey;
+		if( const auto slash = key.find( '/' ); slash != std::string::npos ) lastOpenedKingdom_ = SaveKingdomId{ key.substr( 0, slash ) };
 		return queueConnector( [target = connector_, path]() { if( target ) target->onLoadGame( path ); } );
 	}
 	if( action.id.value == "app.save_game" )

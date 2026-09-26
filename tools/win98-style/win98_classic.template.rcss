@@ -42,12 +42,26 @@
     w98m-caret: 304px 0px 5px 3px;
     w98m-caret-disabled: 310px 0px 5px 3px;
     w98m-info: 316px 0px 32px 32px;
+    w98m-cap-close: 349px 0px 14px 12px;
+    w98m-cap-min: 364px 0px 14px 12px;
+    w98m-cap-max: 379px 0px 14px 12px;
+    w98m-cap-restore: 394px 0px 14px 12px;
+    w98m-cap-close-small: 409px 0px 11px 9px;
+    w98m-left-disabled: 421px 0px 14px 14px;
+    w98m-right-disabled: 436px 0px 14px 14px;
+    w98m-grip: 451px 0px 12px 12px;
+    w98m-cap-help: 464px 0px 14px 12px;
+}
+@spritesheet w98-app-icon {
+    src: /icons/w98-app-icon.tga;
+    resolution: 1x;
+    w98m-app: 0px 0px 16px 16px;
 }
 
 /* ---------------------------------------------------------------- Font and scale */
-.w98-caption, .w98-sheet { font-family: "MS W98 UI"; font-size: 11px; }
-@media (min-resolution: 1.5x) { .w98-caption, .w98-sheet { font-size: 22px; } }
-@media (min-resolution: 2.5x) { .w98-caption, .w98-sheet { font-size: 33px; } }
+.w98-caption, .w98-sheet, .w98-window-frame, .w98-help-popup { font-family: "MS W98 UI"; font-size: 11px; }
+@media (min-resolution: 1.5x) { .w98-caption, .w98-sheet, .w98-window-frame, .w98-help-popup { font-size: 22px; } }
+@media (min-resolution: 2.5x) { .w98-caption, .w98-sheet, .w98-window-frame, .w98-help-popup { font-size: 33px; } }
 .w98-caption h1, .w98-caption h2, .w98-caption button,
 .w98-sheet input, .w98-sheet select, .w98-sheet selectvalue, .w98-sheet selectbox, .w98-sheet option, .w98-sheet button,
 .w98-sheet label, .w98-sheet p, .w98-sheet span, .w98-sheet div, .w98-sheet section, .w98-sheet nav, .w98-sheet header {
@@ -120,6 +134,82 @@
     padding: @1@ 0 0 @1@;
 }
 .w98-caption .w98-caption__close:hover { background-color: #c0c0c0; color: #000000; }
+.w98-caption .w98-caption__close:active .w98-caption__glyph { margin: @1@ 0 0 @1@; }
+
+/* ---------------------------------------------------------------- Primary window frame */
+/* The game's main window draws its own Windows 98 frame (PDF p.311-313): a 4 px sizing border (the window
+   border style and a 2 px face ring), an 18 px caption with the small icon, the title and the Minimize,
+   Maximize or Restore and Close buttons, then a 1 px face line above the client area. A maximized window
+   has no sizing border; a full-screen window has no frame at all (the document is hidden). */
+.w98-window-frame { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; pointer-events: none; z-index: 1000; background-color: transparent; }
+.w98-window-frame__edge {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    border-width: @1@;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0;
+    border-right-color: #000000; border-bottom-color: #000000;
+    box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
+    padding: @1@;
+    pointer-events: none;
+}
+.w98-window-frame__face { display: flex; flex-direction: column; width: 100%; height: 100%; border-width: @2@; border-color: #c0c0c0; box-sizing: border-box; pointer-events: none; }
+.w98-window-frame .w98-window-frame__caption { pointer-events: auto; padding: 0 @2@ 0 @2@; }
+.w98-window-frame__client { flex: 1 1 auto; border-top-width: @1@; border-top-color: #c0c0c0; pointer-events: none; }
+.w98-window-frame__icon { flex: 0 0 @16@; width: @16@; height: @16@; margin: 0 @2@ 0 0; decorator: image( w98m-app fill ); }
+.w98-caption .w98-caption__button,
+.w98-caption button.w98-caption__button {
+    flex: 0 0 @16@;
+    width: @16@;
+    height: @14@;
+    margin: 0;
+    padding: 0;
+    background-color: #c0c0c0;
+    border-width: @1@;
+    border-top-color: #ffffff; border-left-color: #ffffff;
+    border-right-color: #000000; border-bottom-color: #000000;
+    box-shadow: inset @1@ @1@ 0 #dfdfdf, inset @-1@ @-1@ 0 #808080;
+    box-sizing: border-box;
+    decorator: none;
+}
+.w98-caption .w98-caption__button:active {
+    border-top-color: #000000; border-left-color: #000000;
+    border-right-color: #ffffff; border-bottom-color: #ffffff;
+    box-shadow: inset @1@ @1@ 0 #808080, inset @-1@ @-1@ 0 #dfdfdf;
+}
+/* Close stands 2 px apart from Minimize and Maximize (PDF p.312). */
+.w98-caption .w98-caption__button--close, .w98-caption button.w98-caption__button--close { margin-left: @2@; }
+.w98-caption__glyph { display: block; width: @14@; height: @12@; }
+.w98-caption__button:active .w98-caption__glyph { margin: @1@ 0 0 @1@; }
+.w98-caption__glyph--close { decorator: image( w98m-cap-close fill ); }
+/* What's This? button (PDF p.157): before Close, 2 px apart, in the title bar of a secondary window. */
+.w98-caption__glyph--help { decorator: image( w98m-cap-help fill ); }
+.w98-caption button.w98-caption__help { margin: 0 @2@ 0 0; }
+/* Context-sensitive Help pop-up window (PDF p.286, Figure 13.3): the Help font on the ToolTip colors, a window-frame
+   line, no italics; closed by the next click or key press. */
+.w98-help-popup {
+    position: absolute; z-index: 200; display: block; max-width: @220@; margin: 0; padding: @3@ @5@;
+    color: #000000; background-color: #ffffe1; border-width: @1@; border-color: #000000;
+    line-height: @13@; white-space: normal; text-align: left; pointer-events: none; box-sizing: border-box;
+}
+.w98-caption__glyph--minimize { decorator: image( w98m-cap-min fill ); }
+.w98-caption__glyph--maximize { decorator: image( w98m-cap-max fill ); }
+.is-maximized .w98-caption__glyph--maximize { decorator: image( w98m-cap-restore fill ); }
+/* Sizing zones along the border; the corners are as long as the caption is tall. */
+.w98-window-frame__size { position: absolute; pointer-events: auto; }
+.w98-window-frame__size--n { left: @18@; right: @18@; top: 0; height: @4@; cursor: ns-resize; }
+.w98-window-frame__size--s { left: @18@; right: @18@; bottom: 0; height: @4@; cursor: ns-resize; }
+.w98-window-frame__size--w { top: @18@; bottom: @18@; left: 0; width: @4@; cursor: ew-resize; }
+.w98-window-frame__size--e { top: @18@; bottom: @18@; right: 0; width: @4@; cursor: ew-resize; }
+.w98-window-frame__size--nw { left: 0; top: 0; width: @18@; height: @4@; cursor: nwse-resize; }
+.w98-window-frame__size--ne { right: 0; top: 0; width: @18@; height: @4@; cursor: nesw-resize; }
+.w98-window-frame__size--sw { left: 0; bottom: 0; width: @18@; height: @4@; cursor: nesw-resize; }
+.w98-window-frame__size--se { right: 0; bottom: 0; width: @18@; height: @4@; cursor: nwse-resize; }
+.w98-window-frame__size--wn { left: 0; top: 0; width: @4@; height: @18@; cursor: nwse-resize; }
+.w98-window-frame__size--en { right: 0; top: 0; width: @4@; height: @18@; cursor: nesw-resize; }
+.w98-window-frame__size--ws { left: 0; bottom: 0; width: @4@; height: @18@; cursor: nesw-resize; }
+.w98-window-frame__size--es { right: 0; bottom: 0; width: @4@; height: @18@; cursor: nwse-resize; }
+.w98-window-frame.is-maximized .w98-window-frame__edge { border-width: 0; box-shadow: none; padding: 0; }
+.w98-window-frame.is-maximized .w98-window-frame__face { border-width: 0; }
+.w98-window-frame.is-maximized .w98-window-frame__size { display: none; }
 
 /* ---------------------------------------------------------------- Property sheet window */
 /* Window border style: raised outer (face / frame) + raised inner (highlight / shadow). */
@@ -208,6 +298,9 @@
     box-sizing: border-box;
 }
 .w98-sheet .w98-page { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* A window without tabs puts its controls straight on the dialog face (no tab-page frame). They share the window's
+   side margin with the command buttons, so the list and its Properties button line up with Close. */
+.w98-sheet .w98-page-frame.w98-page-frame--plain { padding: @4@ 0 0 0; border-width: 0; box-shadow: none; }
 .w98-sheet .w98-page.is-hidden { display: none; }
 .w98-sheet .w98-row { display: flex; flex-direction: row; align-items: flex-start; gap: @7@; }
 .w98-sheet .w98-row--fill { align-items: stretch; }
@@ -342,7 +435,7 @@
     width: @16@; min-width: 0; height: @10@; min-height: 0; margin: 0; padding: 0;
     background-color: #c0c0c0;
     border-width: @1@;
-    border-top-color: #dfdfdf; border-left-color: #dfdfdf; border-right-color: #000000; border-bottom-color: #000000;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
     box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
     box-sizing: border-box;
 }
@@ -361,7 +454,9 @@
     height: @21@;
     min-height: @21@;
     margin: 0;
-    padding: 0;
+    /* The one-pixel padding ring shows the inner sunken edge (the inset shadow); RmlUi places the value and the
+       arrow inside it, so neither covers the edge. */
+    padding: @1@;
     color: #000000;
     background-color: #ffffff;
     border-width: @1@;
@@ -371,12 +466,15 @@
     line-height: @13@;
     box-sizing: border-box;
 }
-.w98-sheet select.w98-select selectvalue { width: auto; height: @19@; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 @18@ 0 0; padding: @3@ @3@ 0 @3@; color: #000000; background-color: #ffffff; box-sizing: border-box; }
+/* The value fills the field inside the sunken edge and ends where the 16 x 17 arrow button begins. RmlUi sizes the
+   value from the select's border box while placing it at the content box, so the right margin also takes back the
+   select's border and padding on both sides (4 px): 16 + 4 = 20. */
+.w98-sheet select.w98-select selectvalue { width: auto; height: @17@; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0 @20@ 0 0; padding: @2@ @2@ 0 @2@; color: #000000; background-color: #ffffff; box-sizing: border-box; }
 .w98-sheet select.w98-select selectarrow {
-    width: @16@; height: @16@; margin: @1@ @1@ 0 0;
+    width: @16@; height: @17@; margin: 0;
     background-color: #c0c0c0;
     border-width: @1@;
-    border-top-color: #dfdfdf; border-left-color: #dfdfdf; border-right-color: #000000; border-bottom-color: #000000;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
     box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
     box-sizing: border-box;
     decorator: image( w98m-down fill );
@@ -409,10 +507,10 @@
     color: #000000; background-color: #ffffff; border-width: 0; border-radius: 0; box-shadow: none; line-height: @13@; box-sizing: border-box;
 }
 .w98-sheet .w98-combo button.w98-combo__arrow {
-    flex: 0 0 @16@; width: @16@; height: @16@; min-width: 0; min-height: 0; margin: -@1@ -@1@ 0 0; padding: 0;
+    flex: 0 0 @16@; width: @16@; height: @17@; min-width: 0; min-height: 0; margin: -@1@ -@1@ 0 0; padding: 0;
     background-color: #c0c0c0;
     border-width: @1@;
-    border-top-color: #dfdfdf; border-left-color: #dfdfdf; border-right-color: #000000; border-bottom-color: #000000;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
     box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
     box-sizing: border-box;
     decorator: image( w98m-down fill );
@@ -462,9 +560,11 @@
 .w98-sheet .w98-check.is-disabled { color: #808080; font-effect: shadow( @1@ @1@ #ffffff ); }
 
 /* List box / list view: field border, 16 px rows, selection highlight. */
+/* A list scrolls its rows, so its height comes from the space it is given, never from its rows (basis 0): a long
+   list must not push the page or the command buttons out of the window. */
 .w98-sheet .w98-list {
     display: block;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
     overflow-x: hidden;
     overflow-y: scroll;
@@ -563,6 +663,11 @@
 .w98-sheet .w98-cell--grow { flex: 1 1 auto; min-width: 0; }
 .w98-sheet .w98-cell--num { text-align: right; }
 .w98-sheet .w98-list-item > .w98-cell:first-child { padding-left: @1@; }
+/* In a list view the rows start and end exactly where the headings do, and cell text has the heading's
+   inset (1 px border + 4 px padding), so every column lines up with its heading. */
+.w98-sheet .w98-listview .w98-list-item, .w98-sheet .w98-listview button.w98-list-item { padding: 0; }
+.w98-sheet .w98-listview .w98-list-item > .w98-cell, .w98-sheet .w98-listview .w98-list-item > .w98-cell:first-child { padding: 0 @5@; }
+.w98-sheet .w98-listview .w98-list-item > input.checkbox { margin: 0 0 0 @3@; }
 .w98-sheet .w98-w-amount { width: @48@; }
 /* Stockpile Contents and Allow List columns (Stage 21a). */
 .w98-sheet .l-sp-w-material, .w98-sheet .l-sp-w-type { flex: 0 0 @80@; width: @80@; }
@@ -594,6 +699,10 @@
 .w98-sheet .w98-grid__colheads { display: flex; flex-direction: row; flex: 1 1 0; min-width: 0; overflow: hidden; margin-right: @16@; }
 .w98-sheet .w98-grid__rowheads { display: block; flex: 0 0 @72@; width: @72@; overflow: hidden; margin-bottom: @16@; }
 .w98-sheet .w98-grid__cells { display: block; flex: 1 1 0; min-width: 0; min-height: 0; overflow: scroll; }
+/* As in a list view, the grid's scroll bars run along its whole edges (Excel 97): the vertical bar beside the column
+   headings, the horizontal bar under the row headings. */
+.w98-sheet .w98-grid__cells scrollbarvertical { margin-top: -@16@; }
+.w98-sheet .w98-grid__cells scrollbarhorizontal { margin-left: -@72@; }
 .w98-sheet .w98-grid__row { display: flex; flex-direction: row; width: @384@; height: @16@; }
 .w98-sheet button.w98-grid__corner, .w98-sheet button.w98-grid__colhead, .w98-sheet button.w98-grid__rowhead {
     display: block; margin: 0; padding: 0 @2@; min-width: 0; min-height: 0; color: #000000; background-color: #c0c0c0;
@@ -618,15 +727,16 @@
 }
 
 /* Scroll bars inside the sheet: 16 px, arrow buttons, button-style thumb. */
+/* The shaft is the dithered highlight and face pattern. */
 .w98-sheet scrollbarvertical { width: @16@; margin: 0; padding: 0; background-color: #e0e0e0; }
-.w98-sheet scrollbarvertical slidertrack { background-color: #e0e0e0; border-width: 0; decorator: none; }
+.w98-sheet scrollbarvertical slidertrack { background-color: #e0e0e0; border-width: 0; decorator: image( /icons/w98-dither.tga repeat ); }
 .w98-sheet scrollbarvertical sliderbar,
 .w98-sheet scrollbarvertical sliderarrowdec,
 .w98-sheet scrollbarvertical sliderarrowinc {
     width: @16@;
     background-color: #c0c0c0;
     border-width: @1@;
-    border-top-color: #dfdfdf; border-left-color: #dfdfdf; border-right-color: #000000; border-bottom-color: #000000;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
     box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
     box-sizing: border-box;
 }
@@ -635,16 +745,34 @@
 .w98-sheet scrollbarvertical sliderarrowinc { height: @16@; decorator: image( w98m-down fill ); }
 .w98-sheet scrollbarvertical sliderarrowdec:active,
 .w98-sheet scrollbarvertical sliderarrowinc:active { border-color: #808080; box-shadow: none; }
+/* In a list view the vertical scroll bar runs the whole height of the view: its up arrow sits beside the column
+   headings (PDF p.101, list view in details view). The negative top margin moves the bar up by the heading height
+   and RmlUi lengthens it by the same amount; the rows keep their own client area. */
+.w98-sheet .w98-listview > .w98-list scrollbarvertical { margin-top: -@17@; }
+/* A scroll arrow is unavailable when the view cannot scroll further that way; with all of the content visible both
+   are, and the scroll box fills the shaft (PDF p.101-102, p.146). ScrollArrows.h sets the classes after layout.
+   An unavailable arrow keeps its raised border when clicked. */
+.w98-sheet .is-scroll-top scrollbarvertical sliderarrowdec { decorator: image( w98m-up-disabled fill ); }
+.w98-sheet .is-scroll-bottom scrollbarvertical sliderarrowinc { decorator: image( w98m-down-disabled fill ); }
+.w98-sheet .is-scroll-left scrollbarhorizontal sliderarrowdec { decorator: image( w98m-left-disabled fill ); }
+.w98-sheet .is-scroll-right scrollbarhorizontal sliderarrowinc { decorator: image( w98m-right-disabled fill ); }
+.w98-sheet .is-scroll-top scrollbarvertical sliderarrowdec:active,
+.w98-sheet .is-scroll-bottom scrollbarvertical sliderarrowinc:active,
+.w98-sheet .is-scroll-left scrollbarhorizontal sliderarrowdec:active,
+.w98-sheet .is-scroll-right scrollbarhorizontal sliderarrowinc:active {
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
+    box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
+}
 
 .w98-sheet scrollbarhorizontal { height: @16@; margin: 0; padding: 0; background-color: #e0e0e0; }
-.w98-sheet scrollbarhorizontal slidertrack { background-color: #e0e0e0; border-width: 0; decorator: none; }
+.w98-sheet scrollbarhorizontal slidertrack { background-color: #e0e0e0; border-width: 0; decorator: image( /icons/w98-dither.tga repeat ); }
 .w98-sheet scrollbarhorizontal sliderbar,
 .w98-sheet scrollbarhorizontal sliderarrowdec,
 .w98-sheet scrollbarhorizontal sliderarrowinc {
     height: @16@;
     background-color: #c0c0c0;
     border-width: @1@;
-    border-top-color: #dfdfdf; border-left-color: #dfdfdf; border-right-color: #000000; border-bottom-color: #000000;
+    border-top-color: #c0c0c0; border-left-color: #c0c0c0; border-right-color: #000000; border-bottom-color: #000000;
     box-shadow: inset @1@ @1@ 0 #ffffff, inset @-1@ @-1@ 0 #808080;
     box-sizing: border-box;
 }
@@ -701,6 +829,9 @@ body.w98-msgbox-stage { display: flex; width: 100%; height: 100%; margin: 0; pad
 .w98-sheet .w98-modal-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; z-index: 30; background-color: transparent; }
 .w98-sheet .w98-modal-layer.is-hidden { display: none; }
 .w98-wizard { display: flex; flex-direction: column; width: @364@; height: @340@; }
+/* A subordinate window opened inside a window's own native window (the mission wizard, Item Properties) covers
+   that window exactly, so no half-covered owner controls show around it. */
+.w98-sheet .w98-modal-layer > .w98-wizard { width: 100%; height: 100%; }
 .w98-wizard .w98-wizard__header { display: block; flex: 0 0 auto; padding: @7@ @11@; background-color: #ffffff; border-width: 0 0 @1@ 0; border-bottom-color: #808080; box-shadow: 0 @1@ 0 #ffffff; }
 .w98-wizard p.w98-wizard__title { display: block; margin: 0 0 @2@ 0; font-weight: bold; color: #000000; line-height: @13@; }
 .w98-wizard .w98-wizard__body { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; padding: @7@ @11@; }
@@ -729,6 +860,7 @@ body.w98-msgbox-stage { display: flex; width: 100%; height: 100%; margin: 0; pad
 .w98-palette > .w98-caption h1, .w98-palette > .w98-caption h2 { line-height: @13@; }
 .w98-palette > .w98-caption .w98-caption__close,
 .w98-palette > .w98-caption button.w98-caption__close { flex: 0 0 @13@; width: @13@; min-width: @13@; height: @11@; min-height: @11@; line-height: @9@; }
+.w98-palette > .w98-caption .w98-caption__glyph--close { width: @11@; height: @9@; decorator: image( w98m-cap-close-small fill ); }
 .w98-palette .w98-sheet__body { padding-bottom: @7@; }
 .w98-palette .w98-buttonbar { padding-bottom: 0; }
 .w98-sheet .w98-label--wide, .w98-sheet .w98-line > .w98-label--wide { flex: 0 0 @96@; width: @96@; }
@@ -813,6 +945,15 @@ body.w98-msgbox-stage { display: flex; width: 100%; height: 100%; margin: 0; pad
     line-height: @17@; white-space: nowrap; box-sizing: border-box; decorator: none;
 }
 .w98-menu button.w98-menu__item:hover, .w98-menu button.w98-menu__item:focus { color: #ffffff; background-color: #000080; }
+/* Window menu (PDF p.95, p.113): Close is the default command (bold) and shows its shortcut key right-aligned; an
+   unavailable command is engraved and not highlighted. */
+.w98-window-menu { pointer-events: auto; z-index: 100; }
+.w98-menu button.w98-menu__item.is-default { font-weight: bold; }
+.w98-menu button.w98-menu__item.is-default span { font-weight: bold; }
+.w98-menu .w98-menu__shortcut { display: block; margin: 0 0 0 auto; padding: 0 0 0 @16@; }
+.w98-menu button.w98-menu__item[disabled], .w98-menu button.w98-menu__item[disabled]:hover, .w98-menu button.w98-menu__item[disabled]:focus {
+    color: #808080; background-color: #c0c0c0; font-effect: shadow( @1@ @1@ #ffffff );
+}
 .w98-menu .w98-menu__mark { display: block; flex: 0 0 @13@; width: @13@; height: @13@; margin: 0 @2@ 0 0; }
 .w98-menu .is-checked .w98-menu__mark { decorator: image( w98m-menu-check fill ); }
 .w98-menu .is-checked:hover .w98-menu__mark, .w98-menu .is-checked:focus .w98-menu__mark { decorator: image( w98m-menu-check-white fill ); }
@@ -832,6 +973,11 @@ body.w98-msgbox-stage { display: flex; width: 100%; height: 100%; margin: 0; pad
 }
 .w98-statusbar .w98-statusbar__pane--grow { flex: 1 1 auto; }
 .w98-statusbar .w98-statusbar__pane.is-hidden { display: none; }
+/* Size grip (PDF p.100, p.155): at the far corner of the status bar of a sizable window, reaching the window's lower
+   right corner. MainWindowFrame marks the document is-window-sizable while the window is neither maximized nor full
+   screen; a maximized window hides its grip, as the Windows status bar does. */
+.w98-statusbar .w98-statusbar__grip { display: none; flex: 0 0 @12@; width: @12@; height: @12@; align-self: flex-end; margin: 0 -@2@ -@1@ 0; cursor: nwse-resize; decorator: image( w98m-grip fill ); }
+.is-window-sizable .w98-statusbar .w98-statusbar__grip { display: block; }
 .w98-sheet .w98-msgbox__symbol.is-info, .w98-msgbox .w98-msgbox__symbol.is-info { decorator: image( w98m-info fill ); }
 
 /* Slider (trackbar, PDF p.146): a sunken channel and a raised rectangular thumb; no arrow buttons. */

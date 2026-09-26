@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "gui/ui/runtime/RmlUiQtInputAdapter.h"
 #include "gui/ui/runtime/ConnectedTabs.h"
+#include "gui/ui/runtime/ScrollArrows.h"
 #include "gui/ui/runtime/ClassicFocusDecorator.h"
 #include "gui/ui/screens/shell/ShellRmlBinding.h"
 #include <RmlUi/Core.h>
@@ -62,7 +63,7 @@ Rml::Element* part(Rml::Element*e,const char*tag){if(e->GetTagName()==tag)return
 int main(int argc,char**argv){
  check(argc==2,"assets");Files files;files.root=argv[1];Renderer renderer;ClipboardSystem system;
  Rml::SetFileInterface(&files);Rml::SetRenderInterface(&renderer);Rml::SetSystemInterface(&system);check(Rml::Initialise(),"initialize");ClassicFocusInstancer focus;Rml::Factory::RegisterDecoratorInstancer("win98-focus",&focus);Rml::LoadFontFace("fonts/LatoLatin-Regular.ttf");Rml::LoadFontFace("fonts/MSW98UI-Regular.ttf");Rml::LoadFontFace("fonts/MSW98UI-Bold.ttf");
- auto*c=Rml::CreateContext("stage08",{720,720});c->SetDefaultScrollBehavior(Rml::ScrollBehavior::Instant,1.f);auto tick=[&]{c->Update();c->Update();};
+ auto*c=Rml::CreateContext("stage08",{720,720});c->SetDefaultScrollBehavior(Rml::ScrollBehavior::Instant,1.f);auto tick=[&]{c->Update();ingnomia::ui::scroll_arrows::reconcile(*c);c->Update();};
  {
  PortB port;ViewB view;mb::Management6BController controller(port,view);mb::Management6BRmlBinding binding(*c);check(binding.initialize(controller),"binding loads");controller.addViewPort(binding);controller.beginWorld(WorldEpoch{8});controller.open(mb::View::Inventory);
  std::vector<mb::InventoryRow> data;for(int i=0;i<10000;++i){mb::InventoryRow r;r.id={CatalogId{"Materials"},CatalogId{"Raw"},CatalogId{"Item"+std::to_string(i)},CatalogId{"Oak"},InventoryDepth::Material};r.name="A long material description "+std::to_string(i);r.stockpiled=i%7;r.total=i%19;data.push_back(r);}
@@ -90,9 +91,19 @@ int main(int argc,char**argv){
  for(float density:{1.f,1.25f,1.5f,2.f}){
   const int k=std::max(1,int(density+0.5f));c->SetDensityIndependentPixelRatio(density);c->SetDimensions({384*k,380*k});tick();
   {auto* frame=doc->GetElementById("inventory_scroll");check(frame->GetScrollHeight()<=frame->GetClientHeight()+1.f&&frame->GetScrollWidth()<=frame->GetClientWidth()+1.f,"the Inventory page fits the fixed window without scrolling");}
-  rows->Focus();key(Qt::Key_End);auto selected=controller.state().selectedInventory;check(selected.has_value(),"last entry reachable");
+  {auto right=[&](const char* id){auto* e=doc->GetElementById(id);return e->GetAbsoluteOffset(Rml::BoxArea::Border).x+e->GetOffsetWidth();};check(std::abs(right("inventory_open_item")-right("inventory_close_button"))<1.f,"Properties lines up with Close on the window's side margin");
+   auto* list=doc->GetElementById("inventory_rows")->GetParentNode();check(std::abs(list->GetAbsoluteOffset(Rml::BoxArea::Border).x+list->GetOffsetWidth()-right("inventory_close_button"))<1.f,"the list ends on the same margin");}
+  rows->Focus();key(Qt::Key_Home);
+  // Scroll bar (PDF p.101-102): in the list view it runs the whole height, so the up arrow sits beside the column
+  // headings; at the top the up arrow is unavailable and the down arrow is not; at the end it is the other way round.
+  {auto* header=rows->GetParentNode()->GetChild(0);const auto at=header->GetAbsoluteOffset(Rml::BoxArea::Border);
+   c->ProcessMouseMove(int(rows->GetAbsoluteLeft()+rows->GetClientWidth()+8.f*k),int(at.y+header->GetOffsetHeight()/2.f),0);
+   auto* hover=c->GetHoverElement();check(hover&&hover->GetTagName()=="sliderarrowdec","the up arrow sits beside the column headings");
+   check(rows->IsClassSet("is-scroll-top")&&!rows->IsClassSet("is-scroll-bottom"),"at the top only the up arrow is unavailable");c->ProcessMouseMove(0,0,0);}
+  key(Qt::Key_End);check(rows->IsClassSet("is-scroll-bottom")&&!rows->IsClassSet("is-scroll-top"),"at the end only the down arrow is unavailable");
+  auto selected=controller.state().selectedInventory;check(selected.has_value(),"last entry reachable");
   auto*selectedElement=c->GetFocusElement();check(selectedElement&&std::abs(selectedElement->GetOffsetHeight()-16.f*k)<1.f,"row height follows the snapped font");
-  {auto* header=doc->GetElementById("inventory_sort_material");auto* cell=selectedElement->GetChild(2);check(std::abs(header->GetAbsoluteOffset(Rml::BoxArea::Border).x-cell->GetAbsoluteOffset(Rml::BoxArea::Border).x)<4.f*k,"Material heading aligns with its column");}
+  {auto* header=doc->GetElementById("inventory_sort_material");auto* cell=selectedElement->GetChild(2);check(std::abs(header->GetAbsoluteOffset(Rml::BoxArea::Border).x-cell->GetAbsoluteOffset(Rml::BoxArea::Border).x)<1.f,"Material heading aligns with its column");}
   auto sends=port.sent.size();key(Qt::Key_Space);check(port.sent.size()==sends+1&&port.sent.back().id.value=="watch.set"&&std::get<WatchPayload>(port.sent.back().payload).row==*selected,"Space watches the selected item");
   key(Qt::Key_Return);check(controller.state().inventoryDetail==selected,"Enter opens Item Properties for that item");
   check(doc->GetElementById("inventory_detail")->IsVisible(true)&&text("inventory_detail_title").find(" Properties")!=std::string::npos,"Item Properties is titled with the item's name");

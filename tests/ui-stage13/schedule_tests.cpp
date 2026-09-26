@@ -247,6 +247,22 @@ int main( int argc, char** argv )
 			auto* close = el( "population_close_button" );
 			check( page->GetScrollHeight() <= page->GetClientHeight() + 1.f && close->GetAbsoluteTop() + close->GetOffsetHeight() <= 380.f * k + 1.f, "schedule page and Close stay inside the sheet" );
 			check( el( "schedule_rows" )->GetClientHeight() >= 16.f * 4 * ( scale >= 1.5f ? 2 : 1 ), "the grid shows at least four citizens" );
+			// The scroll bars run along the grid's whole edges (Excel 97): the up arrow beside the hour headings, the left
+			// arrow under the citizen names.
+			{
+				auto* cells = el( "schedule_rows" );
+				auto* names = el( "schedule_names" );
+				const float u = scale >= 1.5f ? 2.f : 1.f;
+				const auto at = cells->GetAbsoluteOffset( Rml::BoxArea::Border );
+				c->ProcessMouseMove( int( at.x + cells->GetClientWidth() + 8.f * u ), int( at.y - 8.f * u ), 0 );
+				auto* hover = c->GetHoverElement();
+				check( hover && hover->GetTagName() == "sliderarrowdec" && hover->GetParentNode()->GetTagName() == "scrollbarvertical", "the up arrow sits beside the hour headings" );
+				const auto nameAt = names->GetAbsoluteOffset( Rml::BoxArea::Border );
+				c->ProcessMouseMove( int( nameAt.x + 8.f * u ), int( at.y + cells->GetClientHeight() + 8.f * u ), 0 );
+				hover = c->GetHoverElement();
+				check( hover && hover->GetTagName() == "sliderarrowdec" && hover->GetParentNode()->GetTagName() == "scrollbarhorizontal", "the left arrow sits under the citizen names" );
+				c->ProcessMouseMove( 0, 0, 0 );
+			}
 		}
 		binding.shutdown();
 	}

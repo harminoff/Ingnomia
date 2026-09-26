@@ -39,6 +39,7 @@ public:
 	}
 	[[nodiscard]] std::string format( LocalizationKey key, std::initializer_list<TextArgument> arguments ) const { return format(key,std::span<const TextArgument>(arguments.begin(),arguments.size())); }
 	[[nodiscard]] bool contains( LocalizationKey key ) const { return entries_.contains( key.value ); }
+	[[nodiscard]] const std::map<std::string, std::string, std::less<>>& entries() const noexcept { return entries_; }
 	[[nodiscard]] static UiText english() { return UiText( englishEntries() ); }
 	[[nodiscard]] static UiText longStringFixture()
 	{
@@ -67,6 +68,7 @@ private:
 			{"ui.confirm.end_world.title","Return to main menu?"},{"ui.confirm.end_world.detail","Unsaved progress in the current kingdom may be lost."},{"ui.confirm.exit.title","Exit Ingnomia?"},{"ui.confirm.exit.detail","Unsaved progress may be lost."},{"ui.confirm.load_other_world.detail","Loading another world ends the current session."},{"ui.error.action_rejected","The action was rejected."},{"ui.status.saving_game","Saving game…"},{"ui.status.game_saved","Game saved."},{"ui.error.save_failed","The game could not be saved."},{"ui.error.save_list_unavailable","The save list could not be read."},
 			#include "UiTextStaticEntries.inc"
 			#include "UiTextWin98Entries.inc"
+			#include "UiTextWin98Help.inc"
 		};
 	}
 	std::map<std::string,std::string,std::less<>> entries_;

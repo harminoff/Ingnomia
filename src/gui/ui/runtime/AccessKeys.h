@@ -36,8 +36,39 @@ inline Rml::Element* targetOf( Rml::ElementDocument& document, Rml::Element* ele
 	element->GetElementsByTagName( inputs, "input" );
 	return inputs.empty() ? nullptr : inputs.front();
 }
+// The drop-down menu that is open, if any (only one is open at a time).
+inline Rml::Element* openMenu( Rml::Context& context )
+{
+	for( int index = 0; index < context.GetNumDocuments(); ++index )
+	{
+		auto* document = context.GetDocument( index );
+		if( !document || !document->IsVisible() ) continue;
+		Rml::ElementList menus;
+		document->QuerySelectorAll( menus, ".w98-menu" );
+		for( auto* menu : menus )
+			if( menu->IsVisible( true ) ) return menu;
+	}
+	return nullptr;
+}
 inline bool activate( Rml::Context& context, char letter, bool alt )
 {
+	// In an open menu, typing an item's underlined letter chooses that item (PDF p.328); other letters stay in
+	// the menu instead of reaching the game.
+	if( auto* menu = openMenu( context ) )
+	{
+		Rml::ElementList items;
+		menu->QuerySelectorAll( items, "[accesskey]" );
+		for( auto* item : items )
+		{
+			const auto key = item->GetAttribute<Rml::String>( "accesskey", "" );
+			if( key.size() == 1 && std::tolower( static_cast<unsigned char>( key[0] ) ) == std::tolower( static_cast<unsigned char>( letter ) ) && connected_tabs::enabled( item ) )
+			{
+				item->Click();
+				return true;
+			}
+		}
+		return true;
+	}
 	auto* focus = context.GetFocusElement();
 	auto* document = focus ? focus->GetOwnerDocument() : nullptr;
 	if( !document ) return false;

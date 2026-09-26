@@ -6,7 +6,7 @@
   <section id="hud_build_panel" class="w98-sheet w98-palette l-hud-build-panel" role="dialog" aria-labelledby="hud_build_heading">
     <div class="w98-caption">
       <handle id="hud_build_drag_handle" class="c-title-bar__drag-handle" move_target="hud_build_panel"><h1 id="hud_build_heading" class="c-title-bar__title" data-l10n="win98.build.build_heading">Build</h1></handle>
-      <button id="hud_build_close" class="w98-caption__close" title="Close" data-l10n-title="win98.build.build_close.title" aria-label="Close">&#x00D7;</button>
+      <button id="hud_build_close" class="w98-caption__close" title="Close" data-l10n-title="win98.build.build_close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
     </div>
     <div class="w98-sheet__body">
       <div class="w98-page w98-row w98-row--fill">

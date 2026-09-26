@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "gui/ui/runtime/RmlUiQtInputAdapter.h"
+#include "../ui-common/SheetFit.h"
 #include "gui/ui/runtime/ConnectedTabs.h"
 #include "gui/ui/runtime/ClassicFocusDecorator.h"
 #include "gui/ui/screens/shell/ShellRmlBinding.h"
@@ -94,7 +95,9 @@ int main(int argc,char**argv) {
  a.offered=4;controller.setTradeSnapshot(ws.id,42,2,{a},{b},20,20);controller.executeTrade();check(controller.state().workshop.tradeConfirmationRequired,"review opens");check(!binding.canClose(),"review owns modal input");controller.cancelTrade();check(binding.canClose(),"cancel releases modal");check(port.sent.size()==n,"cancel exchanges nothing");
  controller.executeTrade();controller.setTradeSnapshot(ws.id,42,3,{a},{b},20,20);check(!controller.state().workshop.tradeConfirmationRequired,"changed snapshot invalidates review");controller.confirmTrade();check(port.sent.size()==n,"stale review cannot commit");controller.executeTrade();controller.confirmTrade();controller.confirmTrade();check(port.sent.size()==n+1,"one reviewed commit");auto commit=std::get<WorkshopTargetPayload>(port.sent.back().payload);check(commit.tradeRevision==3 && commit.traderId==42,"commit bound to revision and merchant");
  controller.rejectWorkshop(ws.id,"Merchant left");check(!controller.state().workshop.tradePending,"rejection clears pending");
- for(float scale:{1.f,1.25f,1.5f,2.f}){c->SetDensityIndependentPixelRatio(scale);const int k=std::max(1,int(scale+0.5f));c->SetDimensions({384*k,380*k});for(auto pane:{WorkshopPane::Craft,WorkshopPane::Queue,WorkshopPane::Settings,WorkshopPane::Trade}){controller.setWorkshopPane(pane);update(*c);auto* frame=doc->GetElementById("workshop_scroll");check(doc->GetElementById("workshop_tabs")->GetOffsetWidth()<=384.f*k,"tabs fit the property sheet at scale");check(frame->GetScrollHeight()<=frame->GetClientHeight()+1.f && frame->GetScrollWidth()<=frame->GetClientWidth()+1.f,"property page fits the fixed property sheet without scrolling");}}
+ // A full catalog: the crafts list scrolls inside the page; it must never push the page or the command buttons out of the window.
+ {auto full=ws;full.products.clear();for(int i=0;i<40;++i){WorkshopProductRow p;p.id=CatalogId{"Product"+std::to_string(i)};full.products.push_back(p);}controller.showWorkshop(full,Revision{12});update(*c);}
+ for(float scale:{1.f,1.25f,1.5f,2.f}){c->SetDensityIndependentPixelRatio(scale);const int k=std::max(1,int(scale+0.5f));c->SetDimensions({384*k,380*k});for(auto pane:{WorkshopPane::Craft,WorkshopPane::Queue,WorkshopPane::Settings,WorkshopPane::Trade}){controller.setWorkshopPane(pane);update(*c);auto* frame=doc->GetElementById("workshop_scroll");const auto overflow=ingnomia::ui::test::pageOverflow(frame);check(overflow.empty(),("every control lies inside the page:"+overflow).c_str());auto* ok=doc->GetElementById("workshop_ok");check(ok->GetAbsoluteTop()+ok->GetOffsetHeight()<=380.f*k+0.5f,"OK stays inside the window");check(doc->GetElementById("workshop_tabs")->GetOffsetWidth()<=384.f*k,"tabs fit the property sheet at scale");check(frame->GetScrollHeight()<=frame->GetClientHeight()+1.f && frame->GetScrollWidth()<=frame->GetClientWidth()+1.f,"property page fits the fixed property sheet without scrolling");}}
  c->SetDensityIndependentPixelRatio(1.f);c->SetDimensions({720,720});
  // Special-GUI workshops expose only their supported pages and options.
  WorkshopSnapshot market;market.id={20};market.name="Market";market.subtype="Trader";market.maxPriority=4;
