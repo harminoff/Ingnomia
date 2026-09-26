@@ -3,8 +3,8 @@
     <title data-l10n="shell.app.ingnomia_application_shell">Ingnomia application shell</title>
     <link type="text/rcss" href="/styles/base.rcss" />
     <link type="text/rcss" href="/styles/components.rcss" />
-    <link type="text/rcss" href="/styles/accessibility.rcss" />
     <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
 <body class="l-shell-root">
     <main id="shell-primary-layer" class="l-shell-layer"></main>

@@ -3,7 +3,6 @@
 <head>
   <link type="text/rcss" href="/styles/base.rcss" />
   <link type="text/rcss" href="/styles/components.rcss" />
-  <link type="text/rcss" href="/styles/accessibility.rcss" />
   <link type="text/rcss" href="/styles/management_window.rcss" />
 </head>
 <body>

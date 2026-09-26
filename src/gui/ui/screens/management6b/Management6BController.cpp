@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "Management6BController.h"
+#include "../../runtime/MatrixNavigation.h"
 #include "../InventoryTableSchema.h"
 
 #include <algorithm>
@@ -78,6 +79,7 @@ void Management6BController::notify()
 }
 void Management6BController::beginWorld( WorldEpoch w )
 {
+	professionBase_.reset(); professionSubmitted_.reset(); professionRequest_.reset();
 	inventoryExpansionInitialized_ = false;
 	state_                     = {};
 	state_.world               = w;
@@ -86,6 +88,7 @@ void Management6BController::beginWorld( WorldEpoch w )
 }
 void Management6BController::endWorld()
 {
+	professionBase_.reset(); professionSubmitted_.reset(); professionRequest_.reset();
 	inventoryExpansionInitialized_ = false;
 	state_ = {};
 	notify();
@@ -193,6 +196,16 @@ void Management6BController::setPopulationFilter( std::string v )
 		state_.selectedCreature = filtered.empty() ? std::nullopt : std::optional { filtered.front().id };
 	notify();
 }
+void Management6BController::clearInventoryFilters()
+{
+    state_.inventoryColumnFilters = {};
+    state_.inventoryColumnSelections = {};
+    state_.inventoryFilter.clear();
+    state_.inventoryCategory.clear();
+    state_.inventoryOwnedOnly = false;
+    state_.inventoryPage = 0;
+    notify();
+}
 void Management6BController::setInventoryFilter( std::string v )
 {
 	state_.inventoryFilter = std::move( v );
@@ -204,7 +217,7 @@ void Management6BController::setInventoryColumnFilter( std::size_t column, std::
 	if ( column >= state_.inventoryColumnFilters.size() ) return;
 	state_.inventoryColumnFilters[column] = std::move( value );
 	state_.inventoryPage = 0;
-	state_.selectedInventory.reset();
+	if(state_.selectedInventory && std::ranges::none_of(visibleInventory(),[&](const auto&r){return r.id==*state_.selectedInventory;})) state_.selectedInventory.reset();
 	notify();
 }
 void Management6BController::toggleInventoryColumnSelection( std::size_t column, std::string value )
@@ -221,7 +234,7 @@ void Management6BController::toggleInventoryColumnSelection( std::size_t column,
 		selected.push_back( std::move( value ) );
 	}
 	state_.inventoryPage = 0;
-	state_.selectedInventory.reset();
+	if(state_.selectedInventory && std::ranges::none_of(visibleInventory(),[&](const auto&r){return r.id==*state_.selectedInventory;})) state_.selectedInventory.reset();
 	notify();
 }
 void Management6BController::setInventoryOwnedOnly( bool v )
@@ -266,12 +279,12 @@ bool Management6BController::inventoryExpanded( const InventoryRowId& id ) const
 	const bool collapsed = std::ranges::any_of( state_.collapsedInventory, [&]( const auto& value ) { return value == id; } );
 	return !isSection( id.depth ) || !collapsed;
 }
-void Management6BController::setPopulationSort( Sort v )
+void Management6BController::setPopulationSort( Sort v, bool descending )
 {
+	state_.populationSortDescending = descending;
 	state_.populationSort = v;
 	state_.populationPage = 0;
-	state_.selectedCreature.reset();
-	notify();
+	notify(); // the selected citizen is kept by ID across sorting
 }
 void Management6BController::setInventorySort( Sort v )
 {
@@ -283,7 +296,6 @@ void Management6BController::setInventorySort( Sort v )
 		state_.inventorySortDescending = v == Sort::Total || v == Sort::Stock;
 	}
 	state_.inventoryPage = 0;
-	state_.selectedInventory.reset();
 	notify();
 }
 std::vector<PopulationRow> Management6BController::visiblePopulation() const
@@ -295,6 +307,7 @@ std::vector<PopulationRow> Management6BController::visiblePopulation() const
 					   { return folded( r.name ).find( q ) == std::string::npos && folded( r.profession.value ).find( q ) == std::string::npos; } );
 	std::ranges::stable_sort( out, [&]( const auto& a, const auto& b )
 							  { return state_.populationSort == Sort::Profession ? std::tie( a.profession.value, a.name ) < std::tie( b.profession.value, b.name ) : std::tie( a.name, a.id.value ) < std::tie( b.name, b.id.value ); } );
+	if ( state_.populationSortDescending ) std::ranges::reverse( out );
 	return out;
 }
 std::vector<InventoryRow> Management6BController::visibleInventory() const
@@ -422,12 +435,13 @@ void Management6BController::reconcileSelection()
 {
 	if ( state_.selectedCreature && std::ranges::none_of( state_.population, [&]( const auto& r )
 														  { return r.id == *state_.selectedCreature; } ) )
-		state_.selectedCreature = state_.population.empty() ? std::nullopt : std::optional { state_.population.front().id };
+		state_.selectedCreature.reset(); // never retarget to whichever citizen happens to be first
 	if ( state_.selectedInventory && std::ranges::none_of( state_.inventory, [&]( const auto& r )
 															   { return same( r.id, *state_.selectedInventory ); } ) )
-		state_.selectedInventory = state_.inventory.empty() ? std::nullopt : std::optional { state_.inventory.front().id };
+		state_.selectedInventory.reset();
 	if ( state_.inventoryDetail && std::ranges::none_of( state_.inventory, [&]( const auto& r ) { return r.id == *state_.inventoryDetail; } ) )
 	{
+		state_.status = "management.inventory.target_removed";
 		state_.inventoryDetail.reset();
 		state_.inventoryDetailBack.clear();
 		state_.historyTarget.reset();
@@ -451,6 +465,14 @@ void Management6BController::selectCreature( CreatureId id )
 	notify();
 	dispatch( "inspect.select", SelectPayload { { state_.world, EntityKind::Creature, id.value, {} } } );
 }
+void Management6BController::highlightCreature( CreatureId id )
+{
+	// A click only selects the row (list view); Enter, double-click or Properties opens the citizen.
+	const auto rows = visiblePopulation();
+	if ( std::ranges::none_of( rows, [&]( const auto& r ) { return r.id == id; } ) ) return;
+	state_.selectedCreature = id;
+	notify();
+}
 void Management6BController::selectSkill( CatalogId id )
 {
 	if( std::ranges::none_of( state_.skillCatalog, [&]( const SkillCatalogRow& row ){ return row.id == id; } ) ) return;
@@ -461,6 +483,8 @@ void Management6BController::selectProfession( ProfessionId id )
 {
 	const auto it = std::ranges::find_if( state_.professions, [&]( const ProfessionRow& row ){ return row.id == id; } );
 	if( it == state_.professions.end() ) return;
+	if(state_.professionDraftDirty) return;
+    professionBase_ = *it;
 	state_.selectedProfession = id;
 	state_.professionDraftName = it->name;
 	state_.professionDraftSkills = it->skills;
@@ -482,11 +506,12 @@ void Management6BController::selectAvailableSkill( CatalogId id )
 }
 void Management6BController::setProfessionDraftName( std::string name )
 {
-	state_.professionDraftName = std::move( name ); state_.professionDraftDirty = true; notify();
+	if(state_.professionSavePending) return;
+    state_.professionDraftName = std::move( name ); state_.professionDraftDirty = true; notify();
 }
 void Management6BController::addProfessionSkill()
 {
-	if( !state_.selectedAvailableSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	if( state_.professionSavePending || !state_.selectedAvailableSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
 	const auto id = *state_.selectedAvailableSkill;
 	if( std::ranges::find( state_.professionDraftSkills, id ) == state_.professionDraftSkills.end() ) state_.professionDraftSkills.push_back( id );
 	state_.professionDraftDirty = true;
@@ -494,14 +519,14 @@ void Management6BController::addProfessionSkill()
 }
 void Management6BController::removeProfessionSkill()
 {
-	if( !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	if( state_.professionSavePending || !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
 	std::erase( state_.professionDraftSkills, *state_.selectedProfessionSkill );
 	state_.professionDraftDirty = true;
 	state_.selectedProfessionSkill.reset(); notify();
 }
 void Management6BController::moveProfessionSkill( std::int32_t delta )
 {
-	if( !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	if( state_.professionSavePending || !state_.selectedProfessionSkill || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
 	const auto it = std::ranges::find( state_.professionDraftSkills, *state_.selectedProfessionSkill );
 	if( it == state_.professionDraftSkills.end() ) return;
 	const auto index = std::distance( state_.professionDraftSkills.begin(), it );
@@ -511,6 +536,7 @@ void Management6BController::moveProfessionSkill( std::int32_t delta )
 }
 void Management6BController::createProfession( std::string name )
 {
+    if(state_.professionDraftDirty) { state_.professionFeedback="editing.dirty"; notify(); return; }
 	const auto first = name.find_first_not_of( " \t\r\n" );
 	const auto last = name.find_last_not_of( " \t\r\n" );
 	if( first == std::string::npos ) { state_.status = "management.population.error_name_required"; notify(); return; }
@@ -520,16 +546,44 @@ void Management6BController::createProfession( std::string name )
 }
 void Management6BController::saveProfession()
 {
-	if( !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
-	const auto name = state_.professionDraftName;
+	if( state_.professionSavePending || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+    const auto current=std::ranges::find_if(state_.professions,[&](const auto& r){return r.id==*state_.selectedProfession;});
+    if(!professionBase_ || current==state_.professions.end() || *current!=*professionBase_) {
+        state_.professionFeedback="editing.changed"; notify(); return;
+    }
+    const auto name = state_.professionDraftName;
 	if( name.find_first_not_of( " \t\r\n" ) == std::string::npos ) { state_.status = "management.population.error_name_required"; notify(); return; }
 	if( std::ranges::any_of( state_.professions, [&]( const ProfessionRow& row ){ return row.name == name && row.id != *state_.selectedProfession; } ) ) { state_.status = "management.population.error_duplicate_name"; notify(); return; }
 	const auto old = *state_.selectedProfession;
-	if( dispatch( "profession.update", UpdateProfessionPayload{ old, name, state_.professionDraftSkills } ) ) { state_.selectedProfession = ProfessionId{ name }; state_.professionDraftDirty = false; }
+    professionSubmitted_=ProfessionRow{ProfessionId{name},name,state_.professionDraftSkills};
+    professionRequest_=RequestId{nextRequest_};
+    if(dispatch("profession.update",UpdateProfessionPayload{old,name,state_.professionDraftSkills})) {
+        state_.professionSavePending=state_.pendingAction==professionRequest_;
+        if(state_.professionSavePending) state_.professionFeedback="editing.pending";
+        else { state_.selectedProfession=ProfessionId{name}; state_.professionDraftDirty=false; professionBase_=professionSubmitted_; professionSubmitted_.reset(); professionRequest_.reset(); state_.professionFeedback="editing.saved"; }
+    } else { professionSubmitted_.reset(); professionRequest_.reset(); }
+    notify();
+}
+void Management6BController::discardProfessionDraft()
+{
+    if(state_.professionSavePending) return;
+    const auto selected=state_.selectedProfession;
+    state_.professionDraftDirty=false; state_.professionFeedback.clear();
+    state_.professionDraftName.clear(); state_.professionDraftSkills.clear();
+    if(selected) selectProfession(*selected);
+    notify();
+}
+void Management6BController::deleteReviewedProfession(WorldEpoch world, const ProfessionRow& reviewed)
+{
+    const auto current=std::ranges::find(state_.professions,reviewed);
+    if(world!=state_.world || current==state_.professions.end() || state_.selectedProfession!=reviewed.id) {
+        state_.status="editing.delete_changed"; notify(); return;
+    }
+    deleteProfession();
 }
 void Management6BController::deleteProfession()
 {
-	if( !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
+	if( state_.professionSavePending || !state_.selectedProfession || state_.selectedProfession->value == "Gnomad" ) return;
 	if ( dispatch( "profession.delete", ProfessionTargetPayload{ *state_.selectedProfession }, true ) ) state_.selectedProfession.reset();
 }
 void Management6BController::setScheduleActivity( ManagedScheduleActivity activity )
@@ -564,7 +618,8 @@ void Management6BController::openRelatedInventoryItem( std::string itemID )
 }
 void Management6BController::backInventoryDetail()
 {
-	if ( state_.inventoryDetailBack.empty() ) { closeInventoryDetail(); return; }
+    while(!state_.inventoryDetailBack.empty() && std::ranges::none_of(state_.inventory,[&](const auto& row){return row.id==state_.inventoryDetailBack.back();}))state_.inventoryDetailBack.pop_back();
+    if ( state_.inventoryDetailBack.empty() ) { closeInventoryDetail(); return; }
 	state_.inventoryDetail = state_.inventoryDetailBack.back();
 	state_.inventoryDetailBack.pop_back();
 	requestSelectedInventoryHistory();
@@ -613,9 +668,84 @@ void Management6BController::selectScheduleCell( ScheduleCellId id )
 												{ return r.creature == id.creature; } ) )
 		return;
 	state_.selectedScheduleCell = id;
+	state_.scheduleAnchor       = id;
 	notify();
 }
-void Management6BController::moveScheduleFocus( std::int32_t hourDelta, std::int32_t rowDelta )
+void Management6BController::extendScheduleSelection( ScheduleCellId id )
+{
+	if ( id.hour >= 24 || std::ranges::none_of( state_.schedules, [&]( const auto& r ) { return r.creature == id.creature; } ) ) return;
+	if ( !state_.scheduleAnchor ) state_.scheduleAnchor = state_.selectedScheduleCell ? state_.selectedScheduleCell : std::optional { id };
+	state_.selectedScheduleCell = id;
+	notify();
+}
+void Management6BController::selectScheduleCitizen( CreatureId creature )
+{
+	// Row heading: the citizen's whole day.
+	if ( std::ranges::none_of( state_.schedules, [&]( const auto& r ) { return r.creature == creature; } ) ) return;
+	state_.scheduleAnchor       = ScheduleCellId { creature, 0 };
+	state_.selectedScheduleCell = ScheduleCellId { creature, 23 };
+	notify();
+}
+void Management6BController::selectScheduleHour( std::uint8_t hour )
+{
+	// Column heading: this hour for every citizen.
+	if ( hour >= 24 || state_.schedules.empty() ) return;
+	state_.scheduleAnchor       = ScheduleCellId { state_.schedules.front().creature, hour };
+	state_.selectedScheduleCell = ScheduleCellId { state_.schedules.back().creature, hour };
+	notify();
+}
+void Management6BController::selectAllSchedule()
+{
+	if ( state_.schedules.empty() ) return;
+	state_.scheduleAnchor       = ScheduleCellId { state_.schedules.front().creature, 0 };
+	state_.selectedScheduleCell = ScheduleCellId { state_.schedules.back().creature, 23 };
+	notify();
+}
+ScheduleScope Management6BController::scheduleScope() const
+{
+	ScheduleScope scope;
+	if ( !state_.selectedScheduleCell ) return scope;
+	const auto anchor = state_.scheduleAnchor ? *state_.scheduleAnchor : *state_.selectedScheduleCell;
+	const auto index  = [&]( CreatureId id ) { return std::ranges::find_if( state_.schedules, [&]( const auto& r ) { return r.creature == id; } ) - state_.schedules.begin(); };
+	const auto a = index( anchor.creature ), b = index( state_.selectedScheduleCell->creature );
+	const auto n = static_cast<std::ptrdiff_t>( state_.schedules.size() );
+	if ( a >= n || b >= n ) return scope;
+	for ( auto i = std::min( a, b ); i <= std::max( a, b ); ++i ) scope.citizens.push_back( state_.schedules[static_cast<std::size_t>( i )].creature );
+	scope.firstHour   = std::min( anchor.hour, state_.selectedScheduleCell->hour );
+	scope.lastHour    = std::max( anchor.hour, state_.selectedScheduleCell->hour );
+	scope.allCitizens = static_cast<std::ptrdiff_t>( scope.citizens.size() ) == n;
+	return scope;
+}
+std::size_t Management6BController::applyScheduleScope( ScheduleActivity activity, const ScheduleScope& reviewed )
+{
+	// The reviewed scope must still be the current one; a refresh that changed the citizens needs a new review.
+	const auto current = scheduleScope();
+	if ( reviewed.empty() || current != reviewed )
+	{
+		state_.status = "editing.scope_changed";
+		notify();
+		return 0;
+	}
+	std::size_t sent = 0;
+	if ( current.allCitizens && current.firstHour == current.lastHour )
+		return setScheduleColumn( current.firstHour, activity ), 1;
+	for ( const auto& creature : current.citizens )
+	{
+		if ( current.fullDay() )
+		{
+			setScheduleRow( creature, activity );
+			++sent;
+			continue;
+		}
+		for ( auto hour = current.firstHour; hour <= current.lastHour; ++hour )
+		{
+			setScheduleCell( creature, hour, activity );
+			++sent;
+		}
+	}
+	return sent;
+}
+void Management6BController::moveScheduleFocus( std::int32_t hourDelta, std::int32_t rowDelta, bool extend )
 {
 	if ( state_.schedules.empty() )
 		return;
@@ -629,9 +759,11 @@ void Management6BController::moveScheduleFocus( std::int32_t hourDelta, std::int
 		if ( i != state_.schedules.end() )
 			row = static_cast<std::size_t>( i - state_.schedules.begin() );
 	}
-	hour                        = std::clamp( hour + hourDelta, 0, 23 );
-	const auto moved            = std::clamp<std::int64_t>( static_cast<std::int64_t>( row ) + rowDelta, 0, static_cast<std::int64_t>( state_.schedules.size() - 1 ) );
+	const auto [moved,nextHour] = moveMatrixFocus(row,hour,rowDelta,hourDelta,state_.schedules.size(),24);
+    hour=nextHour;
+	if ( extend && !state_.scheduleAnchor ) state_.scheduleAnchor = state_.selectedScheduleCell;
 	state_.selectedScheduleCell = ScheduleCellId { state_.schedules[static_cast<std::size_t>( moved )].creature, static_cast<std::uint8_t>( hour ) };
+	if ( !extend ) state_.scheduleAnchor = state_.selectedScheduleCell;
 	notify();
 }
 bool Management6BController::accepts( WorldEpoch w, Revision in, Revision current ) const
@@ -674,16 +806,17 @@ bool Management6BController::applyProfessions( Snapshot<std::vector<ProfessionRo
 {
 	if ( !accepts( s.world, s.revision, state_.professionRevision ) )
 		return false;
-	state_.professions        = std::move( s.value );
+    state_.professions = std::move(s.value);
+    if(professionSubmitted_) dispatch("profession.request_skills",ProfessionTargetPayload{professionSubmitted_->id});
 	if( state_.selectedProfession )
 	{
 		const auto selected = std::ranges::find_if( state_.professions, [&]( const ProfessionRow& row ){ return row.id == *state_.selectedProfession; } );
 		if( selected != state_.professions.end() )
 		{
-			if( !state_.professionDraftDirty ) { state_.professionDraftName = selected->name; state_.professionDraftSkills = selected->skills; }
+			if( !state_.professionDraftDirty ) { state_.professionDraftName = selected->name; state_.professionDraftSkills = selected->skills; professionBase_=*selected; }
 			dispatch( "profession.request_skills", ProfessionTargetPayload{ selected->id } );
 		}
-		else { state_.selectedProfession.reset(); state_.professionDraftDirty = false; }
+		else if(!state_.professionDraftDirty) { state_.selectedProfession.reset(); }
 	}
 	state_.professionRevision = s.revision;
 	state_.loadingPopulation  = false;
@@ -707,8 +840,13 @@ bool Management6BController::applyProfessionSkills( WorldEpoch w, ProfessionId i
 										 { return r.id == id; } );
 	if ( i == state_.professions.end() )
 		return false;
-	i->skills = std::move( skills );
-	if( state_.selectedProfession == id && !state_.professionDraftDirty ) state_.professionDraftSkills = i->skills;
+    i->skills = std::move( skills );
+    if(professionSubmitted_ && *i==*professionSubmitted_) {
+        state_.selectedProfession=i->id; state_.professionDraftDirty=false; state_.professionSavePending=false;
+        state_.professionFeedback="editing.saved"; professionBase_=*i;
+        professionSubmitted_.reset(); professionRequest_.reset();
+    }
+	if( state_.selectedProfession == id && !state_.professionDraftDirty ) { state_.professionDraftSkills = i->skills; professionBase_=*i; }
 	notify();
 	return true;
 }
@@ -717,6 +855,10 @@ bool Management6BController::applySchedules( Snapshot<std::vector<ScheduleRow>> 
 	if ( !accepts( s.world, s.revision, state_.scheduleRevision ) )
 		return false;
 	state_.schedules         = std::move( s.value );
+    if(state_.selectedScheduleCell&&std::ranges::none_of(state_.schedules,[&](const auto&r){return r.creature==state_.selectedScheduleCell->creature;}))state_.selectedScheduleCell.reset();
+	// A removed citizen at the range corner collapses the range to the active cell; never retarget elsewhere.
+	if ( !state_.selectedScheduleCell || ( state_.scheduleAnchor && std::ranges::none_of( state_.schedules, [&]( const auto& r ) { return r.creature == state_.scheduleAnchor->creature; } ) ) )
+		state_.scheduleAnchor = state_.selectedScheduleCell;
 	state_.scheduleRevision  = s.revision;
 	state_.loadingPopulation = false;
 	state_.pendingAction.reset();
@@ -815,6 +957,11 @@ void Management6BController::setAllSkills( CreatureId c, bool a )
 {
 	dispatch( "population.set_all_skills_for_gnome", SetGnomeSkillsPayload { c, a } );
 }
+void Management6BController::setSkillForAllReviewed(CatalogId skill, bool active, WorldEpoch world, Revision revision)
+{
+    if(world!=state_.world || revision!=state_.populationRevision) { state_.status="editing.scope_changed"; notify(); return; }
+    setSkillForAll(std::move(skill),active);
+}
 void Management6BController::setSkillForAll( CatalogId s, bool a )
 {
 	dispatch( "population.set_skill_for_all", SetSkillForAllPayload { std::move( s ), a } );
@@ -905,7 +1052,11 @@ void Management6BController::toggleSelectedWatch()
 }
 void Management6BController::onActionFinished( RequestId id, CommandResult r )
 {
-	if ( state_.pendingAction != id )
+    if(professionRequest_==id && r.status==CommandStatus::Rejected) {
+        state_.professionSavePending=false; state_.professionFeedback=r.error;
+        professionRequest_.reset(); professionSubmitted_.reset(); notify();
+    }
+    if ( state_.pendingAction != id )
 		return;
 	state_.pendingAction.reset();
 	state_.status = r.status == CommandStatus::Rejected ? r.error : std::string {};

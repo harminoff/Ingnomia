@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 #pragma once
+#include <map>
 #include "Management6AState.h"
 
 namespace ingnomia::ui::management6a
@@ -54,7 +55,15 @@ public:
 	void setStockpileTemplateName( std::string );
 	void toggleStockpileTemplateMenu();
 	void selectStockpileTemplate( std::string );
-	void saveStockpileTemplate();
+    void saveStockpileTemplate();
+    void updateStockpileTemplate();
+    void editStockpileDraft(std::string name, std::string priority);
+    void revertStockpileDraft();
+    bool applyStockpileDraft();
+    void editStockpileOptions(StockpileOptions);
+    void stockpileFeedback(std::string);
+    void rejectStockpile(StockpileId,std::string);
+
 	void applyStockpileTemplate( std::string );
 	void confirmStockpileTemplateOverwrite();
 	void cancelStockpileTemplateOverwrite();
@@ -76,7 +85,14 @@ public:
 	void refresh();
 	void locate();
 	void close();
-	void setWorkshopBasics( std::string, std::int32_t, bool, bool, bool, std::optional<bool> linkStockpile = std::nullopt );
+	void editWorkshopDraft(std::string, std::string);
+ void editWorkshopOptions(WorkshopOptions);
+ void revertWorkshopDraft();
+ bool applyWorkshopDraft();
+ void workshopFeedback(std::string);
+ void rejectWorkshop(WorkshopId,std::string);
+ void setTradeSnapshot(WorkshopId,std::uint32_t,std::uint64_t,std::vector<TradeRow>,std::vector<TradeRow>,int,int);
+ void setWorkshopBasics( std::string, std::int32_t, bool, bool, bool, std::optional<bool> linkStockpile = std::nullopt );
 	void setWorkshopStockpileLink(StockpileId, bool);
 	void onWorkshopOrderResult(WorkshopId, bool);
 	void setButcherOptions( bool, bool );
@@ -93,13 +109,23 @@ public:
 	void executeTrade();
 	void confirmTrade();
 	void cancelTrade();
-	void setStockpileBasics( std::string, std::int32_t, bool, bool, bool );
+	// Allow-list check boxes edit the pending sheet; nothing reaches the game until Apply or OK.
 	void toggleSelectedStockpileFilter();
-	void setStockpileFilterMatches( bool active );
+	void toggleStockpileRule( const StockpileFilterRowId& );
+	void setStockpileRulesShown( bool allowed );
+	bool stockpileRuleAllowed( const StockpileFilterRow& ) const;
 	void setAgricultureBasics( std::string, std::int32_t, bool );
 	void setAgriculturePane( AgriculturePane );
 	void applySelectedAgricultureProduct();
 	void toggleFarmPlot( WorldPosition );
+	void selectFarmPlot( WorldPosition, PlotSelect );
+	void moveFarmPlotFocus( std::int32_t dx, std::int32_t dy, bool extend );
+	void selectPastureFood( std::string key );
+	void editAgricultureName( std::string );
+	void editAgricultureOptions( AgricultureOptions );
+	void revertAgricultureDraft();
+	bool applyAgricultureDraft();
+	void agricultureFeedback( std::string );
 	void selectAllFarmPlots();
 	void clearFarmPlotSelection();
 	void assignSelectedFarmPlotCrop();
@@ -126,6 +152,11 @@ private:
 	CommandPort& commands_;
 	std::vector<ViewPort*> views_;
 	Management6AState state_;
-	std::uint64_t nextRequest_{ 1 };
+    std::map<std::uint32_t, WorkshopDraft> workshopDrafts_;
+	std::map<std::pair<int, std::uint32_t>, AgricultureDraft> agricultureDrafts_;
+    std::map<std::uint32_t, std::pair<StockpileDraft,std::string>> stockpileDrafts_;
+    StockpileId templateReviewId_;
+    Revision templateReviewRevision_;
+    std::uint64_t nextRequest_{ 1 };
 };
 } // namespace ingnomia::ui::management6a

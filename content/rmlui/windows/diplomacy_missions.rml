@@ -1,74 +1,93 @@
 <rml>
 <head>
-  <title data-l10n="management.diplomacy.window_title">Diplomacy</title>
+  <title>Diplomacy</title>
   <link type="text/template" href="/templates/management_window.rml" />
   <link type="text/rcss" href="/windows/management6c.rcss" />
+  <link type="text/rcss" href="/screens/win98_classic.rcss"/><link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
 <body id="diplomacy_root" class="m6c-root is-hidden">
   <template src="management-window">
-  <div id="diplomacy_workbench" class="c-window m6c-workbench">
-    <div class="c-title-bar">
-      <handle class="c-title-bar__drag-handle" move_target="diplomacy_workbench" edge_margin="64dp 12dp 52dp 12dp"><div class="c-title-bar__mark"></div>
-      <h1 class="c-title-bar__title" data-l10n="management.diplomacy.window_title">Diplomacy</h1></handle>
-      <button id="diplomacy_close" class="c-button" data-l10n="management.diplomacy.close">Close</button>
+  <!-- Windows 98 property sheet (252 x 218 DLU), Close only. Missions are planned in the Send Mission wizard
+       (Back / Next / Finish / Cancel; PDF p.304-309), which opens over the sheet and blocks it. -->
+  <div id="diplomacy_workbench" class="c-window m6c-workbench w98-sheet">
+    <div class="w98-caption">
+      <handle class="c-title-bar__drag-handle" move_target="diplomacy_workbench"><h1 class="c-title-bar__title" data-l10n="win98.diplomacy.diplomacy">Diplomacy</h1></handle>
+      <button id="diplomacy_help" class="w98-caption__close w98-caption__help" title="Help" data-l10n-title="win98.common.help.title" aria-label="What's This?"><span class="w98-caption__glyph w98-caption__glyph--help"></span></button><button id="diplomacy_close" class="w98-caption__close" title="Close" data-l10n-title="win98.diplomacy.close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
     </div>
-    <div id="diplomacy_body" class="c-window__body m6c-body">
-      <div id="diplomacy_shell" class="c-management-shell">
-        <aside id="diplomacy_rail" class="c-management-rail" aria-label="Diplomacy views" data-l10n-aria-label="management.diplomacy.views_label"><span class="c-management-rail__heading" data-l10n="management.navigation.views">Views</span>
-          <nav id="diplomacy_tabs" class="c-management-rail__nav" role="tablist" aria-label="Diplomacy views" aria-orientation="vertical">
-            <button id="diplomacy_tab_squads" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.squads">Squads</button><button id="diplomacy_tab_roles" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.roles_uniforms">Roles &amp; Uniforms</button><button id="diplomacy_tab_priorities" class="c-button c-management-rail__button is-hidden" role="tab" aria-selected="false" data-l10n="management.military.target_priorities">Target priorities</button><button id="diplomacy_tab_neighbors" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.diplomacy.neighbors" title="Review discovered neighbors and prepare a mission." data-l10n-title="management.diplomacy.neighbors_help">Neighbors</button><button id="diplomacy_tab_missions" class="c-button c-management-rail__button" role="tab" aria-selected="false" data-l10n="management.diplomacy.mission_activity" title="Review active and completed mission details." data-l10n-title="management.diplomacy.missions_help">Missions</button>
-          </nav>
-        </aside>
-        <div class="c-management-main"><button id="diplomacy_views_toggle" class="c-button c-management-views-toggle" aria-expanded="false" title="Open the Diplomacy views menu" data-l10n-title="management.diplomacy.views_help">Views: Neighbors</button>
+    <div id="diplomacy_body" class="w98-sheet__body">
+      <nav id="diplomacy_tabs" class="c-tabs c-connected-tabs w98-tabs" role="tablist"><button id="diplomacy_tab_neighbors" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="diplomacy_neighbors_page" data-l10n="win98.diplomacy.tab_neighbors">Neighbors</button><button id="diplomacy_tab_missions" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="diplomacy_missions_page" data-l10n="win98.diplomacy.tab_missions">Missions</button><button id="diplomacy_tab_squads" class="c-tabs__tab is-hidden" role="tab" data-l10n="win98.diplomacy.tab_squads">Squads</button><button id="diplomacy_tab_roles" class="c-tabs__tab is-hidden" role="tab" data-l10n="win98.diplomacy.tab_roles">Roles</button><button id="diplomacy_tab_priorities" class="c-tabs__tab is-hidden" role="tab" data-l10n="win98.diplomacy.tab_priorities">Targets</button></nav>
+      <div id="diplomacy_scroll" class="w98-page-frame">
+        <p id="diplomacy_loading" class="w98-text is-hidden" data-l10n="win98.diplomacy.loading">Loading neighbors and missions...</p>
+        <div id="diplomacy_error" class="w98-line is-hidden"><p class="w98-text w98-grow" data-l10n="win98.diplomacy.data_is_unavailable">Diplomacy data is unavailable.</p><button id="diplomacy_error_retry" class="w98-button" data-l10n="win98.diplomacy.error_retry">Retry</button></div>
+        <p id="diplomacy_empty" class="w98-text is-hidden"></p>
 
-      <button id="diplomacy_back" class="c-button m6c-back" data-l10n="management.military.back">Back to list</button>
-      <div id="diplomacy_loading" class="c-state-panel is-hidden"><h2 data-l10n="management.diplomacy.loading_title">Loading neighbors and missions</h2></div>
-      <div id="diplomacy_empty" class="c-state-panel m6c-empty is-hidden"><h2 id="diplomacy_empty_title"></h2><p id="diplomacy_empty_detail"></p><button data-l10n="management.diplomacy.go_neighbors" id="diplomacy_empty_neighbors" class="c-button">Go to Neighbors</button></div>
-      <div id="diplomacy_error" class="c-state-panel is-hidden"><h2 data-l10n="management.diplomacy.error_title">Diplomacy data unavailable</h2><button data-l10n="management.diplomacy.retry" id="diplomacy_error_retry" class="c-button">Retry</button></div>
-      <div id="diplomacy_main" class="m6c-layout is-hidden">
-        <section class="m6c-list-pane"><div class="m6c-actions m6c-add-actions"><button id="diplomacy_list_tools" class="c-button m6c-filter-toggle" data-l10n="management.flow.list_tools">Filter / sort</button></div>
-          <div id="diplomacy_primary_toolbar" class="m6c-primary-toolbar">
-      <label class="m6c-search-field"><span data-l10n="common.search">Search</span><input id="diplomacy_search" class="text m6c-search" type="text" data-l10n-placeholder="management.diplomacy.search_placeholder" /></label>
-      <div class="m6c-actions"><button data-l10n="management.military.sort" id="diplomacy_sort_source" class="c-button">Sort: original order</button><button data-l10n="management.military.refresh" id="diplomacy_refresh" class="c-button">Refresh</button></div>
-    </div>
-          <p id="diplomacy_selection_status" class="m6c-status is-hidden"></p>
-          <div id="diplomacy_neighbor_rows" class="c-list m6c-scroll m6c-rail-rows"></div>
-          <div id="diplomacy_mission_rows" class="c-list m6c-scroll m6c-rail-rows is-hidden"></div>
-        </section>
-        <section id="diplomacy_neighbor_detail" class="m6c-detail-pane">
-          <h2 id="neighbor_name"></h2>
-          <div id="neighbor_discovered_detail">
-<div class="m6c-field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.distance">Distance</span></span><span id="neighbor_distance" class="m6c-field__value"></span></div>
-<div class="m6c-field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.attitude">Attitude</span></span><span id="neighbor_attitude" class="m6c-field__value"></span></div>
-<div class="m6c-field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.wealth">Wealth</span></span><span id="neighbor_wealth" class="m6c-field__value"></span></div>
-<div class="m6c-field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.economy">Economy</span></span><span id="neighbor_economy" class="m6c-field__value"></span></div>
-<div class="m6c-field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.military">Military</span></span><span id="neighbor_military" class="m6c-field__value"></span></div>
-</div>
-          <div id="neighbor_undiscovered_detail" class="c-state-panel is-hidden"><h3 data-l10n="management.diplomacy.undiscovered_neighbor">Undiscovered neighbor</h3><p data-l10n="management.diplomacy.discovery_help">Discover this kingdom to see its details and send missions.</p></div>
-          <div id="mission_builder" class="m6c-section is-hidden">
-            <h3 data-l10n="management.diplomacy.start_supported_mission">New mission</h3>
-            <div class="m6c-actions" id="mission_type_group"><button data-l10n="management.diplomacy.spy" id="mission_type_spy" class="c-button">Spy</button><button data-l10n="management.diplomacy.emissary" id="mission_type_emissary" class="c-button">Emissary</button><button data-l10n="management.diplomacy.raid" id="mission_type_raid" class="c-button">Raid</button><button data-l10n="management.diplomacy.sabotage" id="mission_type_sabotage" class="c-button">Sabotage</button></div>
-            <div id="mission_action_group" class="m6c-actions"><button data-l10n="management.diplomacy.improve_relations" id="mission_action_improve" class="c-button">Improve relations</button><button data-l10n="management.diplomacy.insult" id="mission_action_insult" class="c-button">Insult</button><button data-l10n="management.diplomacy.invite_trader" id="mission_action_trader" class="c-button">Invite trader</button><button data-l10n="management.diplomacy.invite_ambassador" id="mission_action_ambassador" class="c-button">Invite ambassador</button></div>
-            <h3 data-l10n="management.diplomacy.eligible_gnome">Citizen</h3><div id="diplomacy_gnome_rows" class="c-list m6c-scroll m6c-gnome-rows"></div>
-            <div class="m6c-actions"><button data-l10n="management.diplomacy.start_mission" id="mission_start" class="c-button c-button--primary">Start mission</button><button data-l10n="management.diplomacy.view_missions" id="diplomacy_view_missions" class="c-button">View missions</button></div>
+        <section id="diplomacy_neighbors_page" class="w98-page w98-row w98-row--fill" role="tabpanel" aria-labelledby="diplomacy_tab_neighbors">
+          <div class="w98-col w98-skill-list"><label class="w98-label" for="diplomacy_neighbor_rows" data-l10n="win98.diplomacy.neighbor_rows">Kingdoms:</label><div id="diplomacy_neighbor_rows" class="w98-list w98-grow" role="listbox" aria-label="Neighboring kingdoms"></div></div>
+          <div class="w98-col w98-grow">
+            <div class="w98-group w98-grow"><span id="neighbor_name" class="w98-group__title"></span>
+              <p id="neighbor_undiscovered_detail" class="w98-text is-hidden" data-l10n="win98.diplomacy.neighbor_undiscovered_detail">This kingdom has not been discovered, so its details are unknown and no mission can be sent.</p>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.distance">Distance:</span><p id="neighbor_distance" class="w98-text w98-grow"></p></div>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.type">Type:</span><p id="neighbor_type" class="w98-text w98-grow"></p></div>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.attitude">Attitude:</span><p id="neighbor_attitude" class="w98-text w98-grow"></p></div>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.wealth">Wealth:</span><p id="neighbor_wealth" class="w98-text w98-grow"></p></div>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.economy">Economy:</span><p id="neighbor_economy" class="w98-text w98-grow"></p></div>
+              <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.military">Military:</span><p id="neighbor_military" class="w98-text w98-grow"></p></div>
+            </div>
+            <div class="w98-gap"></div>
+            <p id="mission_unavailable" class="w98-text"></p>
+            <div class="w98-line w98-line--end"><button id="mission_wizard_open" class="w98-button" data-l10n="win98.diplomacy.mission_wizard_open">Send Mission...</button></div>
           </div>
         </section>
-        <section id="diplomacy_mission_detail" class="m6c-detail-pane is-hidden">
-          <h2 id="mission_title"></h2>
-<div class="m6c-field" id="mission_action_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.action">Action</span></span><span id="mission_action" class="m6c-field__value"></span></div>
-<div class="m6c-field" id="mission_step_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.step">Status</span></span><span id="mission_step" class="m6c-field__value"></span></div>
-<div class="m6c-field" id="mission_target_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.target">Destination</span></span><span id="mission_target" class="m6c-field__value"></span></div>
-<div class="m6c-field" id="mission_participants_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.participants">Participants</span></span><span id="mission_participants" class="m6c-field__value"></span></div>
-<div class="m6c-field" id="mission_timing_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.current_timing">Time</span></span><span id="mission_timing" class="m6c-field__value"></span></div>
-<div class="m6c-field" id="mission_result_field"><span class="m6c-field__label"><span data-l10n="management.diplomacy.result_reported">Result</span></span><span id="mission_result" class="m6c-field__value"></span></div>
-<div class="m6c-actions"><button data-l10n="management.diplomacy.go_neighbors" id="diplomacy_new_mission" class="c-button">Go to Neighbors</button></div>
+
+        <section id="diplomacy_missions_page" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="diplomacy_tab_missions">
+          <div class="w98-listview w98-grow"><div class="w98-listview__header"><span class="w98-w-profession" data-l10n="win98.diplomacy.mission">Mission</span><span style="flex: 1 1 auto;" data-l10n="win98.diplomacy.destination">Destination</span><span class="w98-w-profession" data-l10n="win98.diplomacy.status">Status</span></div><div id="diplomacy_mission_rows" class="w98-list" role="listbox" aria-label="Missions"></div></div>
+          <div class="w98-gap"></div>
+          <div class="w98-group"><span id="mission_title" class="w98-group__title"></span>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.task">Task:</span><p id="mission_action" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.status_2">Status:</span><p id="mission_step" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.citizens">Citizens:</span><p id="mission_participants" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.time">Time:</span><p id="mission_timing" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.result">Result:</span><p id="mission_result" class="w98-text w98-grow"></p></div>
+          </div>
         </section>
       </div>
-      <div id="diplomacy_footer" class="m6c-footer is-hidden"><span id="diplomacy_status"></span></div>
-        </div>
-      </div>
+      <div class="w98-buttonbar"><p id="diplomacy_status" class="w98-text w98-grow" role="status"></p><button id="diplomacy_close_button" class="w98-button w98-button--default" data-l10n="win98.common.close">Close</button></div>
     </div>
-    <span class="c-window__resize-grip" aria-hidden="true"></span>
+
+    <!-- Send Mission wizard: a modal dialog over the sheet. Interior pages have a white header with a title and
+         a one-sentence subtitle (PDF p.307-308); Back is unavailable on the first page, Finish only on Review. -->
+    <div id="mission_wizard" class="w98-modal-layer is-hidden" role="presentation">
+      <section class="w98-sheet w98-wizard" role="dialog" aria-modal="true" aria-labelledby="mission_wizard_title">
+        <div class="w98-caption"><h2 id="mission_wizard_title" class="c-title-bar__title"></h2><button id="wizard_close" class="w98-caption__close" title="Cancel" data-l10n-title="win98.diplomacy.wizard_close.title" aria-label="Cancel"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button></div>
+        <div class="w98-wizard__header"><p id="wizard_heading" class="w98-wizard__title"></p><p id="wizard_subtitle" class="w98-text"></p></div>
+        <div class="w98-wizard__body">
+          <section id="wizard_page_mission" class="w98-page w98-col">
+            <div class="w98-group"><span class="w98-group__title" data-l10n="win98.diplomacy.mission">Mission</span>
+              <div class="w98-line"><label class="w98-check" for="mission_type_emissary"><input id="mission_type_emissary" class="radio" type="radio" name="mission_type"/><span data-l10n="win98.diplomacy.mission_type_emissary">Emissary</span></label><label class="w98-check" for="mission_type_spy"><input id="mission_type_spy" class="radio" type="radio" name="mission_type"/><span data-l10n="win98.diplomacy.mission_type_spy">Spy</span></label><label class="w98-check" for="mission_type_raid"><input id="mission_type_raid" class="radio" type="radio" name="mission_type"/><span data-l10n="win98.diplomacy.mission_type_raid">Raid</span></label><label class="w98-check" for="mission_type_sabotage"><input id="mission_type_sabotage" class="radio" type="radio" name="mission_type"/><span data-l10n="win98.diplomacy.mission_type_sabotage">Sabotage</span></label></div>
+            </div>
+            <div id="mission_action_group" class="w98-group"><span class="w98-group__title" data-l10n="win98.diplomacy.emissary_s_task">Emissary's task</span>
+              <label class="w98-check" for="mission_action_improve"><input id="mission_action_improve" class="radio" type="radio" name="mission_action"/><span data-l10n="win98.diplomacy.mission_action_improve">Improve relations</span></label>
+              <label class="w98-check" for="mission_action_insult"><input id="mission_action_insult" class="radio" type="radio" name="mission_action"/><span data-l10n="win98.diplomacy.mission_action_insult">Insult</span></label>
+              <label class="w98-check" for="mission_action_trader"><input id="mission_action_trader" class="radio" type="radio" name="mission_action"/><span data-l10n="win98.diplomacy.mission_action_trader">Invite a trader</span></label>
+              <label class="w98-check" for="mission_action_ambassador"><input id="mission_action_ambassador" class="radio" type="radio" name="mission_action"/><span data-l10n="win98.diplomacy.mission_action_ambassador">Invite an ambassador</span></label>
+            </div>
+            <p id="mission_types_note" class="w98-text"></p>
+          </section>
+          <section id="wizard_page_citizen" class="w98-page w98-col is-hidden">
+            <label class="w98-label" for="diplomacy_gnome_rows" data-l10n="win98.diplomacy.gnome_rows">Citizens who can go:</label>
+            <div id="diplomacy_gnome_rows" class="w98-list w98-grow" role="listbox" aria-label="Citizens who can go"></div>
+          </section>
+          <section id="wizard_page_review" class="w98-page w98-col is-hidden">
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.kingdom">Kingdom:</span><p id="review_destination" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.mission_2">Mission:</span><p id="review_mission" class="w98-text w98-grow"></p></div>
+            <div class="w98-line"><span class="w98-label" data-l10n="win98.diplomacy.citizen">Citizen:</span><p id="review_citizen" class="w98-text w98-grow"></p></div>
+            <div class="w98-gap"></div>
+            <p id="review_note" class="w98-text" role="status"></p>
+          </section>
+        </div>
+        <div class="w98-wizard__buttons"><button id="wizard_back" class="w98-button" data-l10n="win98.diplomacy.wizard_back">&lt; Back</button><button id="wizard_next" class="w98-button w98-button--default" data-l10n="win98.diplomacy.wizard_next">Next &gt;</button><button id="mission_start" class="w98-button w98-button--default" data-l10n="win98.diplomacy.mission_start">Finish</button><button id="wizard_cancel" class="w98-button w98-wizard__gap" data-l10n="win98.common.cancel">Cancel</button></div>
+      </section>
+    </div>
   </div>
   <div id="diplomacy_tooltip" class="c-tooltip c-management-tooltip" role="tooltip" aria-hidden="true"></div>
   </template>

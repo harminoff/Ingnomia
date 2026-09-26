@@ -36,8 +36,8 @@ std::optional<ShellControl> ShellRmlAdapter::controlForElement( std::string_view
 std::string_view ShellRmlAdapter::initialFocusForRoute( std::string_view route ) noexcept
 {
 	if( route == "shell.main_menu" ) return "shell-continue";
-	if( route == "shell.new_game" ) return "new-kingdom-name";
-	if( route == "shell.load_game" ) return "load-refresh";
+	if( route == "shell.new_game" ) return "new-next";
+	if( route == "shell.load_game" ) return "load-kingdoms";
 	if( route == "shell.settings" || route == "game.settings" ) return "shell-back";
 	if( route == "shell.loading" ) return "loading-heading";
 	if( route == "game.pause" ) return "pause-resume";

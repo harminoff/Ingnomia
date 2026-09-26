@@ -39,6 +39,7 @@ public:
 	}
 	[[nodiscard]] std::string format( LocalizationKey key, std::initializer_list<TextArgument> arguments ) const { return format(key,std::span<const TextArgument>(arguments.begin(),arguments.size())); }
 	[[nodiscard]] bool contains( LocalizationKey key ) const { return entries_.contains( key.value ); }
+	[[nodiscard]] const std::map<std::string, std::string, std::less<>>& entries() const noexcept { return entries_; }
 	[[nodiscard]] static UiText english() { return UiText( englishEntries() ); }
 	[[nodiscard]] static UiText longStringFixture()
 	{
@@ -52,7 +53,8 @@ private:
 	{
 		return {
 			{"hud.build.unavailable","Unavailable: missing materials"},{"hud.build.available","Available"},{"hud.build.cannot_build","Cannot build"},{"ui.error.build_materials_unavailable","Cannot place: required materials are unavailable"},
-			{"common.close","Close"},{"common.locate","Locate"},{"common.refresh","Refresh"},{"common.cancel","Cancel"},{"common.search","Search"},
+			{"common.exit","Exit"},{"common.leave_world","Leave world"},
+            {"common.untitled_window","Untitled window"},{"common.close","Close"},{"common.locate","Locate"},{"common.refresh","Refresh"},{"common.cancel","Cancel"},{"common.search","Search"},
 			{"common.loading","Loading…"},{"common.no_results","No matching results."},{"common.previous_rows","Previous rows"},{"common.next_rows","Next rows"},
 			{"workshop.title","Workshop"},{"workshop.craft_catalog","Craft catalog"},{"workshop.production_queue","Production queue"},
 			{"stockpile.title","Stockpile"},{"agriculture.title","Agriculture"},{"trade.confirm.title","Complete this trade?"},
@@ -65,6 +67,8 @@ private:
 			{"inspector.static.skills","Skills"},{"inspector.static.no_skills","No skills reported"},{"inspector.static.equipment","Equipment"},{"inspector.static.no_equipment","No worn items"},{"inspector.static.inventory","Inventory"},{"inspector.static.no_inventory","No carried items"},{"inspector.static.profession_choices","Set profession"},{"inspector.static.no_profession_choices","No profession choices available"},{"inspector.static.no_activity","Activity is not reported for this creature"},{"inspector.static.not_reported","Not reported"},
 			{"ui.confirm.end_world.title","Return to main menu?"},{"ui.confirm.end_world.detail","Unsaved progress in the current kingdom may be lost."},{"ui.confirm.exit.title","Exit Ingnomia?"},{"ui.confirm.exit.detail","Unsaved progress may be lost."},{"ui.confirm.load_other_world.detail","Loading another world ends the current session."},{"ui.error.action_rejected","The action was rejected."},{"ui.status.saving_game","Saving game…"},{"ui.status.game_saved","Game saved."},{"ui.error.save_failed","The game could not be saved."},{"ui.error.save_list_unavailable","The save list could not be read."},
 			#include "UiTextStaticEntries.inc"
+			#include "UiTextWin98Entries.inc"
+			#include "UiTextWin98Help.inc"
 		};
 	}
 	std::map<std::string,std::string,std::less<>> entries_;

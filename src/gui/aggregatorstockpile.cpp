@@ -48,9 +48,9 @@ QVariantList loadStockpileTemplates()
 	return IO::loadFile( stockpileTemplatePath(), document ) ? document.toVariant().toList() : QVariantList {};
 }
 
-void saveStockpileTemplates( const QVariantList& templates )
+bool saveStockpileTemplates( const QVariantList& templates )
 {
-	IO::saveFile( stockpileTemplatePath(), QJsonDocument::fromVariant( templates ) );
+	return IO::saveFile( stockpileTemplatePath(), QJsonDocument::fromVariant( templates ) );
 }
 }
 
@@ -106,6 +106,7 @@ void AggregatorStockpile::onUpdateStockpileInfo( unsigned int stockpileID )
 	{
 		emit signalUpdateInfo( m_info );
 	}
+    else emit signalStockpileRejected(stockpileID,"This stockpile no longer exists.");
 }
 
 /// @brief Fills m_info with the current stockpile state (basic fields + per-entry summary).
@@ -236,6 +237,7 @@ void AggregatorStockpile::onSetActive( unsigned int stockpileID, bool active, QS
 void AggregatorStockpile::onSetActiveBatch( unsigned int stockpileID, bool active, const QList<QStringList>& paths )
 {
 	if( !g || paths.empty() ) return;
+    if(!g->spm()->getStockpile(stockpileID)) {emit signalStockpileRejected(stockpileID,"This stockpile no longer exists.");return;}
 	auto sp = g->spm()->getStockpile( stockpileID );
 	if ( sp )
 	{
@@ -260,25 +262,27 @@ void AggregatorStockpile::onSetActiveBatch( unsigned int stockpileID, bool activ
 	}
 }
 
-void AggregatorStockpile::onSaveFilterTemplate( unsigned int stockpileID, QString name )
+void AggregatorStockpile::onSaveFilterTemplate( unsigned int stockpileID, QString name, bool replaceExisting )
 {
 	if ( !g ) return;
 	name = name.trimmed();
-	if ( name.isEmpty() || name.size() > 48 ) return;
+	if ( name.isEmpty() || name.size() > 48 ) {emit signalStockpileRejected(stockpileID,"Enter a template name of 1 to 48 characters.");return;}
 	const auto stockpile = g->spm()->getStockpile( stockpileID );
-	if ( !stockpile ) return;
+	if ( !stockpile ) {emit signalStockpileRejected(stockpileID,"This stockpile no longer exists.");return;}
 	auto templates = loadStockpileTemplates();
 	QVariantMap saved { { "Name", name }, { "Filter", stockpile->filter().serialize() } };
 	bool replaced = false;
 	for ( auto& value : templates )
 		if ( value.toMap().value( "Name" ).toString().compare( name, Qt::CaseInsensitive ) == 0 )
 		{
-			value = saved;
+			if(!replaceExisting) {emit signalStockpileRejected(stockpileID,"That template name already exists. Use Update existing.");return;}
+            value = saved;
 			replaced = true;
 			break;
 		}
-	if ( !replaced ) templates.push_back( saved );
-	saveStockpileTemplates( templates );
+	if(!replaced && replaceExisting) {emit signalStockpileRejected(stockpileID,"The saved template no longer exists.");return;}
+    if ( !replaced ) templates.push_back( saved );
+	if(!saveStockpileTemplates( templates )) {emit signalStockpileRejected(stockpileID,"Could not save the template. Your current rules are unchanged.");return;}
 	onUpdateStockpileInfo( stockpileID );
 }
 
@@ -287,7 +291,8 @@ void AggregatorStockpile::onApplyFilterTemplate( unsigned int stockpileID, QStri
 	if ( !g ) return;
 	name = name.trimmed();
 	const auto stockpile = g->spm()->getStockpile( stockpileID );
-	if ( !stockpile || name.isEmpty() ) return;
+	if(!stockpile) {emit signalStockpileRejected(stockpileID,"This stockpile no longer exists.");return;}
+    if(name.isEmpty())return;
 	for ( const auto& value : loadStockpileTemplates() )
 	{
 		const auto saved = value.toMap();

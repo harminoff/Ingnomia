@@ -1,3 +1,49 @@
+/* ---------------------------------------------------------------- Stage 18: Windows 98 shell screens
+   The main menu, Custom Game wizard and Load Game dialog sit on the desktop colour of the Windows Standard scheme.
+   Lengths in em are of the snapped 11/22/33 px system font (1 px at 1x = 1/11 em). */
+.l-shell-screen.l-shell-desktop { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; overflow: hidden; background-color: #008080; }
+.l-shell-dialog { display: flex; flex-direction: column; width: 34.9091em; }
+.w98-sheet .l-menu-row { align-items: center; margin: 0 0 0.3636em 0; }
+.w98-sheet button.w98-button.l-menu-command { flex: 0 0 10.9091em; width: 10.9091em; }
+.w98-sheet .l-shell-error { color: #000000; }
+/* The focused command button carries the default outline, as in a Windows dialog box. */
+.l-shell-dialog .w98-button:focus, .l-new-game-wizard .w98-button:focus {
+    border-color: #000000;
+    box-shadow: inset 0.0909em 0.0909em 0 #ffffff, inset -0.0909em -0.0909em 0 #000000, inset 0.1818em 0.1818em 0 #dfdfdf, inset -0.1818em -0.1818em 0 #808080;
+}
+
+/* Custom Game wizard: the book's 317 x 193 DLU wizard (476 x 314 px) below its caption. */
+.w98-wizard.l-new-game-wizard { width: 43.2727em; height: 30.1818em; }
+.w98-sheet .l-wizard-page .w98-wizard__body { gap: 0.1818em; }
+.w98-sheet .l-wizard-exterior { background-color: #ffffff; }
+/* Welcome and Completion pages: a watermark band on the left (PDF p.307) and a bold title. */
+.w98-sheet .l-wizard-watermark { display: block; flex: 0 0 14.9091em; width: 14.9091em; decorator: vertical-gradient( #000080 #1084d0 ); }
+.w98-sheet .l-wizard-exterior__body { padding: 1em 1em 0.6364em 1.4545em; background-color: #ffffff; }
+.w98-sheet p.l-wizard-exterior__title { display: block; margin: 0 0 1em 0; font-weight: bold; color: #000000; }
+.w98-sheet .l-new-game-unit { flex: 0 0 5.4545em; width: 5.4545em; }
+
+/* Stage 19: in the game the pause and settings dialogs sit over the paused map instead of the desktop colour. */
+.l-shell-screen.l-shell-desktop.is-in-game { background-color: transparent; }
+/* High Contrast: a white desktop behind the dialogs (Stage 20). */
+.l-shell-screen.l-shell-desktop.is-high-contrast { background-color: #ffffff; }
+.l-shell-screen.l-shell-desktop.is-in-game.is-high-contrast { background-color: transparent; }
+/* Settings property sheet: 384 x 380 px at 1x, Close only. Slider values sit to the right, with Low / High labels
+   under the track (as in the Windows 98 Display Properties "Screen area" slider). */
+.l-settings-sheet { width: 34.9091em; height: 34.5455em; }
+.w98-sheet .l-settings-value { flex: 0 0 4.3636em; width: 4.3636em; text-align: right; }
+.w98-sheet .w98-group > .w98-line.l-settings-range { min-height: 0; margin-top: -0.3636em; }
+/* Loading: the hourglass while the game cannot respond (PDF p.356); the arrow again when it asks a question. */
+.l-shell-screen.is-loading { cursor: wait; }
+.l-shell-screen.is-loading.is-failed { cursor: arrow; }
+.l-loading-box { width: 28.3636em; }
+
+/* Load Game dialog (Open dialog model). */
+.l-load-dialog { width: 38.1818em; height: 27.2727em; }
+.w98-sheet .l-load-dialog .w98-sheet__body, .l-load-dialog .w98-sheet__body { padding-bottom: 0.6364em; }
+.w98-sheet .l-load-list { flex: 1 1 0; min-height: 0; }
+.w98-sheet .l-load-modified { width: 10.9091em; }
+.w98-sheet .l-load-version { width: 5.4545em; }
+
 .l-shell-root {
     width: 100%;
     height: 100%;
@@ -28,74 +74,6 @@
     background-color: #101315;
 }
 
-.l-shell-screen--centered {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.c-shell-chamber {
-    width: 760dp;
-    max-width: 100%;
-    padding: 24dp;
-    background-color: #1d2326;
-    border-width: 2dp;
-    border-color: #596166;
-    border-radius: 8dp;
-}
-
-.c-shell-chamber--wide { width: 1080dp; }
-.c-shell-chamber--compact { width: 520dp; }
-
-.c-shell-masthead {
-    margin-bottom: 20dp;
-    padding-bottom: 16dp;
-    border-bottom-width: 2dp;
-    border-bottom-color: #6d4b2e;
-    text-align: center;
-}
-
-.c-shell-wordmark { font-size: 34dp; line-height: 42dp; letter-spacing: 3dp; }
-.c-shell-version { display: block; margin-top: 4dp; color: #9fa4a1; font-size: 13dp; }
-.c-shell-copy { max-width: 600dp; margin: 0 auto 16dp auto; text-align: center; }
-
-.c-shell-actions { display: flex; flex-direction: column; gap: 8dp; width: 360dp; max-width: 100%; margin: 0 auto; }
-.c-shell-actions button { width: 100%; }
-.c-shell-actions--row { flex-direction: row; width: 100%; justify-content: flex-end; }
-.c-shell-actions--row button { width: auto; }
-
-.c-shell-title-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12dp;
-    margin-bottom: 16dp;
-    padding-bottom: 12dp;
-    border-bottom-width: 2dp;
-    border-bottom-color: #6d4b2e;
-}
-.c-shell-title-row h1 { flex: 1; }
-
-.c-shell-form-grid { display: flex; flex-direction: row; flex-wrap: wrap; gap: 16dp; }
-.c-shell-form-column { flex: 1; min-width: 280dp; }
-.c-shell-section { margin-bottom: 16dp; padding: 16dp; background-color: #252d31; border-width: 1dp; border-color: #30373a; }
-.c-shell-section h2 { margin-bottom: 12dp; }
-
-.c-shell-split { display: flex; flex-direction: row; flex-wrap: wrap; gap: 16dp; min-height: 320dp; }
-.c-shell-pane { flex: 1; min-width: 280dp; }
-.c-shell-pane .c-list { height: 280dp; overflow-y: auto; }
-
-.c-shell-setting-row { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12dp; min-height: 56dp; padding: 8dp 0; border-bottom-width: 1dp; border-bottom-color: #30373a; }
-.c-shell-setting-copy { flex: 1; min-width: 240dp; }
-.c-shell-setting-label { display: block; color: #f1eee6; }
-.c-shell-setting-detail { display: block; color: #9fa4a1; font-size: 13dp; line-height: 18dp; }
-.c-shell-setting-control { width: 220dp; max-width: 100%; }
-
-.c-shell-loading-mark { margin: 20dp 0; text-align: center; }
-.c-shell-status { margin-top: 16dp; }
-.c-shell-pause-state { margin-bottom: 16dp; text-align: center; }
-
 .is-blocking { pointer-events: auto; }
 
 /* RCT2-inspired main-menu and management shell: sky-blue field, compact
@@ -103,211 +81,6 @@
 .l-shell-root,
 .l-shell-screen { background-color: #6b9fc4; }
 .l-shell-screen { padding: 12dp; }
-.l-shell-screen--centered { justify-content: flex-start; }
-.c-shell-chamber {
-    padding: 12dp;
-    background-color: #cbd5d9;
-    border-width: 2dp;
-    border-top-color: #f7faf8;
-    border-left-color: #f7faf8;
-    border-right-color: #4d6476;
-    border-bottom-color: #4d6476;
-    border-radius: 1dp;
-    box-shadow: 4dp 4dp 0dp #24384980;
-}
-.c-shell-masthead {
-    display: block;
-    width: 100%;
-    min-height: 58dp;
-    margin-bottom: 10dp;
-    padding: 7dp 8dp;
-    background-color: #356c9d;
-    border-bottom-width: 2dp;
-    border-bottom-color: #214665;
-}
-.c-shell-wordmark { color: #ffffff; font-size: 27dp; line-height: 31dp; letter-spacing: 2dp; }
-.c-shell-version { color: #d7e8ef; font-size: 11dp; }
-.c-shell-copy { max-width: 600dp; margin: 0 auto 10dp auto; color: #29465c; }
-.c-shell-actions { gap: 4dp; width: 330dp; }
-.c-shell-actions .c-button--primary { min-height: 34dp; }
-.c-shell-actions .c-field__help { color: #506875; }
-.c-shell-title-row { gap: 7dp; margin-bottom: 8dp; padding-bottom: 7dp; border-bottom-color: #718591; }
-.c-shell-title-row h1 { color: #142333; font-size: 20dp; }
-.c-shell-section { margin-bottom: 10dp; padding: 8dp; background-color: #dce4e6; border-width: 2dp; border-color: #8b9da6; }
-.c-shell-section h2 { margin-bottom: 7dp; color: #24415a; font-size: 15dp; }
-.c-shell-pane .c-list { height: 280dp; }
-.c-shell-pane .c-state-panel {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    width: 100%;
-    height: 280dp;
-    box-sizing: border-box;
-    padding: 16dp;
-    color: #29465c;
-    background-color: #f3f5ef;
-    border-width: 2dp;
-    border-top-color: #4d6476;
-    border-left-color: #4d6476;
-    border-right-color: #f7faf8;
-    border-bottom-color: #f7faf8;
-}
-.c-shell-pane .c-state-panel__title { color: #24415a; font-size: 15dp; line-height: 20dp; }
-.c-shell-pane .c-state-panel p { margin: 5dp 0 0; color: #506875; font-size: 11dp; line-height: 15dp; }
-.c-shell-setting-row { min-height: 42dp; padding: 5dp 0; border-bottom-color: #a9b8be; }
-.c-shell-setting-label { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8dp; color: #142333; }
-.c-shell-setting-value { flex: 0 0 auto; color: #245d87; font-size: 12dp; font-weight: bold; white-space: nowrap; }
-.c-shell-setting-detail { color: #506875; font-size: 11dp; line-height: 15dp; }
 
-/* New-game setup is a guided workbench rather than a single scrolling form.
-   The left rail gives each group a stable home; the content pane keeps one
-   decision in focus at a time while preserving the existing draft bindings. */
-.l-new-game-screen { padding: 16dp; overflow-x: hidden; overflow-y: auto; }
-.l-new-game-chamber { width: 100%; max-width: 1120dp; margin: 0 auto; background-color: transparent; border: 0; box-shadow: none; }
-.l-new-game-titlebar { align-items: flex-start; margin-bottom: 10dp; padding-bottom: 8dp; }
-.l-new-game-heading { flex: 1; min-width: 0; }
-.l-new-game-eyebrow { display: block; margin-bottom: 2dp; color: #506875; font-size: 10dp; font-weight: bold; letter-spacing: 1dp; }
-.l-new-game-titlebar h1 { margin-bottom: 2dp; }
-.l-new-game-titlebar p { max-width: 680dp; margin: 0; color: #506875; font-size: 12dp; line-height: 16dp; }
-
-.l-new-game-layout { display: flex; flex-direction: row; align-items: stretch; gap: 0; min-height: 430dp; }
-.l-new-game-nav { position: relative; z-index: 2; flex: 0 0 208dp; width: 208dp; padding: 8dp 0 8dp 8dp; background-color: #aebdc4; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
-.l-new-game-nav-title { margin-bottom: 7dp; color: #29465c; font-size: 12dp; font-weight: bold; text-transform: uppercase; }
-.l-new-game-tabs { display: flex; flex-direction: column; gap: 0; min-height: 0; margin-right: -2dp; border: 0; }
-.l-new-game-tab { position: relative; display: flex; flex-direction: row; align-items: center; gap: 8dp; width: 100%; min-width: 0; min-height: 58dp; margin: 0 0 -1dp 0; padding: 7dp 8dp; text-align: left; background-color: #cbd5d9; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; border-radius: 0; }
-.l-new-game-tab:hover { background-color: #d6e0e4; }
-.l-new-game-tab.is-selected { z-index: 3; margin-right: -2dp; padding-left: 10dp; color: #142333; background-color: #dce4e6; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #dce4e6; border-bottom-color: #718591; }
-.l-new-game-tab__number { flex: 0 0 25dp; width: 25dp; height: 25dp; padding-top: 3dp; color: #245d87; background-color: #cbd5d9; border: 1dp #718591; text-align: center; font-size: 11dp; font-weight: bold; }
-.l-new-game-tab.is-selected .l-new-game-tab__number { color: #ffffff; background-color: #356c9d; border-color: #214665; }
-.l-new-game-tab__copy { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.l-new-game-tab__label { display: block; color: #142333; font-size: 13dp; font-weight: bold; line-height: 17dp; }
-.l-new-game-tab__hint { display: block; color: #506875; font-size: 10dp; line-height: 13dp; }
-.l-new-game-nav-note { display: flex; flex-direction: row; gap: 6dp; margin: 12dp 8dp 0 0; padding: 7dp; color: #506875; background-color: #cbd5d9; border: 1dp #8b9da6; }
-.l-new-game-nav-note__mark { flex: 0 0 18dp; width: 18dp; height: 18dp; color: #ffffff; background-color: #356c9d; text-align: center; font-weight: bold; }
-.l-new-game-nav-note strong { display: block; color: #29465c; font-size: 11dp; }
-.l-new-game-nav-note p { margin: 2dp 0 0; color: #506875; font-size: 10dp; line-height: 13dp; }
-
-.l-new-game-content { position: relative; z-index: 1; flex: 1 1 auto; min-width: 0; }
-.l-new-game-panels { width: 100%; }
-.l-new-game-panel { background-color: #dce4e6; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #718591; border-bottom-color: #718591; }
-.l-new-game-panel__header { display: flex; flex-direction: row; align-items: flex-start; gap: 8dp; min-height: 68dp; padding: 9dp 10dp 8dp; background-color: #356c9d; border-bottom-width: 2dp; border-bottom-color: #214665; }
-.l-new-game-panel__header > div { flex: 1; min-width: 0; }
-.l-new-game-step { display: block; margin-bottom: 1dp; color: #d7e8ef; font-size: 10dp; font-weight: bold; letter-spacing: 1dp; }
-.l-new-game-panel__header h2 { color: #ffffff; font-size: 19dp; line-height: 24dp; }
-.l-new-game-panel__header p { margin: 1dp 0 0; color: #d7e8ef; font-size: 11dp; line-height: 15dp; }
-.l-new-game-badge { flex: 0 0 auto; margin-top: 2dp; padding: 3dp 6dp; color: #29465c; background-color: #f1ca4f; border: 1dp #855d19; font-size: 10dp; font-weight: bold; white-space: nowrap; }
-.l-new-game-badge--ready { color: #24415a; background-color: #9ed2ed; border-color: #245d87; }
-
-.l-new-game-card-grid { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8dp; padding: 10dp; }
-.l-new-game-card { flex: 1 1 220dp; min-width: 200dp; padding: 9dp; background-color: #f3f5ef; border-width: 1dp; border-color: #a9b8be; }
-.l-new-game-card--wide { flex-basis: 100%; }
-.l-new-game-card-grid--nested { padding: 0; gap: 8dp; }
-.l-new-game-card-grid--nested .l-new-game-range-card { flex: 1 1 220dp; min-width: 180dp; }
-.l-new-game-card h3, .l-new-game-review-card h3 { margin-bottom: 7dp; color: #24415a; font-size: 14dp; line-height: 19dp; }
-.l-new-game-card .c-field { margin-bottom: 7dp; }
-.l-new-game-card .c-field:last-child { margin-bottom: 0; }
-.l-new-game-range-card .c-field { margin-bottom: 0; }
-.l-new-game-field-help { display: block; min-height: 15dp; margin: -2dp 0 3dp; color: #506875; font-size: 10dp; line-height: 13dp; }
-.l-new-game-range-heading { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8dp; }
-.l-new-game-range-heading .c-field__label { flex: 1; min-width: 0; }
-.l-new-game-range-value { flex: 0 0 auto; color: #a16e3e; font-size: 12dp; font-weight: bold; white-space: nowrap; }
-.l-new-game-range-card input.range.c-slider { margin-top: 2dp; }
-.l-new-game-range-scale { display: flex; flex-direction: row; justify-content: space-between; gap: 8dp; margin-top: -2dp; color: #506875; font-size: 9dp; line-height: 12dp; }
-.l-new-game-range-scale span:last-child { text-align: right; }
-.l-new-game-input-row { display: flex; flex-direction: row; align-items: stretch; gap: 6dp; }
-.l-new-game-input-row input { flex: 1; min-width: 0; }
-.l-new-game-secondary-action { flex: 0 0 auto; min-width: 96dp; padding-left: 6dp; padding-right: 6dp; }
-.l-new-game-toggle { min-height: 48dp; margin-top: 8dp; padding: 6dp 7dp; background-color: #dce4e6; border: 1dp #a9b8be; border-radius: 1dp; }
-.l-new-game-toggle:hover { background-color: #e9d36e; border-color: #855d19; }
-.l-new-game-toggle .c-toggle__label { color: #142333; font-weight: bold; }
-.l-new-game-toggle .c-toggle__description { color: #506875; font-size: 10dp; line-height: 13dp; }
-
-.l-new-game-review-grid { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8dp; padding: 10dp; }
-.l-new-game-review-card { flex: 1 1 260dp; min-width: 220dp; padding: 10dp; background-color: #f3f5ef; border: 1dp #a9b8be; }
-.l-new-game-summary-row { display: flex; flex-direction: row; align-items: flex-start; gap: 8dp; min-height: 30dp; padding: 5dp 0; border-bottom: 1dp #c0cdd1; }
-.l-new-game-summary-row span { flex: 0 0 92dp; color: #506875; font-size: 11dp; }
-.l-new-game-summary-row strong { flex: 1; min-width: 0; color: #142333; font-size: 12dp; text-align: right; white-space: normal; }
-.l-new-game-review-note { margin-top: 12dp; color: #506875; font-size: 11dp; line-height: 15dp; }
-
-.l-new-game-footer { display: flex; flex-direction: row; align-items: center; gap: 12dp; margin-top: 10dp; padding-top: 8dp; border-top-width: 2dp; border-top-color: #718591; }
-.l-new-game-footer__status { flex: 1; min-width: 0; }
-.l-new-game-footer__title { display: block; color: #24415a; font-size: 12dp; font-weight: bold; }
-.l-new-game-footer__hint { display: block; color: #506875; font-size: 10dp; line-height: 14dp; }
-.l-new-game-footer #new-validation { margin-top: 6dp; }
-.l-new-game-start { flex: 0 0 auto; min-width: 150dp; min-height: 36dp; }
-
-/* Preserve the shell's header and actions while letting tall setup panels
-   scroll at larger UI scales. */
-.l-shell-screen--centered > .c-shell-chamber { flex: 0 0 auto; margin-top: auto; margin-bottom: auto; }
-.l-shell-screen--centered > .c-shell-chamber.c-shell-chamber--wide { margin-top: 0; margin-bottom: 0; }
-.c-shell-chamber { box-sizing: border-box; }
-.c-shell-actions--row { flex-wrap: wrap; }
-.c-shell-setting-label-text { flex: 1 1 auto; min-width: 0; }
-.l-new-game-chamber { display: flex; flex-direction: column; min-height: 0; }
-.l-new-game-nav { min-width: 0; }
-.l-new-game-content, .l-new-game-panel { min-height: 0; min-width: 0; }
-.l-new-game-footer { flex-wrap: wrap; }
-.l-new-game-footer__status { min-width: 220dp; }
-
-/* Main menu and settings share the raised title and inset content treatment
-   used by the management windows. */
-.l-main-menu-screen, .l-settings-screen { padding: 20dp; overflow-x: hidden; }
-.l-main-menu-chamber { width: 790dp; max-width: 100%; padding: 0; overflow: hidden; }
-.l-main-menu-banner { display: block; width: 100%; min-height: 138dp; padding: 18dp 24dp 14dp; background-color: #356c9d; border-bottom: 2dp #214665; }
-.l-main-menu-eyebrow { display: block; color: #d7e8ef; font-size: 11dp; font-weight: bold; letter-spacing: 1dp; }
-.l-main-menu-banner .c-shell-wordmark { color: #ffffff; font-size: 36dp; line-height: 42dp; text-align: left; }
-.l-main-menu-banner p { max-width: 610dp; margin: 3dp 0 0; color: #ecf5f7; font-size: 13dp; line-height: 18dp; }
-.l-main-menu-banner .c-shell-version { display: block; margin: 4dp 0 0; text-align: right; }
-.l-main-menu-body { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10dp; padding: 12dp; }
-.l-main-menu-feature, .l-main-menu-options { display: flex; flex-direction: column; flex: 1 1 270dp; min-width: 230dp; padding: 12dp; color: #142333; background-color: #f3f5ef; border-width: 2dp; border-top-color: #4d6476; border-left-color: #4d6476; border-right-color: #f7faf8; border-bottom-color: #f7faf8; }
-.l-main-menu-feature h2, .l-main-menu-options h2 { margin-bottom: 6dp; color: #24415a; font-size: 18dp; line-height: 24dp; }
-.l-main-menu-feature p { min-height: 52dp; color: #506875; font-size: 12dp; line-height: 16dp; }
-.l-main-menu-feature button, .l-main-menu-options button { width: 100%; min-height: 36dp; margin-top: 5dp; text-align: left; }
-.l-main-menu-feature .c-field__help, .l-main-menu-options .c-field__help { min-height: 16dp; padding: 2dp 2dp 4dp; color: #506875; }
-.l-main-menu-options h2 { margin-bottom: 11dp; }
-.l-main-menu-footer { display: flex; flex-direction: row; justify-content: flex-end; gap: 6dp; padding: 8dp 12dp 12dp; border-top: 1dp #9cadb3; }
-.l-main-menu-footer button { min-width: 110dp; min-height: 34dp; }
-
-.l-settings-chamber { width: 950dp; max-width: 100%; padding: 0; overflow: hidden; }
-.l-settings-titlebar { display: flex; flex-direction: row; align-items: center; gap: 12dp; min-height: 65dp; padding: 9dp 12dp; background-color: #356c9d; border-bottom: 2dp #214665; }
-.l-settings-titlebar > div { flex: 1; min-width: 0; }
-.l-settings-titlebar span { display: block; color: #d7e8ef; font-size: 10dp; font-weight: bold; letter-spacing: 1dp; }
-.l-settings-titlebar h1 { color: #ffffff; font-size: 22dp; line-height: 28dp; }
-.l-settings-titlebar button { min-width: 90dp; min-height: 32dp; }
-.l-settings-intro { margin: 0; padding: 8dp 12dp 0; color: #506875; font-size: 11dp; line-height: 15dp; }
-.l-settings-grid { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 8dp; padding: 10dp 12dp; }
-.l-settings-card { flex: 1 1 390dp; min-width: 280dp; padding: 8dp 10dp; color: #142333; background-color: #f3f5ef; border-width: 2dp; border-top-color: #4d6476; border-left-color: #4d6476; border-right-color: #f7faf8; border-bottom-color: #f7faf8; }
-.l-settings-card h2 { margin-bottom: 5dp; padding: 2dp 5dp; color: #ffffff; background-color: #356c9d; font-size: 14dp; line-height: 20dp; }
-.l-settings-card .c-shell-setting-row { gap: 8dp; min-height: 40dp; padding: 4dp 1dp; border-bottom-color: #c0cdd1; }
-.l-settings-card .c-shell-setting-row:last-child { border-bottom-width: 0; }
-.l-settings-card .c-shell-setting-copy { min-width: 155dp; }
-.l-settings-card .c-shell-setting-control { flex: 0 0 155dp; width: 155dp; }
-.l-settings-note { display: flex; flex-direction: column; gap: 2dp; margin-top: 9dp; padding: 7dp; background-color: #dce4e6; border: 1dp #a9b8be; }
-.l-settings-note strong { color: #24415a; font-size: 12dp; }
-.l-settings-note span { color: #506875; font-size: 11dp; line-height: 15dp; }
-.l-settings-footer { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 12dp; padding: 8dp 12dp 12dp; border-top: 1dp #9cadb3; }
-.l-settings-footer span { flex: 1; min-width: 0; color: #506875; font-size: 11dp; }
-.l-settings-footer button { min-height: 34dp; }
-
-/* Kingdom Setup uses the same raised window and inset property sheet as the
-   main menu, with square Windows 98 style slider controls. */
-.l-new-game-screen { padding: 14dp; }
-.l-new-game-chamber { width: 100%; max-width: 1120dp; margin: 0 auto; padding: 0; background-color: #dce4e6; border-width: 2dp; border-top-color: #f7faf8; border-left-color: #f7faf8; border-right-color: #4d6476; border-bottom-color: #4d6476; border-radius: 0; box-shadow: 5dp 5dp 0 #45627b; }
-.l-new-game-titlebar { align-items: center; min-height: 70dp; margin: 0; padding: 9dp 12dp; background-color: #356c9d; border-bottom-width: 2dp; border-bottom-color: #214665; }
-.l-new-game-eyebrow { color: #d7e8ef; }
-.l-new-game-titlebar h1 { color: #ffffff; font-size: 22dp; line-height: 28dp; }
-.l-new-game-titlebar p { color: #ecf5f7; }
-.l-new-game-titlebar button { min-width: 90dp; min-height: 32dp; }
-.l-new-game-layout { padding: 10dp 12dp; min-height: 405dp; }
-.l-new-game-panel { background-color: #dce4e6; }
-.l-new-game-panel__header { background-color: #dce4e6; border-bottom-color: #9cadb3; }
-.l-new-game-step { color: #506875; }
-.l-new-game-panel__header h2 { color: #24415a; }
-.l-new-game-panel__header p { color: #506875; }
-.l-new-game-card, .l-new-game-review-card { background-color: #f3f5ef; border-width: 2dp; border-top-color: #718591; border-left-color: #718591; border-right-color: #ffffff; border-bottom-color: #ffffff; }
-.l-new-game-range-value { color: #245d87; }
-.l-new-game-footer { min-height: 54dp; margin: 0; padding: 8dp 12dp 10dp; background-color: #dce4e6; border-top-width: 1dp; border-top-color: #9cadb3; }
-.l-new-game-range-card input.range.c-slider slidertrack { height: 9dp; margin-top: 13dp; background-color: #ffffff; border-width: 2dp; border-top-color: #718591; border-left-color: #718591; border-right-color: #f7faf8; border-bottom-color: #f7faf8; border-radius: 0; }
-.l-new-game-range-card input.range.c-slider sliderprogress { height: 5dp; margin-top: 15dp; background-color: #6b9bc0; }
-.l-new-game-range-card input.range.c-slider sliderbar { width: 18dp; height: 23dp; margin-top: 6dp; margin-left: -9dp; margin-right: -9dp; background-color: #dce4e6; border-width: 2dp; border-top-color: #ffffff; border-left-color: #ffffff; border-right-color: #607784; border-bottom-color: #607784; border-radius: 0; }
-.l-new-game-range-card input.range.c-slider:focus-visible sliderbar { border-color: #d47a20; }
+/* Cancel sits under Open in the right-hand button column (Open dialog box, PDF p.171). */
+.w98-sheet.l-load-dialog .w98-line > .l-load-cancel { margin-left: auto; }

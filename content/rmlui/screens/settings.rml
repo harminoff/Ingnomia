@@ -1,36 +1,66 @@
 <rml>
 <head>
-    <title data-l10n="shell.settings.settings">Settings</title>
-    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+    <title>Settings</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered l-settings-screen">
-    <main class="c-shell-chamber l-settings-chamber">
-        <header class="l-settings-titlebar"><div><span data-l10n="shell.settings.game_options">Game options</span><h1 data-l10n="shell.settings.settings">Settings</h1></div><button id="shell-back" data-l10n="shell.settings.shell-back">Back</button></header>
-        <p class="l-settings-intro" data-l10n="shell.settings.changes_save_automatically">Changes save automatically.</p>
-        <section id="settings-loading" class="c-state-panel u-hidden"><div class="c-state-panel__title" data-l10n="shell.settings.loading_settings">Loading settings</div></section>
-        <section id="settings-supported" class="l-settings-grid">
-            <div class="l-settings-card"><h2 data-l10n="shell.settings.display">Display</h2>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span class="c-shell-setting-label-text" data-l10n="shell.settings.fullscreen">Fullscreen</span></span><span class="c-shell-setting-detail" data-l10n="shell.settings.use_the_entire_display">Use the entire display.</span></span><input id="setting-fullscreen" class="checkbox" type="checkbox" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span class="c-shell-setting-label-text" data-l10n="shell.settings.follow_monitor_refresh">Follow monitor refresh</span></span><span class="c-shell-setting-detail" data-l10n="shell.settings.match_the_active_monitor_refresh_rate">Match the active monitor's refresh rate while playing.</span></span><input id="setting-follow-refresh" class="checkbox" type="checkbox" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.frame_rate_limit">Frame rate limit</span><strong id="setting-frame-rate-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.manual_frame_rate_limit">Used when monitor matching is off, from 30 to 240 FPS.</span></span><input id="setting-frame-rate" class="range c-slider c-shell-setting-control" type="range" min="30" max="240" step="1" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.interface_scale">Interface scale</span><strong id="setting-ui-scale-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.resize_interface_controls_and_text">Resize interface controls and text.</span></span><input id="setting-ui-scale" class="range c-slider c-shell-setting-control" type="range" min="50" max="200" step="25" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.minimum_light">Minimum light</span><strong id="setting-minimum-light-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.set_the_ambient_light_floor_from_0_to_100_percen">Set the ambient light floor, from 0 to 100 percent.</span></span><input id="setting-minimum-light" class="range c-slider c-shell-setting-control" type="range" min="0" max="100" step="1" /></label>
-            </div>
-            <div class="l-settings-card"><h2 data-l10n="shell.settings.camera">Camera and controls</h2>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.keyboard_pan_speed">Keyboard pan speed</span><strong id="setting-keyboard-speed-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.camera_movement_speed_from_0_to_200">Camera movement speed from 0 to 200.</span></span><input id="setting-keyboard-speed" class="range c-slider c-shell-setting-control" type="range" min="0" max="200" step="1" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span class="c-shell-setting-label-text" data-l10n="shell.settings.wheel_changes_level">Wheel changes level</span></span><span class="c-shell-setting-detail" data-l10n="shell.settings.use_the_mouse_wheel_to_move_between_vertical_lev">Use the mouse wheel to move between vertical levels.</span></span><input id="setting-wheel-level" class="checkbox" type="checkbox" /></label>
-            <div class="l-settings-note"><strong data-l10n="shell.settings.language">Language</strong><span data-l10n="shell.settings.language_note">The current interface is available in English.</span></div>
-            </div>
-            <div class="l-settings-card"><h2 data-l10n="shell.settings.audio">Audio</h2>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.master_volume">Master volume</span><strong id="setting-master-volume-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.master_volume_help">Adjust all game sound effects.</span></span><input id="setting-master-volume" class="range c-slider c-shell-setting-control" type="range" min="0" max="100" step="1" /></label>
-            </div>
-            <div class="l-settings-card"><h2 data-l10n="shell.settings.saving">Saving</h2>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label"><span data-l10n="shell.settings.autosave_interval">Autosave interval</span><strong id="setting-autosave-interval-value" class="c-shell-setting-value"></strong></span><span class="c-shell-setting-detail" data-l10n="shell.settings.autosave_interval_help">Save every 1 to 14 in-game days.</span></span><input id="setting-autosave-interval" class="range c-slider c-shell-setting-control" type="range" min="1" max="14" step="1" /></label>
-            <label class="c-shell-setting-row"><span class="c-shell-setting-copy"><span class="c-shell-setting-label" data-l10n="shell.settings.autosave_continue">Resume after autosave</span><span class="c-shell-setting-detail" data-l10n="shell.settings.autosave_continue_help">Keep the simulation running after an automatic save.</span></span><input id="setting-autosave-continue" class="checkbox" type="checkbox" /></label>
-            </div>
+<body class="l-shell-screen l-shell-desktop">
+  <!-- Settings (Stage 19): a property sheet. Every setting takes effect at once, so, like a property inspector
+       (PDF p.167), the sheet has Close instead of OK / Cancel / Apply. Pages never scroll. -->
+  <section id="settings-sheet" class="w98-sheet l-shell-dialog l-settings-sheet" role="dialog" aria-labelledby="settings-caption">
+    <div class="w98-caption"><h1 id="settings-caption" class="c-title-bar__title" data-l10n="win98.settings.caption">Settings</h1></div>
+    <div class="w98-sheet__body">
+      <nav id="settings-tabs" class="c-tabs c-connected-tabs w98-tabs" role="tablist">
+        <button id="settings-tab-display" class="c-tabs__tab is-selected" role="tab" aria-selected="true" aria-controls="settings-page-display" tab-index="0" data-l10n="win98.settings.tab_display">Display</button><button id="settings-tab-controls" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="settings-page-controls" tab-index="-1" data-l10n="win98.settings.tab_controls">Controls</button><button id="settings-tab-sound" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="settings-page-sound" tab-index="-1" data-l10n="win98.settings.tab_sound">Sound</button><button id="settings-tab-saving" class="c-tabs__tab" role="tab" aria-selected="false" aria-controls="settings-page-saving" tab-index="-1" data-l10n="win98.settings.tab_saving">Saving</button>
+      </nav>
+      <div class="w98-page-frame">
+        <p id="settings-loading" class="w98-text u-hidden" data-l10n="win98.settings.loading">Loading settings...</p>
+        <p id="settings-error" class="w98-text u-hidden">Settings are unavailable. <span id="settings-error-detail"></span></p>
+        <div id="settings-supported" class="w98-col w98-grow">
+        <section id="settings-page-display" class="w98-page w98-col" role="tabpanel" aria-labelledby="settings-tab-display">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.screen">Screen</span>
+            <label class="w98-check"><input id="setting-fullscreen" class="checkbox" type="checkbox" /><span data-l10n="win98.settings.full_screen">Full screen</span></label>
+            <label class="w98-check"><input id="setting-follow-refresh" class="checkbox" type="checkbox" /><span data-l10n="win98.settings.match_the_monitor_refresh_rate">Match the monitor refresh rate</span></label>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-frame-rate" data-l10n="win98.settings.setting_frame_rate">Frame rate limit:</label><input id="setting-frame-rate" class="w98-slider" type="range" min="30" max="240" step="1" /><span id="setting-frame-rate-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.low">Low</span><span class="w98-text" data-l10n="win98.settings.high">High</span><span class="l-settings-value"></span></div>
+          </div>
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.interface_and_map">Interface and map</span>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-ui-scale" data-l10n="win98.settings.setting_ui_scale">Interface size:</label><input id="setting-ui-scale" class="w98-slider" type="range" min="50" max="200" step="25" /><span id="setting-ui-scale-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.small">Small</span><span class="w98-text" data-l10n="win98.settings.large">Large</span><span class="l-settings-value"></span></div>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-minimum-light" data-l10n="win98.settings.setting_minimum_light">Minimum light:</label><input id="setting-minimum-light" class="w98-slider" type="range" min="0" max="100" step="1" /><span id="setting-minimum-light-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.dark">Dark</span><span class="w98-text" data-l10n="win98.settings.bright">Bright</span><span class="l-settings-value"></span></div>
+          </div>
         </section>
-        <section id="settings-error" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.settings.settings_unavailable">Settings unavailable</span><span id="settings-error-detail" class="c-alert-row__detail"></span></span></section>
-        <footer class="l-settings-footer"><span data-l10n="shell.settings.defaults_help">Restore the settings shown above to their defaults.</span><button id="settings-reset" data-l10n="shell.settings.restore_defaults">Restore defaults</button></footer>
-    </main>
+        <section id="settings-page-controls" class="w98-page w98-col u-hidden" role="tabpanel" aria-labelledby="settings-tab-controls">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.camera">Camera</span>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-keyboard-speed" data-l10n="win98.settings.setting_keyboard_speed">Pan speed:</label><input id="setting-keyboard-speed" class="w98-slider" type="range" min="0" max="200" step="1" /><span id="setting-keyboard-speed-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.slow">Slow</span><span class="w98-text" data-l10n="win98.settings.fast">Fast</span><span class="l-settings-value"></span></div>
+            <label class="w98-check"><input id="setting-wheel-level" class="checkbox" type="checkbox" /><span data-l10n="win98.settings.the_mouse_wheel_changes_the">The mouse wheel changes the level</span></label>
+          </div>
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.language">Language</span>
+            <p class="w98-text" data-l10n="win98.settings.the_interface_is_available_in">The interface is available in English.</p>
+          </div>
+        </section>
+        <section id="settings-page-sound" class="w98-page w98-col u-hidden" role="tabpanel" aria-labelledby="settings-tab-sound">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.volume">Volume</span>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-master-volume" data-l10n="win98.settings.setting_master_volume">Master volume:</label><input id="setting-master-volume" class="w98-slider" type="range" min="0" max="100" step="1" /><span id="setting-master-volume-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.quiet">Quiet</span><span class="w98-text" data-l10n="win98.settings.loud">Loud</span><span class="l-settings-value"></span></div>
+          </div>
+        </section>
+        <section id="settings-page-saving" class="w98-page w98-col u-hidden" role="tabpanel" aria-labelledby="settings-tab-saving">
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.settings.autosave">Autosave</span>
+            <div class="w98-line"><label class="w98-label w98-label--wide" for="setting-autosave-interval" data-l10n="win98.settings.setting_autosave_interval">Save every:</label><input id="setting-autosave-interval" class="w98-slider" type="range" min="1" max="14" step="1" /><span id="setting-autosave-interval-value" class="w98-text l-settings-value"></span></div>
+            <div class="w98-line l-settings-range"><span class="w98-label w98-label--wide"></span><span class="w98-text w98-grow" data-l10n="win98.settings.1_day">1 day</span><span class="w98-text" data-l10n="win98.settings.14_days">14 days</span><span class="l-settings-value"></span></div>
+            <label class="w98-check"><input id="setting-autosave-continue" class="checkbox" type="checkbox" /><span data-l10n="win98.settings.keep_time_running_after_an">Keep time running after an autosave</span></label>
+          </div>
+        </section>
+        </div>
+      </div>
+      <div class="w98-buttonbar"><button id="settings-reset" class="w98-button" data-l10n="win98.settings.reset">Defaults</button><p class="w98-text w98-grow" data-l10n="win98.settings.changes_take_effect_at_once">Changes take effect at once.</p><button id="shell-back" class="w98-button w98-button--default" data-l10n="win98.common.close">Close</button></div>
+    </div>
+  </section>
 </body>
 </rml>

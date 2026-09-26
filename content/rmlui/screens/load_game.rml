@@ -1,17 +1,33 @@
 <rml>
 <head>
-    <title>Load game</title>
-    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+    <title>Load Game</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered">
-    <main class="c-shell-chamber c-shell-chamber--wide">
-        <header class="c-shell-title-row"><h1>Load game</h1><button id="shell-back">Back</button></header>
-        <section class="c-shell-split">
-            <div class="c-shell-pane"><h2>Kingdoms</h2><div id="load-kingdoms" class="c-list" tab-index="auto"></div><div id="load-kingdoms-empty" class="c-state-panel u-hidden"><div class="c-state-panel__title">No kingdoms found</div><p>Start a new kingdom or refresh the save list.</p></div></div>
-            <div class="c-shell-pane"><h2>Saves</h2><div id="load-saves" class="c-list" tab-index="auto"></div><div id="load-saves-empty" class="c-state-panel u-hidden"><div id="load-saves-empty-title" class="c-state-panel__title">Select a kingdom</div><p id="load-saves-empty-detail">Choose a kingdom to see its saves.</p></div></div>
-        </section>
-        <section id="load-error" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title">Save list unavailable</span><span id="load-error-detail" class="c-alert-row__detail"></span></span></section>
-        <footer class="c-shell-actions c-shell-actions--row"><button id="load-refresh">Refresh</button><button id="load-selected" class="c-button c-button--primary">Load selected save</button></footer>
-    </main>
+<body class="l-shell-screen l-shell-desktop">
+  <!-- Load Game (Stage 18), modelled on the Open dialog box (PDF p.170-172): "Look in:" chooses the kingdom (its
+       folder), the list view shows its saves in details view, Open is the default button beside Cancel, and a
+       double-click opens. F5 refreshes the list. -->
+  <section id="load-dialog" class="w98-sheet l-shell-dialog l-load-dialog" role="dialog" aria-labelledby="load-caption">
+    <div class="w98-caption"><h1 id="load-caption" class="c-title-bar__title" data-l10n="win98.load_game.load_caption">Load Game</h1></div>
+    <div class="w98-sheet__body">
+      <div class="w98-line"><label class="w98-label" for="load-kingdoms" data-l10n="win98.load_game.load_kingdoms">Look in:</label><select id="load-kingdoms" class="w98-select"></select></div>
+      <p id="load-kingdoms-empty" class="w98-text u-hidden" data-l10n="win98.load_game.load_kingdoms_empty">No kingdoms were found. Start a new kingdom from the main menu.</p>
+      <div class="w98-gap"></div>
+      <div class="w98-listview w98-grow l-load-list">
+        <div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.load_game.name">Name</span><span class="l-load-modified" data-l10n="win98.load_game.modified">Modified</span><span class="l-load-version" data-l10n="win98.load_game.version">Version</span></div>
+        <div id="load-saves" class="w98-list" role="listbox" aria-label="Saves"></div>
+      </div>
+      <div id="load-saves-empty" class="u-hidden"><p id="load-saves-empty-title" class="w98-text"></p><p id="load-saves-empty-detail" class="w98-text"></p></div>
+      <div class="w98-gap"></div>
+      <div class="w98-line"><label class="w98-label" for="load-file-name" data-l10n="win98.load_game.load_file_name">Save name:</label><input id="load-file-name" class="w98-field w98-field--wide" type="text" readonly="readonly" /><button id="load-selected" class="w98-button w98-button--default" data-default-action="true" data-l10n="win98.load_game.load_selected">Open</button></div>
+      <div class="w98-line"><p id="load-status" class="w98-text w98-grow"></p><button id="shell-back" class="w98-button l-load-cancel" data-l10n="win98.common.cancel">Cancel</button></div>
+      <p id="load-error" class="w98-text l-shell-error u-hidden">The save list is unavailable. <span id="load-error-detail"></span></p>
+      <button id="load-refresh" class="u-hidden" tab-index="-1" data-l10n="win98.load_game.load_refresh">Refresh</button>
+    </div>
+  </section>
 </body>
 </rml>

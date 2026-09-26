@@ -3,7 +3,9 @@
 
 #include "../../actions/UiActions.h"
 
+#include <algorithm>
 #include <array>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -14,7 +16,7 @@ enum class ManagementView : std::uint8_t { None, Workshop, Stockpile, Agricultur
 enum class RequestStatus : std::uint8_t { Idle, Loading, Ready, Empty, Error, Stale };
 enum class SortDirection : std::uint8_t { Ascending, Descending };
 enum class TriState : std::uint8_t { Off, On, Mixed };
-enum class WorkshopPane : std::uint8_t { Craft, Queue, Settings, Trade };
+enum class WorkshopPane : std::uint8_t { Craft, Queue, Settings, Trade, Stockpiles };
 enum class StockpilePane : std::uint8_t { Contents, AllowList, Settings };
 enum class StockpileSortKey : std::uint8_t { Category, Group, Item, Material, Quantity, Total, Status };
 
@@ -82,10 +84,40 @@ struct WorkshopSnapshot
 	std::vector<CraftQueueRow> queue;
 	bool operator==( const WorkshopSnapshot& ) const = default;
 };
+// Special-GUI workshops (Butcher, Fishery, MarketStall) have no craft catalog; they keep
+// Craft/Queue only while a legacy queue still holds orders that need editing.
+inline bool workshopSupportsCrafting( const WorkshopSnapshot& value ) { return !value.products.empty() || !value.queue.empty(); }
+inline bool workshopSupportsTrade( const WorkshopSnapshot& value ) { return value.subtype == "Trader" || value.subtype == "TradingPost"; }
+inline bool workshopSupportsStockpileLinks( const WorkshopSnapshot& value ) { return value.canLinkStockpile && workshopSupportsCrafting( value ); }
 
+// Property-sheet options that stay pending until Apply or OK (Windows property sheet model).
+struct WorkshopOptions {
+ bool suspended{}, acceptGenerated{}, autoCraftMissing{};
+ bool butcherCorpses{}, butcherExcess{}, catchFish{}, processFish{};
+ std::vector<std::uint32_t> linked; // sorted stockpile IDs
+ bool operator==(const WorkshopOptions&) const = default;
+};
+inline WorkshopOptions workshopOptionsOf( const WorkshopSnapshot& value )
+{
+ WorkshopOptions o{ value.suspended, value.acceptGenerated, value.autoCraftMissing, value.butcherCorpses, value.butcherExcess, value.catchFish, value.processFish, {} };
+ for ( const auto& row : value.stockpiles ) if ( row.linked ) o.linked.push_back( row.id.value );
+ std::sort( o.linked.begin(), o.linked.end() );
+ return o;
+}
+struct WorkshopDraft {
+ std::string name, priority, baseName;
+ int basePriority{}; bool dirty{}, pending{};
+ WorkshopOptions options, baseOptions;
+ bool operator==(const WorkshopDraft&) const = default;
+};
 struct WorkshopState
 {
-	WorkshopPane pane{ WorkshopPane::Craft };
+	WorkshopDraft draft;
+ std::string feedback;
+ std::uint64_t tradeRevision{}, tradeReviewRevision{};
+ std::uint32_t traderId{};
+ bool tradePending{};
+ WorkshopPane pane{ WorkshopPane::Craft };
 	bool orderPending{};
 	std::string orderFeedback;
 	RequestState request;
@@ -152,8 +184,38 @@ struct StockpileSnapshot
 	bool operator==( const StockpileSnapshot& ) const = default;
 };
 
+struct StockpileOptions
+{
+	bool suspended{}, pull{}, allowPull{};
+	bool operator==( const StockpileOptions& ) const = default;
+};
+inline StockpileOptions stockpileOptionsOf( const StockpileSnapshot& value ) { return { value.suspended, value.pullFromOthers, value.allowPullFromHere }; }
+// A pending allow-list change: the rule's wanted state. Only rules whose wanted state differs from the
+// game's are kept, keyed by the rule's path so lookups stay cheap on large allow lists.
+struct StockpileRuleChange
+{
+	StockpileFilterRowId id;
+	bool allowed{};
+	bool operator==( const StockpileRuleChange& ) const = default;
+};
+struct StockpileDraft
+{
+    std::string name, priority, baseName;
+    int basePriority{};
+    bool dirty{}, pending{};
+	StockpileOptions options, baseOptions;
+	std::map<std::string, StockpileRuleChange> rules;
+    bool operator==(const StockpileDraft&) const = default;
+};
+inline std::string stockpileRuleKey( const StockpileFilterRowId& id )
+{
+	return id.category.value + '\x1f' + id.group.value + '\x1f' + id.item.value + '\x1f' + id.material.value;
+}
 struct StockpileState
 {
+    StockpileDraft draft;
+    std::string feedback;
+
 	RequestState request;
 	Revision revision;
 	StockpileSnapshot value;
@@ -169,9 +231,9 @@ struct StockpileState
 	std::array<std::vector<std::string>, 5> allowColumnSelections;
 	CatalogId filterCategory;
 	SortDirection sort{ SortDirection::Ascending };
-	StockpileSortKey contentSort{ StockpileSortKey::Category };
+	StockpileSortKey contentSort{ StockpileSortKey::Item };
 	SortDirection allowSortDirection{ SortDirection::Ascending };
-	StockpileSortKey allowSort{ StockpileSortKey::Category };
+	StockpileSortKey allowSort{ StockpileSortKey::Item };
 	StockpilePane pane{ StockpilePane::Contents };
 	std::optional<StockpileFilterRowId> selectedFilter;
 	std::optional<StockpileContentRowId> selectedContent;
@@ -252,20 +314,67 @@ struct AgricultureSnapshot
 	bool operator==( const AgricultureSnapshot& ) const = default;
 };
 
-enum class AgriculturePane : std::uint8_t { Overview, Products, Settings, Work };
+// Property-sheet pages. Plots and PlotQueue exist only for farms, Animals and Food only for pastures.
+enum class AgriculturePane : std::uint8_t { General, Plots, PlotQueue, Crops, Animals, Food };
+enum class PlotSelect : std::uint8_t { Only, Toggle, Range };
+
+// Settings that stay pending until Apply or OK (Windows property sheet model).
+struct AgricultureOptions
+{
+	bool suspended{}, harvest{}, harvestHay{}, tame{}, pick{}, plant{}, fell{};
+	CatalogId product;
+	std::int32_t maxMale{}, maxFemale{};
+	std::vector<std::uint32_t> butcher; // sorted creature IDs marked for butchering
+	std::vector<std::string> foods;      // sorted "item|material" keys that are allowed
+	bool operator==( const AgricultureOptions& ) const = default;
+};
+inline std::string pastureFoodKey( const CatalogId& item, const CatalogId& material ) { return item.value + "|" + material.value; }
+inline AgricultureOptions agricultureOptionsOf( const AgricultureSnapshot& v )
+{
+	AgricultureOptions o { v.suspended, v.harvest, v.harvestHay, v.tame, v.pick, v.plant, v.fell, v.product, v.maxMale, v.maxFemale, {}, {} };
+	for ( const auto& a : v.animals ) if ( a.butcher ) o.butcher.push_back( a.id.value );
+	for ( const auto& f : v.foods ) if ( f.allowed ) o.foods.push_back( pastureFoodKey( f.item, f.material ) );
+	std::sort( o.butcher.begin(), o.butcher.end() );
+	std::sort( o.foods.begin(), o.foods.end() );
+	return o;
+}
+struct AgricultureDraft
+{
+	std::string name, baseName;
+	AgricultureOptions options, baseOptions;
+	bool dirty{}, pending{};
+	bool operator==( const AgricultureDraft& ) const = default;
+};
+inline bool agricultureSupportsPane( AgricultureKind kind, AgriculturePane pane )
+{
+	switch ( pane )
+	{
+		case AgriculturePane::General: return true;
+		case AgriculturePane::Plots:
+		case AgriculturePane::PlotQueue: return kind == AgricultureKind::Farm;
+		case AgriculturePane::Crops: return kind != AgricultureKind::Pasture;
+		case AgriculturePane::Animals:
+		case AgriculturePane::Food: return kind == AgricultureKind::Pasture;
+	}
+	return false;
+}
 
 struct AgricultureState
 {
 	RequestState request;
 	Revision revision;
 	AgricultureSnapshot value;
-	AgriculturePane pane{ AgriculturePane::Overview };
+	AgricultureDraft draft;
+	std::string feedback;
+	AgriculturePane pane{ AgriculturePane::General };
 	std::optional<WorldPosition> position;
 	std::string search;
 	SortDirection sort{ SortDirection::Ascending };
 	std::optional<CatalogId> selectedProduct;
 	std::vector<WorldPosition> selectedPlots;
+	std::optional<WorldPosition> plotAnchor, focusedPlot;
 	std::optional<CreatureId> selectedAnimal;
+	std::optional<std::string> selectedFood;
 	std::vector<AgricultureCatalogRow> visibleCatalog;
 	std::vector<PastureAnimalRow> visibleAnimals;
 	bool selectionFiltered{};

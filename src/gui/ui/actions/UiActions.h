@@ -142,8 +142,8 @@ struct StockpileTargetPayload { StockpileId stockpile; UI_PAYLOAD_EQUALITY( Stoc
 struct SetStockpileBasicsPayload { StockpileId stockpile; std::string name; std::int32_t priority{}; bool suspended{}, pull{}, allowPull{}; UI_PAYLOAD_EQUALITY( SetStockpileBasicsPayload ); };
 struct SetStockpileFilterPayload { StockpileFilterRowId row; bool active{}; UI_PAYLOAD_EQUALITY( SetStockpileFilterPayload ); };
 struct SetStockpileFiltersPayload { StockpileId stockpile; std::vector<StockpileFilterRowId> rows; bool active{}; UI_PAYLOAD_EQUALITY( SetStockpileFiltersPayload ); };
-struct StockpileTemplatePayload { StockpileId stockpile; std::string name; UI_PAYLOAD_EQUALITY( StockpileTemplatePayload ); };
-struct WorkshopTargetPayload { WorkshopId workshop; UI_PAYLOAD_EQUALITY( WorkshopTargetPayload ); };
+struct StockpileTemplatePayload { StockpileId stockpile; std::string name; bool replaceExisting{}; UI_PAYLOAD_EQUALITY( StockpileTemplatePayload ); };
+struct WorkshopTargetPayload { WorkshopId workshop; std::uint64_t tradeRevision{}; std::uint32_t traderId{}; UI_PAYLOAD_EQUALITY( WorkshopTargetPayload ); };
 struct SetWorkshopStockpileLinkPayload { WorkshopId workshop; StockpileId stockpile; bool linked{}; UI_PAYLOAD_EQUALITY( SetWorkshopStockpileLinkPayload ); };
 struct SetWorkshopBasicsPayload { WorkshopId workshop; std::string name; std::int32_t priority{}; bool suspended{}, acceptGenerated{}, autoCraftMissing{}; std::optional<StockpileId> connectStockpile; std::optional<bool> linkStockpile; UI_PAYLOAD_EQUALITY( SetWorkshopBasicsPayload ); };
 struct SetButcherOptionsPayload { WorkshopId workshop; bool butcherCorpses{}, butcherExcess{}; UI_PAYLOAD_EQUALITY( SetButcherOptionsPayload ); };
@@ -152,7 +152,7 @@ struct QueueCraftPayload { WorkshopId workshop; CatalogId craft; CraftRepeatMode
 struct SetCraftJobPayload { WorkshopId workshop; CraftJobId job; CraftRepeatMode mode{ CraftRepeatMode::Once }; std::uint32_t count{}; bool suspended{}, moveBack{}; UI_PAYLOAD_EQUALITY( SetCraftJobPayload ); };
 struct MoveCraftJobPayload { WorkshopId workshop; CraftJobId job; MoveDirection direction{ MoveDirection::Up }; UI_PAYLOAD_EQUALITY( MoveCraftJobPayload ); };
 struct CraftJobTargetPayload { WorkshopId workshop; CraftJobId job; UI_PAYLOAD_EQUALITY( CraftJobTargetPayload ); };
-struct SetTradeOfferPayload { WorkshopId workshop; TradeRowId row; std::uint32_t count{}; UI_PAYLOAD_EQUALITY( SetTradeOfferPayload ); };
+struct SetTradeOfferPayload { WorkshopId workshop; TradeRowId row; std::uint32_t count{}; std::uint64_t tradeRevision{}; std::uint32_t traderId{}; UI_PAYLOAD_EQUALITY( SetTradeOfferPayload ); };
 struct AgricultureTargetPayload { AgricultureTarget target; UI_PAYLOAD_EQUALITY( AgricultureTargetPayload ); };
 struct SetAgricultureBasicsPayload { AgricultureTarget target; std::string name; std::int32_t priority{}; bool suspended{}; UI_PAYLOAD_EQUALITY( SetAgricultureBasicsPayload ); };
 struct SetAgricultureProductPayload { AgricultureTarget target; CatalogId product; UI_PAYLOAD_EQUALITY( SetAgricultureProductPayload ); };

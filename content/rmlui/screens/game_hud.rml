@@ -1,68 +1,134 @@
 <rml>
-<head><link type="text/rcss" href="../styles/base.rcss"/><link type="text/rcss" href="../styles/components.rcss"/><link type="text/rcss" href="../styles/accessibility.rcss"/><link type="text/rcss" href="hud.rcss"/></head>
+<head><title>Ingnomia</title><link type="text/rcss" href="../styles/base.rcss"/><link type="text/rcss" href="../styles/components.rcss"/><link type="text/rcss" href="win98_classic.rcss"/><link type="text/rcss" href="hud.rcss"/><link type="text/rcss" href="../styles/accessibility.rcss"/></head>
 <body id="hud_root" class="l-hud-root">
-  <header id="hud_top_rail" class="l-hud-top">
-    <section class="l-hud-z-controls"><button id="hud_level_down" class="c-button">Z-</button><span id="hud_level" data-l10n="hud.static.hud_level">Z 0</span><button id="hud_level_up" class="c-button">Z+</button></section>
-    <section class="l-hud-center"><strong class="l-hud-world-name" id="hud_kingdom" data-l10n="hud.static.hud_kingdom">Kingdom</strong><span class="l-hud-controls"><button id="hud_pause" class="c-button" aria-pressed="false" data-l10n="hud.pause">Pause</button><button id="hud_speed_normal" class="c-button" aria-pressed="false" data-l10n="hud.speed.normal">Normal</button><button id="hud_speed_fast" class="c-button" aria-pressed="false" data-l10n="hud.speed.fast">Fast</button></span></section>
-    <section class="l-hud-summary"><span id="hud_gnomes" data-l10n="hud.static.hud_gnomes">Gnomes 0</span><span id="hud_animals" data-l10n="hud.static.hud_animals">Animals 0</span><span id="hud_items" data-l10n="hud.static.hud_items">Items 0</span><span id="hud_clock">00:00</span><span id="hud_date" data-l10n="hud.static.hud_date">Day 0</span><span id="hud_daylight" data-l10n="hud.static.hud_daylight">Night</span></section>
-    <section id="hud_watch_rows" class="l-hud-watch"></section>
-  </header>
-  <div id="hud_sidebar_edge" class="l-hud-sidebar-edge" aria-hidden="true"><span class="c-hud-sidebar-notch-mark"></span></div>
-  <div class="l-hud-sidebar-center">
-  <nav id="hud_tool_shelf" class="l-hud-tools l-hud-sidebar">
-    <section id="hud_sidebar_root" class="l-hud-sidebar-page l-hud-sidebar-root">
-      <div class="c-hud-shelf-heading" data-l10n="hud.shelf.management">Management</div>
-      <button id="hud_open_inventory" class="c-button" title="Open inventory and resources" data-l10n="hud.launch.inventory">Inventory</button><button id="hud_open_military" class="c-button" title="Manage squads, roles, uniforms, and target priorities" data-l10n="hud.launch.military">Military</button><button id="hud_open_population" class="c-button" title="View gnomes, work assignments, and schedules" data-l10n="hud.launch.population">Population</button><button id="hud_open_diplomacy" class="c-button" title="View neighbors and current missions" data-l10n="hud.launch.missions">Missions</button>
-      <div class="c-hud-shelf-heading" data-l10n="hud.shelf.orders">Orders &amp; tools</div>
-      <button id="hud_tool_build" class="c-button" title="Choose and place construction, furniture, and workshops" data-l10n="hud.tool.build">Build</button><button id="hud_tool_deconstruct" class="c-button" title="Remove a constructed object or terrain piece" data-l10n="hud.build.deconstruct">Deconstruct</button><button id="hud_tool_mine" class="c-button" title="Choose mining and excavation orders" data-l10n="hud.tool.mine">Mine</button><button id="hud_tool_agriculture" class="c-button" title="Cut, plant, harvest, forage, and remove plants" data-l10n="hud.tool.agriculture">Agriculture</button><button id="hud_tool_designations" class="c-button" title="Mark stockpiles, farms, rooms, zones, and other areas" data-l10n="hud.tool.designations">Designations</button><button id="hud_tool_jobs" class="c-button" title="Suspend, resume, cancel, or reprioritize jobs" data-l10n="hud.tool.jobs">Jobs</button>
-      <button id="hud_tool_inspect" class="c-button" aria-pressed="false" title="Click a tile to inspect its contents and actions. Right-click or Escape to exit." data-l10n="hud.tool.inspection">Inspect</button>
-    <div class="c-hud-shelf-heading" data-l10n="hud.shelf.overlays">Map overlays</div>
-      <button id="hud_overlay_designations" class="c-button" aria-pressed="false" title="Show or hide designation markers" data-l10n="hud.overlay.designations">Designations</button><button id="hud_overlay_jobs" class="c-button" aria-pressed="false" title="Show or hide job markers" data-l10n="hud.overlay.jobs">Jobs</button><button id="hud_overlay_walls" class="c-button" aria-pressed="false" title="Show lower wall faces for easier map viewing" data-l10n="hud.overlay.walls">Walls</button><button id="hud_overlay_axles" class="c-button" aria-pressed="false" title="Show powered mechanical axles and other mechanism overlays" data-l10n="hud.overlay.axles">Mechanics</button>
-    </section>
-    <section id="hud_mine_menu" class="l-hud-sidebar-page l-hud-sidebar-action-menu is-hidden" aria-labelledby="hud_mine_heading">
-      <h2 id="hud_mine_heading" class="c-hud-sidebar-page-title" data-l10n="hud.mine_menu.title">Mining orders</h2>
-      <div class="l-hud-sidebar-actions"><p data-l10n="hud.mine_menu.help">Choose what the miners should prepare.</p><button id="hud_mine_walls" class="c-button" data-l10n="hud.mine_menu.walls">Mine walls</button><button id="hud_mine_explorative" class="c-button" data-l10n="hud.mine_menu.explorative">Explorative mine</button><button id="hud_mine_remove_floor" class="c-button" data-l10n="hud.mine_menu.remove_floor">Remove floor</button><button id="hud_mine_hole" class="c-button" data-l10n="hud.mine_menu.hole">Dig hole</button><button id="hud_mine_stairs_down" class="c-button" data-l10n="hud.mine_menu.stairs_down">Stairs down</button><button id="hud_mine_stairs_up" class="c-button" data-l10n="hud.mine_menu.stairs_up">Stairs up</button><button id="hud_mine_ramp_down" class="c-button" data-l10n="hud.mine_menu.ramp_down">Ramp down</button></div>
-      <button id="hud_mine_back" class="c-button c-hud-sidebar-back" data-l10n="common.back">Back</button>
-    </section>
-    <section id="hud_agriculture_menu" class="l-hud-sidebar-page l-hud-sidebar-action-menu is-hidden" aria-labelledby="hud_agriculture_heading">
-      <h2 id="hud_agriculture_heading" class="c-hud-sidebar-page-title" data-l10n="hud.tool.agriculture">Agriculture</h2>
-      <div class="l-hud-sidebar-actions"><p data-l10n="hud.agriculture.help">Manage trees, plants, and wild food.</p><button id="hud_tool_fell_tree" class="c-button" data-l10n="hud.agriculture.cut_tree">Cut tree</button><button id="hud_tool_plant_tree" class="c-button" data-l10n="hud.agriculture.plant_tree">Plant tree</button><button id="hud_tool_harvest_tree" class="c-button" data-l10n="hud.agriculture.harvest_tree">Harvest tree</button><button id="hud_tool_forage" class="c-button" data-l10n="hud.agriculture.forage">Forage</button><button id="hud_tool_remove_plant" class="c-button" data-l10n="hud.agriculture.remove_plant">Remove plant</button></div>
-      <button id="hud_agriculture_back" class="c-button c-hud-sidebar-back" data-l10n="common.back">Back</button>
-    </section>
-    <section id="hud_designations_menu" class="l-hud-sidebar-page l-hud-sidebar-action-menu is-hidden" aria-labelledby="hud_designations_heading">
-      <h2 id="hud_designations_heading" class="c-hud-sidebar-page-title" data-l10n="hud.tool.designations">Designations</h2>
-      <div class="l-hud-sidebar-actions"><p data-l10n="hud.designations.help">Mark areas for settlement and control.</p><button id="hud_tool_stockpile" class="c-button" data-l10n="hud.designations.stockpile">Stockpile</button><button id="hud_tool_farm" class="c-button" data-l10n="hud.designations.farm">Farm</button><button id="hud_tool_grove" class="c-button" data-l10n="hud.designations.grove">Grove</button><button id="hud_tool_pasture" class="c-button" data-l10n="hud.designations.pasture">Pasture</button><button id="hud_tool_personal_room" class="c-button" data-l10n="hud.designations.personal_room">Personal room</button><button id="hud_tool_dormitory" class="c-button" data-l10n="hud.designations.dormitory">Dormitory</button><button id="hud_tool_dining_hall" class="c-button" data-l10n="hud.designations.dining_hall">Dining hall</button><button id="hud_tool_hospital" class="c-button" data-l10n="hud.designations.hospital">Hospital</button><button id="hud_tool_forbidden" class="c-button" data-l10n="hud.designations.forbidden">Forbidden</button><button id="hud_tool_remove_designation" class="c-button" data-l10n="hud.designations.remove">Remove</button></div>
-      <button id="hud_designations_back" class="c-button c-hud-sidebar-back" data-l10n="common.back">Back</button>
-    </section>
-    <section id="hud_jobs_menu" class="l-hud-sidebar-page l-hud-sidebar-action-menu is-hidden" aria-labelledby="hud_jobs_heading">
-      <h2 id="hud_jobs_heading" class="c-hud-sidebar-page-title" data-l10n="hud.jobs.title">Job commands</h2>
-      <div class="l-hud-sidebar-actions"><p data-l10n="hud.jobs.help">Choose a command, then click a job on the map.</p><p class="c-hud-action-note" data-l10n="hud.jobs.action_help">Suspend or resume work, cancel an order, or change its queue priority.</p><p class="c-hud-action-note" data-l10n="hud.jobs.overlay_note">Use the sidebar Jobs control to show or hide job markers.</p><button id="hud_tool_suspend_job" class="c-button" data-l10n="hud.jobs.suspend">Suspend</button><button id="hud_tool_resume_job" class="c-button" data-l10n="hud.jobs.resume">Resume</button><button id="hud_tool_cancel_job" class="c-button" data-l10n="hud.jobs.cancel">Cancel</button><button id="hud_tool_lower_priority" class="c-button" data-l10n="hud.jobs.lower_priority">Lower priority</button><button id="hud_tool_raise_priority" class="c-button" data-l10n="hud.jobs.raise_priority">Raise priority</button></div>
-      <button id="hud_jobs_back" class="c-button c-hud-sidebar-back" data-l10n="common.back">Back</button>
-    </section>
+  <!-- Primary window chrome (Stage 17): one toolbar along the top and a status bar along the bottom
+       (PDF p.151-155, p.288-289). Toolbar buttons are flat with text labels; a mode or state that is on
+       shows the option-set appearance; a button that opens a menu shows the triangular arrow. -->
+  <nav id="hud_top_rail" class="w98-toolbar l-hud-toolbar" role="toolbar" aria-label="Game">
+    <div id="hud_tool_shelf" class="l-hud-toolbar-groups">
+      <button id="hud_pause" class="w98-tool" aria-pressed="false"><span data-l10n="win98.hud.pause">Pause</span></button><button id="hud_speed_normal" class="w98-tool" aria-pressed="false"><span data-l10n="win98.hud.normal_speed">Normal Speed</span></button><button id="hud_speed_fast" class="w98-tool" aria-pressed="false"><span data-l10n="win98.hud.fast_speed">Fast Speed</span></button>
+      <span class="w98-toolbar__separator"></span>
+      <button id="hud_level_down" class="w98-tool"><span data-l10n="win98.hud.level_down">Level Down</span></button><button id="hud_level_up" class="w98-tool"><span data-l10n="win98.hud.level_up">Level Up</span></button>
+      <span class="w98-toolbar__separator"></span>
+      <button id="hud_open_inventory" class="w98-tool"><span data-l10n="win98.hud.inventory">Inventory</span></button><button id="hud_open_population" class="w98-tool"><span data-l10n="win98.hud.population">Population</span></button><button id="hud_open_military" class="w98-tool"><span data-l10n="win98.hud.military">Military</span></button><button id="hud_open_diplomacy" class="w98-tool"><span data-l10n="win98.hud.missions">Missions</span></button>
+      <span class="w98-toolbar__separator"></span>
+      <button id="hud_tool_inspect" class="w98-tool" aria-pressed="false"><span data-l10n="win98.hud.inspect">Inspect</span></button><button id="hud_tool_build" class="w98-tool"><span data-l10n="win98.hud.build">Build</span></button><button id="hud_tool_deconstruct" class="w98-tool" aria-pressed="false"><span data-l10n="win98.hud.deconstruct">Deconstruct</span></button><button id="hud_tool_mine" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.mine">Mine</span><span class="w98-tool__caret"></span></button><button id="hud_tool_agriculture" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.agriculture">Agriculture</span><span class="w98-tool__caret"></span></button><button id="hud_tool_designations" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.designations">Designations</span><span class="w98-tool__caret"></span></button><button id="hud_tool_jobs" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.jobs">Jobs</span><span class="w98-tool__caret"></span></button>
+      <span class="w98-toolbar__separator"></span>
+      <button id="hud_tool_cancel" class="w98-tool"><span data-l10n="win98.hud.cancel_tool">Cancel Tool</span></button><button id="hud_tool_rotate" class="w98-tool"><span data-l10n="win98.hud.rotate">Rotate</span></button>
+      <span class="w98-toolbar__separator"></span>
+      <button id="hud_tool_view" class="w98-tool" aria-haspopup="true" aria-expanded="false"><span data-l10n="win98.hud.view">View</span><span class="w98-tool__caret"></span></button>
+      <span class="w98-toolbar__separator"></span>
+      <!-- What's This? (PDF p.285): the next click on an item in the game window explains it. -->
+      <button id="hud_whats_this" class="w98-tool"><span data-l10n="win98.hud.whats_this">What's This?</span></button>
+    </div>
   </nav>
+
+  <!-- Drop-down menus of the toolbar menu buttons. Choices in a group show a dot; settings show a check mark. -->
+  <div id="hud_mine_menu" class="w98-menu is-hidden" role="menu" aria-label="Mine">
+    <button id="hud_mine_walls" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.mine_walls">Mine Walls</span></button>
+    <button id="hud_mine_explorative" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.explorative_mine">Explorative Mine</span></button>
+    <button id="hud_mine_remove_floor" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.remove_floor">Remove Floor</span></button>
+    <button id="hud_mine_hole" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.dig_hole">Dig Hole</span></button>
+    <span class="w98-menu__separator"></span>
+    <button id="hud_mine_stairs_down" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.dig_stairs_down">Dig Stairs Down</span></button>
+    <button id="hud_mine_stairs_up" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.mine_stairs_up">Mine Stairs Up</span></button>
+    <button id="hud_mine_ramp_down" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.dig_ramp_down">Dig Ramp Down</span></button>
   </div>
-  <div id="hud_sidebar_tooltip" class="c-tooltip" role="tooltip" aria-hidden="true"></div>
-  <section id="hud_kingdom_panel" class="l-hud-kingdom-panel is-hidden" role="dialog" aria-labelledby="hud_kingdom_heading">
-    <header class="c-title-bar"><handle id="hud_kingdom_drag_handle" class="c-title-bar__drag-handle" move_target="hud_kingdom_panel" edge_margin="52dp 12dp 54dp 12dp"><div class="c-title-bar__mark c-title-bar__mark--kingdom">K</div><h1 id="hud_kingdom_heading" class="c-title-bar__title" data-l10n="hud.launch.kingdom">Kingdom</h1></handle><button id="hud_kingdom_close" class="c-button c-button--compact" data-l10n="common.close">Close</button></header>
-    <div class="c-hud-kingdom-summary"><strong id="hud_kingdom_panel_name">Kingdom</strong><p data-l10n="hud.launch.kingdom_help">Quick view of this settlement's population, animals, and stored items.</p><span id="hud_kingdom_panel_gnomes">Gnomes 0</span><span id="hud_kingdom_panel_animals">Animals 0</span><span id="hud_kingdom_panel_items">Items 0</span></div>
-  </section>
-  <section id="hud_build_panel" class="l-hud-build-panel">
-    <header class="c-title-bar"><handle id="hud_build_drag_handle" class="c-title-bar__drag-handle" move_target="hud_build_panel" edge_margin="52dp 12dp 54dp 12dp"><div class="c-title-bar__mark c-title-bar__mark--build">B</div><h1 id="hud_build_heading" class="c-title-bar__title" tab-index="-1" data-l10n="hud.build.title">Build</h1></handle><button id="hud_build_close" class="c-button" data-l10n="common.close">Close</button></header>
-    <div class="l-hud-build-workbench">
-      <aside id="hud_build_categories" class="l-hud-build-rail">
-        <section id="hud_build_categories_page" class="l-hud-build-rail-page"><div class="c-hud-build-rail-heading" data-l10n="hud.build.categories">Categories</div><p class="c-hud-build-category-hint" data-l10n="hud.build.category_hint">Choose a category</p><nav class="l-hud-build-category-list" aria-label="Build categories"><button id="hud_build_furniture" class="c-button c-hud-build-tab" data-l10n="hud.build.furniture">Furniture</button><button id="hud_build_workshop" class="c-button c-hud-build-tab" data-l10n="hud.build.workshop">Workshops</button><button id="hud_build_containers" class="c-button c-hud-build-tab" data-l10n="hud.build.containers">Containers</button><button id="hud_build_utility" class="c-button c-hud-build-tab" data-l10n="hud.build.utility">Utility</button><button id="hud_build_wall" class="c-button c-hud-build-tab" data-l10n="hud.build.wall">Walls</button><button id="hud_build_floor" class="c-button c-hud-build-tab" data-l10n="hud.build.floor">Floors</button><button id="hud_build_stairs" class="c-button c-hud-build-tab" data-l10n="hud.build.stairs">Stairs</button><button id="hud_build_ramps" class="c-button c-hud-build-tab" data-l10n="hud.build.ramps">Ramps</button><button id="hud_build_fence" class="c-button c-hud-build-tab" data-l10n="hud.build.fence">Fences</button></nav></section>
-        <section id="hud_build_types_page" class="l-hud-build-rail-page is-hidden"><div class="c-hud-build-rail-heading" data-l10n="hud.build.types">Types</div><div id="hud_build_type_list" class="l-hud-build-type-list"></div><button id="hud_build_back" class="c-button c-hud-build-back" data-l10n="common.back">Back</button></section>
-      </aside>
-      <section id="hud_build_catalog" class="l-hud-build is-hidden"></section>
+  <div id="hud_agriculture_menu" class="w98-menu is-hidden" role="menu" aria-label="Agriculture">
+    <button id="hud_tool_fell_tree" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.cut_tree">Cut Tree</span></button>
+    <button id="hud_tool_plant_tree" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.plant_tree">Plant Tree</span></button>
+    <button id="hud_tool_harvest_tree" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.harvest_tree">Harvest Tree</span></button>
+    <button id="hud_tool_forage" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.forage">Forage</span></button>
+    <button id="hud_tool_remove_plant" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.remove_plant">Remove Plant</span></button>
+  </div>
+  <div id="hud_designations_menu" class="w98-menu is-hidden" role="menu" aria-label="Designations">
+    <button id="hud_tool_stockpile" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.stockpile">Stockpile</span></button>
+    <button id="hud_tool_farm" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.farm">Farm</span></button>
+    <button id="hud_tool_grove" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.grove">Grove</span></button>
+    <button id="hud_tool_pasture" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.pasture">Pasture</span></button>
+    <span class="w98-menu__separator"></span>
+    <button id="hud_tool_personal_room" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.personal_room">Personal Room</span></button>
+    <button id="hud_tool_dormitory" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.dormitory">Dormitory</span></button>
+    <button id="hud_tool_dining_hall" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.dining_hall">Dining Hall</span></button>
+    <button id="hud_tool_hospital" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.hospital">Hospital</span></button>
+    <span class="w98-menu__separator"></span>
+    <button id="hud_tool_forbidden" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.forbidden_area">Forbidden Area</span></button>
+    <button id="hud_tool_remove_designation" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.remove_designation">Remove Designation</span></button>
+  </div>
+  <div id="hud_jobs_menu" class="w98-menu is-hidden" role="menu" aria-label="Jobs">
+    <button id="hud_tool_suspend_job" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.suspend_job">Suspend Job</span></button>
+    <button id="hud_tool_resume_job" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.resume_job">Resume Job</span></button>
+    <button id="hud_tool_cancel_job" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.cancel_job">Cancel Job</span></button>
+    <span class="w98-menu__separator"></span>
+    <button id="hud_tool_raise_priority" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.raise_priority">Raise Priority</span></button>
+    <button id="hud_tool_lower_priority" class="w98-menu__item" role="menuitemradio"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.lower_priority">Lower Priority</span></button>
+  </div>
+  <div id="hud_view_menu" class="w98-menu is-hidden" role="menu" aria-label="View">
+    <button id="hud_overlay_designations" class="w98-menu__item" role="menuitemcheckbox" aria-checked="false"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.designations">Designations</span></button>
+    <button id="hud_overlay_jobs" class="w98-menu__item" role="menuitemcheckbox" aria-checked="false"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.jobs">Jobs</span></button>
+    <button id="hud_overlay_walls" class="w98-menu__item" role="menuitemcheckbox" aria-checked="false"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.lowered_walls">Lowered Walls</span></button>
+    <button id="hud_overlay_axles" class="w98-menu__item" role="menuitemcheckbox" aria-checked="false"><span class="w98-menu__mark"></span><span data-l10n="win98.hud.axles">Axles</span></button>
+  </div>
+
+  <!-- Build palette (used when no separate Build window is attached; the game opens it in its own window). -->
+  <section id="hud_build_panel" class="w98-sheet w98-palette l-hud-build-panel is-hidden" role="dialog" aria-labelledby="hud_build_heading">
+    <div class="w98-caption">
+      <handle id="hud_build_drag_handle" class="c-title-bar__drag-handle" move_target="hud_build_panel"><h1 id="hud_build_heading" class="c-title-bar__title" data-l10n="win98.hud.build_heading">Build</h1></handle>
+      <button id="hud_build_close" class="w98-caption__close" title="Close" data-l10n-title="win98.hud.build_close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
+    </div>
+    <div class="w98-sheet__body">
+      <div class="w98-page w98-row w98-row--fill">
+        <div id="hud_build_categories" class="w98-col l-hud-build-categories">
+          <section id="hud_build_categories_page" class="w98-col w98-grow"><label class="w98-label" data-l10n="win98.hud.categories">Categories:</label>
+            <div class="w98-list w98-grow" role="listbox" aria-label="Build categories"><button id="hud_build_furniture" class="w98-list-item" role="option"><span data-l10n="win98.hud.furniture">Furniture</span></button><button id="hud_build_workshop" class="w98-list-item" role="option"><span data-l10n="win98.hud.workshops">Workshops</span></button><button id="hud_build_containers" class="w98-list-item" role="option"><span data-l10n="win98.hud.containers">Containers</span></button><button id="hud_build_utility" class="w98-list-item" role="option"><span data-l10n="win98.hud.utility">Utility</span></button><button id="hud_build_wall" class="w98-list-item" role="option"><span data-l10n="win98.hud.walls">Walls</span></button><button id="hud_build_floor" class="w98-list-item" role="option"><span data-l10n="win98.hud.floors">Floors</span></button><button id="hud_build_stairs" class="w98-list-item" role="option"><span data-l10n="win98.hud.stairs">Stairs</span></button><button id="hud_build_ramps" class="w98-list-item" role="option"><span data-l10n="win98.hud.ramps">Ramps</span></button><button id="hud_build_fence" class="w98-list-item" role="option"><span data-l10n="win98.hud.fences">Fences</span></button></div>
+          </section>
+        </div>
+        <div class="w98-col w98-grow">
+          <p id="hud_build_hint" class="w98-text" data-l10n="win98.hud.build_hint">Choose a category, then an item to build.</p>
+          <section id="hud_build_types_page" class="w98-line is-hidden"><label class="w98-label" for="hud_build_type_list" data-l10n="win98.hud.build_type_list">Material:</label><div id="hud_build_type_list" class="w98-grow l-hud-build-types"></div></section>
+          <section id="hud_build_catalog" class="w98-col w98-grow is-hidden"><div class="w98-listview w98-grow"><div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.hud.item">Item</span><span class="l-hud-build-status" data-l10n="win98.hud.status">Status</span></div><div id="hud_build_items" class="w98-list" role="listbox" aria-label="Items"></div></div><div id="hud_build_details"></div></section>
+        </div>
+      </div>
     </div>
   </section>
-  <div id="hud_hint_strip" class="is-hidden" aria-hidden="true"><span id="hud_active_tool" data-l10n="hud.static.hud_active_tool">Inspect</span><span id="hud_status" class="c-hud-status is-hidden"></span><span data-l10n="hud.hint.select">LMB select / drag</span><span data-l10n="hud.hint.cancel">RMB/Esc cancel</span><span id="hud_rotate_hint"></span><span id="hud_keyboard_commands" class="l-hud-keyboard-commands is-hidden" aria-hidden="true"><button id="hud_tool_cancel" class="c-button" data-l10n="hud.tool.cancel">Cancel</button><button id="hud_tool_rotate" class="c-button" data-l10n="hud.tool.rotate">Rotate</button></span></div>
-  <section id="hud_tutorial_panel" class="l-hud-tutorial is-hidden" role="dialog" aria-labelledby="tutorial_title" aria-describedby="tutorial_objective">
-    <header class="c-title-bar"><h2 id="tutorial_title">Interactive tutorial</h2><span id="tutorial_progress">1 / 9</span></header>
-    <p id="tutorial_explanation"></p><p id="tutorial_objective" class="c-hud-tutorial-objective"></p><h3 class="c-hud-tutorial-steps-heading" data-l10n="tutorial.steps_heading">Do this</h3><p id="tutorial_steps" class="c-hud-tutorial-steps"></p><p id="tutorial_checklist" class="c-hud-tutorial-checklist"></p><p id="tutorial_warning" class="c-hud-tutorial-warning"></p>
-    <div class="l-hud-tutorial-actions"><button id="tutorial-continue" class="c-button c-button--primary" data-l10n="tutorial.action.continue">Continue</button><button id="tutorial-skip" class="c-button" data-l10n="tutorial.action.skip">Skip</button><button id="tutorial-restart" class="c-button" data-l10n="tutorial.action.restart">Restart</button><button id="tutorial-hints" class="c-button" data-l10n="tutorial.action.hints">Hints</button><button id="tutorial-finish" class="c-button c-button--primary" data-l10n="tutorial.action.finish">Continue anyway</button></div>
+
+  <!-- Tutorial: a palette window beside the map (PDF p.180-181). -->
+  <section id="hud_tutorial_panel" class="w98-sheet w98-palette l-hud-tutorial is-hidden" role="dialog" aria-labelledby="tutorial_title" aria-describedby="tutorial_objective">
+    <div class="w98-caption"><h1 id="tutorial_title" class="c-title-bar__title"></h1></div>
+    <div class="w98-sheet__body">
+      <div class="w98-line"><span class="w98-label" data-l10n="win98.hud.lesson">Lesson:</span><p id="tutorial_progress" class="w98-text w98-grow"></p></div>
+      <p id="tutorial_explanation" class="w98-text"></p>
+      <div class="w98-gap"></div>
+      <p id="tutorial_objective" class="w98-text l-hud-tutorial-objective"></p>
+      <div class="w98-group"><span class="w98-group__title" data-l10n="win98.hud.do_this">Do this</span><div id="tutorial_steps" class="l-hud-tutorial-list"></div></div>
+      <div class="w98-group"><span class="w98-group__title" data-l10n="win98.hud.lessons">Lessons</span><div id="tutorial_checklist" class="l-hud-tutorial-list"></div></div>
+      <p id="tutorial_warning" class="w98-text"></p>
+      <div class="w98-buttonbar"><button id="tutorial-continue" class="w98-button w98-button--default" data-l10n="win98.hud.tutorial_continue">Continue</button><button id="tutorial-finish" class="w98-button w98-button--default" data-l10n="win98.hud.tutorial_finish">Finish</button><button id="tutorial-skip" class="w98-button" data-l10n="win98.hud.tutorial_skip">Skip</button><button id="tutorial-restart" class="w98-button" data-l10n="win98.hud.tutorial_restart">Restart</button><button id="tutorial-hints" class="w98-button"></button></div>
+    </div>
   </section>
+
+  <!-- Events that need an answer use a message box: Information symbol, the event as the title, centred buttons. -->
   <div id="hud_event_blocker" class="l-hud-modal is-hidden" aria-hidden="true">
-    <article class="c-modal" role="dialog" aria-modal="true" aria-labelledby="hud_event_title" aria-describedby="hud_event_body"><h2 id="hud_event_title"></h2><p id="hud_event_body"></p><div><button id="hud_event_ack" class="c-button" data-l10n="hud.event.continue">Continue</button><button id="hud_event_yes" class="c-button" data-l10n="common.yes_title">Yes</button><button id="hud_event_no" class="c-button" data-l10n="common.no_title">No</button></div></article>
+    <section class="w98-sheet w98-msgbox" role="alertdialog" aria-modal="true" aria-labelledby="hud_event_title" aria-describedby="hud_event_body">
+      <div class="w98-caption"><h1 id="hud_event_title" class="c-title-bar__title"></h1></div>
+      <div class="w98-msgbox__body"><span class="w98-msgbox__symbol is-info"></span><p id="hud_event_body" class="w98-text w98-msgbox__text"></p></div>
+      <div class="w98-msgbox__buttons"><button id="hud_event_ack" class="w98-button" data-l10n="win98.common.ok">OK</button><button id="hud_event_yes" class="w98-button" data-l10n="win98.hud.event_yes">Yes</button><button id="hud_event_no" class="w98-button" data-l10n="win98.hud.event_no">No</button></div>
+    </section>
   </div>
+
+  <footer id="hud_status_bar" class="w98-statusbar l-hud-statusbar" role="status">
+    <p id="hud_status" class="w98-statusbar__pane w98-statusbar__pane--grow"></p>
+    <span id="hud_active_tool" class="w98-statusbar__pane is-hidden"></span>
+    <span id="hud_kingdom" class="w98-statusbar__pane"></span>
+    <span id="hud_level" class="w98-statusbar__pane"></span>
+    <span id="hud_date" class="w98-statusbar__pane"></span>
+    <span id="hud_clock" class="w98-statusbar__pane"></span>
+    <span id="hud_daylight" class="w98-statusbar__pane"></span>
+    <span id="hud_gnomes" class="w98-statusbar__pane"></span>
+    <span id="hud_animals" class="w98-statusbar__pane"></span>
+    <span id="hud_items" class="w98-statusbar__pane"></span>
+    <div id="hud_watch_rows" class="l-hud-watch"></div>
+    <!-- Size grip at the far corner of the status bar (PDF p.100, p.155); shown only while the window can be sized. -->
+    <span id="hud_size_grip" class="w98-statusbar__grip" aria-hidden="true"></span>
+  </footer>
 </body></rml>

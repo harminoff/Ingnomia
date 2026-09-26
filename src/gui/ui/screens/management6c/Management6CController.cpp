@@ -826,6 +826,15 @@ void Management6CController::assignSelectedMemberToSelectedSquad()
 		dispatch( "military.assign_squad", AssignSquadPayload{ *state_.selectedMember, *state_.selectedSquad } );
 }
 
+void Management6CController::assignMemberToSquad( CreatureId creature, SquadId squad )
+{
+	const bool known = std::ranges::any_of( state_.roster.unassigned, [&]( const SquadMemberRow& m ){ return m.id == creature; } )
+		|| std::ranges::any_of( state_.roster.squads, [&]( const SquadRow& s ){ return std::ranges::any_of( s.members, [&]( const SquadMemberRow& m ){ return m.id == creature; } ); } );
+	const auto destination = std::ranges::find_if( state_.roster.squads, [&]( const SquadRow& row ){ return row.id == squad; } );
+	if( !known || destination == state_.roster.squads.end() ) return;
+	if( std::ranges::any_of( destination->members, [&]( const SquadMemberRow& m ){ return m.id == creature; } ) ) return;
+	dispatch( "military.assign_squad", AssignSquadPayload{ creature, squad } );
+}
 void Management6CController::moveSelectedMember( MoveDirection direction )
 {
 	if( !state_.selectedMember || ( direction != MoveDirection::Up && direction != MoveDirection::Down ) ) return;

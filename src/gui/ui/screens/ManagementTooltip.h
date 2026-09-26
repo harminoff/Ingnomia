@@ -11,12 +11,12 @@
 namespace ingnomia::ui
 {
 inline void showManagementTooltip( Rml::ElementDocument* document, Rml::Context& context,
-    const char* tooltipId, Rml::Element* source )
+    const char* tooltipId, Rml::Element* source, const std::string& supplied = {} )
 {
     if( !document || !source ) return;
     auto* tooltip = document->GetElementById( tooltipId );
     if( !tooltip ) return;
-    const auto value = source->GetAttribute<Rml::String>( "title", "" );
+    const auto value = supplied.empty() ? source->GetAttribute<Rml::String>( "title", "" ) : supplied;
     if( value.empty() ) return;
     tooltip->SetInnerRML( Rml::StringUtilities::EncodeRml( value ) );
     const auto offset = source->GetAbsoluteOffset();
@@ -33,6 +33,17 @@ inline void showManagementTooltip( Rml::ElementDocument* document, Rml::Context&
     tooltip->SetProperty( "transform", "none" );
     tooltip->SetClass( "is-visible", true );
     tooltip->SetAttribute( "aria-hidden", "false" );
+    tooltip->SetProperty("position","fixed");
+    tooltip->SetProperty("margin","0px");
+    tooltip->SetProperty("box-sizing","border-box");
+    tooltip->SetProperty("max-height",std::to_string(std::max(1,bounds.y-16))+"px");
+    tooltip->SetProperty("overflow-y","hidden");
+    // Mouseover/focus handlers must not re-enter the context hover dispatcher.
+    // Update only this document to measure the newly wrapped tooltip.
+    document->UpdateDocument();
+    const auto height=tooltip->GetOffsetHeight();
+    tooltip->SetProperty("top",std::to_string(std::clamp(offset.y+source->GetOffsetHeight()+4.f,8.f,
+        std::max(8.f,static_cast<float>(bounds.y)-height-8.f)))+"px");
 }
 
 inline void hideManagementTooltip( Rml::ElementDocument* document, const char* tooltipId )

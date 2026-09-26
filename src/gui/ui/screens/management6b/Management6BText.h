@@ -9,6 +9,25 @@ inline localization::UiText management6BText()
 {
 	using Entries = std::map<std::string, std::string, std::less<>>;
 	return localization::UiText( Entries {
+        {"management.inventory.clear_filters","Clear filters"},
+        {"management.inventory.matches","{count} matching entries"},
+        {"management.inventory.loading","Loading inventory..."},
+        {"management.inventory.empty","No inventory entries are available."},
+        {"management.inventory.target_removed","This item is no longer in the inventory catalog. Returned to the report."},
+        {"management.inventory.watch","Watch item"},
+        {"management.inventory.unwatch","Stop watching"},
+        {"editing.scope_title","Population"},
+        {"editing.scope_detail","This changes {skill} for all {count} citizens, including citizens hidden by the Find text."},
+        {"editing.scope_changed","The colony changed. Review the affected citizens again."},
+        {"editing.enable","Enable"},{"editing.disable","Disable"},
+        {"editing.title","Population"},
+        {"editing.detail","Do you want to save the changes you made to {name}?"},
+        {"editing.apply","Yes"},{"editing.keep","Cancel"},{"editing.discard","No"},
+        {"editing.changed","This profession changed. Your draft is preserved. Discard the draft to reload the current values."},
+        {"editing.pending","Applying profession changes..."},{"editing.saved","Profession changes applied."},
+        {"editing.dirty","Unsaved changes"},
+        {"editing.delete_changed","The reviewed profession changed or was removed. Review it again before deleting."},
+        {"editing.delete_detail","Deleting {name} removes this profession and its skill list. You cannot undo this."},
 		{ "common.search", "Search" },
 		{ "common.cancel", "Cancel" },
 		{ "management.population.title", "Population & Work" },
@@ -122,7 +141,7 @@ inline localization::UiText management6BText()
 		{ "management.inventory.column.value", "Value" },
 		{ "management.inventory.toggle_watch", "[ ] Watch selected" },
 		{ "management.inventory.watching_selected", "[x] Watching selected" },
-		{ "management.inventory.no_rows", "No inventory rows match the loaded tree." },
+		{ "management.inventory.no_rows", "No inventory entries match these filters." },
 		{ "management.inventory.row_summary", "total {total} | jobs {jobs} | stock {stock} | equipped {equipped} | built {built} | loose {loose} | value {value}" },
 		{ "management.inventory.watched", "[x]" },
 		{ "management.inventory.revision", "Inventory loaded" },
@@ -152,7 +171,8 @@ inline localization::UiText management6BText()
 		{ "common.previous_rows", "Previous rows" }, { "common.next_rows", "Next rows" },
 		{ "status.updating", "Updating..." },
 		{ "status.refreshing", "Refreshing..." },
-		{ "common.on", "on" }, { "common.off", "off" }
+		{ "common.on", "on" }, { "common.off", "off" },
+#include "../../localization/UiTextWin98Entries.inc"
 	} );
 }
 } // namespace ingnomia::ui::management6b

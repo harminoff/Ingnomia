@@ -1,0 +1,15 @@
+<rml>
+<head>
+    <title>Message</title>
+    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/screens/win98_classic.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" />
+</head>
+<!-- Windows 98 message box (User Experience, PDF p.182-187): caption with the object name, the Warning
+     symbol, the message, and centered command buttons. Esc and the caption Close are Cancel. -->
+<body class="w98-msgbox-stage" data-modal-dialog="true">
+    <section class="w98-sheet w98-msgbox" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-detail">
+        <header class="w98-caption"><h2 id="confirm-title" class="c-title-bar__title">Message</h2><button id="confirm-close" class="w98-caption__close" title="Close" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button></header>
+        <div class="w98-msgbox__body"><span class="w98-msgbox__symbol" aria-hidden="true"></span><p id="confirm-detail" class="w98-text w98-msgbox__text"></p></div>
+        <div class="w98-msgbox__buttons"><button id="confirm-accept" class="w98-button">OK</button><button id="confirm-alternate" class="w98-button">No</button><button id="confirm-cancel" class="w98-button">Cancel</button></div>
+    </section>
+</body>
+</rml>

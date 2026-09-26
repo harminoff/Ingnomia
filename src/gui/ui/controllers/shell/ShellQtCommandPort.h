@@ -11,6 +11,8 @@
 #include <QPointer>
 #include <QString>
 
+#include <optional>
+
 class EventConnector;
 
 namespace ingnomia::ui::shell
@@ -27,6 +29,8 @@ public:
 	void rememberKingdomPath( const SaveKingdomId& id, QString absolutePath );
 	void rememberSavePath( const SaveSlotId& id, QString absolutePath );
 	void clearPrivatePaths();
+	/// The kingdom the last game was opened from with Load Game, for the next "Look in" (PDF p.171).
+	[[nodiscard]] std::optional<SaveKingdomId> lastOpenedKingdom() const { return lastOpenedKingdom_; }
 
 private:
 	[[nodiscard]] CommandResult reject( const char* localizationKey ) const;
@@ -35,6 +39,7 @@ private:
 
 	QPointer<EventConnector> connector_;
 	QHash<QString, QString> kingdomPaths_;
+	std::optional<SaveKingdomId> lastOpenedKingdom_;
 	QHash<QString, QString> savePaths_;
 };
 

@@ -11,6 +11,9 @@
 
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
+#include "../../runtime/SelectOptions.h"
+
+#include <QDateTime>
 
 #include <QDebug>
 
@@ -58,8 +61,18 @@ std::string quantity( std::string value, std::string_view singular, std::string_
 }
 }
 
-ShellRmlBinding::ShellRmlBinding( Rml::Context& context ) : context_( context ) {}
+ShellRmlBinding::ShellRmlBinding( Rml::Context& context ) : context_( context ), dialog_( context )
+{
+	// Exit and Main Menu ask in a Windows 98 message box (Stage 19).
+	dialog_.setDocumentPath( "modals/win98_message_box.rml" );
+}
 ShellRmlBinding::~ShellRmlBinding() { shutdown(); }
+
+std::string ShellRmlBinding::focusedElementIdForProbe() const
+{
+	const auto* focused = context_.GetFocusElement();
+	return focused ? focused->GetId() : std::string {};
+}
 
 bool ShellRmlBinding::initialize( ShellController& controller )
 {
@@ -76,6 +89,7 @@ bool ShellRmlBinding::initialize( ShellController& controller )
 
 void ShellRmlBinding::shutdown()
 {
+    dialog_.close(false);
 	detachModalListeners();
 	detachRouteListeners();
 	detachLoadRowListeners();
@@ -88,6 +102,7 @@ void ShellRmlBinding::shutdown()
 	newGameFieldCallbacks_.clear();
 	newGameTabCallbacks_.clear();
 	loadRowCallbacks_.clear();
+	renderedKingdomKeys_.clear(); renderedSavesMarkup_.clear(); renderedSaveKeys_.clear();
 	loadRowListeners_.clear();
 	shellModel_ = {};
 	settingsModel_ = {};
@@ -99,6 +114,7 @@ void ShellRmlBinding::shutdown()
 bool ShellRmlBinding::reloadDocuments()
 {
 	if ( !controller_ || !appShell_ ) return false;
+    if(dialog_.active()) controller_->activate(ShellControl::CancelDestructive);
 	const bool wasVisible = appShell_->IsVisible();
 	detachModalListeners();
 	detachRouteListeners();
@@ -185,6 +201,7 @@ bool ShellRmlBinding::loadRoute( std::string_view route )
 		newGameFieldCallbacks_.clear();
 		newGameTabCallbacks_.clear();
 		loadRowCallbacks_.clear();
+	renderedKingdomKeys_.clear(); renderedSavesMarkup_.clear(); renderedSaveKeys_.clear();
 		qInfo() << "Shell route delegated to dedicated HUD binding";
 		return true;
 	}
@@ -193,13 +210,17 @@ bool ShellRmlBinding::loadRoute( std::string_view route )
 	newGameFieldCallbacks_.clear();
 	newGameTabCallbacks_.clear();
 	loadRowCallbacks_.clear();
+	renderedKingdomKeys_.clear(); renderedSavesMarkup_.clear(); renderedSaveKeys_.clear();
 	routeDocument_ = context_.LoadDocument( rml( document->path ) );
 	if( !routeDocument_ ) return false;
 	localization::applyRmlText( *routeDocument_, textCatalog_ );
+	// In the game, dialogs sit over the paused map; on the main menu they sit on the desktop colour (Stage 19).
+	routeDocument_->SetClass( "is-in-game", route.starts_with( "game." ) );
+	routeDocument_->SetClass( "is-loading", route == "shell.loading" );
 	bindCallbacks();
 	if( route == "shell.new_game" )
 	{
-		activeNewGameTab_ = "world";
+		activeNewGameTab_ = "welcome";
 		syncNewGameTabs();
 	}
 	routeDocument_->Show();
@@ -211,8 +232,24 @@ bool ShellRmlBinding::loadRoute( std::string_view route )
 
 void ShellRmlBinding::Callback::ProcessEvent( Rml::Event& event )
 {
+	// A key binding (F5 refreshes the save list) reacts to its key only.
+	if( event.GetId() == Rml::EventId::Keydown && event.GetParameter<int>( "key_identifier", 0 ) != Rml::Input::KI_F5 ) return;
 	event.StopPropagation();
 	if( event.GetCurrentElement() && event.GetCurrentElement()->HasAttribute( "disabled" ) ) return;
+	// Returning to the main menu gives the focus back to the command that left it (NEW-002).
+	if( owner_.routeValue_ == "shell.main_menu" && event.GetCurrentElement() ) owner_.mainMenuReturnFocus_ = event.GetCurrentElement()->GetId();
+    if(control_==ShellControl::StartConfiguredGame) {
+        for(auto& [id,editor] : owner_.numericEditors_) if(!editor->commit()) {
+            auto* range=owner_.routeDocument_->GetElementById(id);
+            for(auto* panel=range;panel;panel=panel->GetParentNode())
+                if(panel->GetId().starts_with("new-panel-")) {
+                    owner_.selectNewGameTab(panel->GetId().substr(10));
+                    break;
+                }
+            if(auto* input=owner_.routeDocument_->GetElementById(id+"-exact"))input->Focus(true);
+            return;
+        }
+    }
 	owner_.controller_->activate( control_ );
 }
 
@@ -265,18 +302,35 @@ void ShellRmlBinding::NewGameFieldCallback::ProcessEvent( Rml::Event& event )
 	}
 }
 
-void ShellRmlBinding::NewGameTabCallback::ProcessEvent( Rml::Event& event )
+void ShellRmlBinding::NewGameTabCallback::ProcessEvent(Rml::Event& event)
 {
-	event.StopPropagation();
-	owner_.selectNewGameTab( tab_ );
+    auto* target = event.GetCurrentElement();
+    if(!target || !target->IsVisible(true) || target->HasAttribute("disabled")) return;
+    event.StopPropagation();
+    if(tab_=="back") owner_.moveWizard(-1);
+    else if(tab_=="next") owner_.moveWizard(1);
+    else owner_.selectNewGameTab(tab_);
 }
 
 void ShellRmlBinding::LoadRowCallback::ProcessEvent( Rml::Event& event )
 {
-	if( !owner_.controller_ ) return;
+	if( !owner_.controller_ || owner_.updatingDom_ ) return;
 	event.StopPropagation();
-	if( kind_ == Kind::Kingdom ) owner_.controller_->selectKingdom( SaveKingdomId{ id_ } );
-	else owner_.controller_->selectSave( SaveSlotId{ id_ } );
+	if( kind_ == Kind::Kingdom )
+	{
+		// "Look in:" names a kingdom by its index in the rendered list; the typed key never reaches the DOM.
+		auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( event.GetCurrentElement() );
+		const Rml::String value = control ? control->GetValue() : event.GetParameter<Rml::String>( "value", "" );
+		std::size_t index = 0;
+		if( value.empty() || std::from_chars( value.data(), value.data() + value.size(), index ).ec != std::errc{} || index >= owner_.renderedKingdomKeys_.size() ) return;
+		// Choosing the kingdom already shown asks for nothing (RmlUi reports a change for SetValue as well).
+		const auto& selected = owner_.controller_->state().loadGame.selectedKingdom;
+		if( !selected || selected->relativeKey != owner_.renderedKingdomKeys_[index] ) owner_.controller_->selectKingdom( SaveKingdomId{ owner_.renderedKingdomKeys_[index] } );
+		return;
+	}
+	owner_.controller_->selectSave( SaveSlotId{ id_ } );
+	// A double-click opens the save, like Open (PDF p.170).
+	if( kind_ == Kind::Open ) (void)owner_.activateElement( "load-selected" );
 }
 
 void ShellRmlBinding::bindCallbacks()
@@ -312,10 +366,24 @@ void ShellRmlBinding::bindCallbacks()
 	bindNewGameFieldCallback( "new-wild-animals", "wild_animals" );
 	bindNewGameFieldCallback( "new-gnomes", "gnomes" );
 	bindNewGameFieldCallback( "new-start-zone", "start_zone" );
-	bindNewGameTabCallback( "new-tab-world", "world" );
-	bindNewGameTabCallback( "new-tab-settlement", "settlement" );
-	bindNewGameTabCallback( "new-tab-terrain", "terrain" );
-	bindNewGameTabCallback( "new-tab-review", "review" );
+	if( routeDocument_ )
+		if( auto* dialog = routeDocument_->GetElementById( "load-dialog" ) )
+		{
+			auto callback = std::make_unique<Callback>( *this, ShellControl::RefreshLoads );
+			dialog->AddEventListener( Rml::EventId::Keydown, callback.get(), false );
+			routeListeners_.push_back( { dialog, "keydown", callback.get() } );
+			callbacks_.push_back( std::move( callback ) );
+		}
+	bindNewGameTabCallback( "new-back", "back" );
+	bindNewGameTabCallback( "new-next", "next" );
+	if( routeDocument_ )
+		if( auto* kingdoms = routeDocument_->GetElementById( "load-kingdoms" ) )
+		{
+			auto callback = std::make_unique<LoadRowCallback>( *this, LoadRowCallback::Kind::Kingdom, std::string{} );
+			kingdoms->AddEventListener( Rml::EventId::Change, callback.get(), false );
+			routeListeners_.push_back( { kingdoms, "change", callback.get() } );
+			loadRowCallbacks_.push_back( std::move( callback ) );
+		}
 }
 
 void ShellRmlBinding::bindSettingCallback( const char* id, const char* setting )
@@ -339,6 +407,19 @@ void ShellRmlBinding::bindNewGameFieldCallback( const char* id, const char* fiel
 		element->AddEventListener( Rml::EventId::Change, callback.get(), false );
 		routeListeners_.push_back( { element, "change", callback.get() } );
 		newGameFieldCallbacks_.push_back( std::move( callback ) );
+        if(element->GetAttribute<Rml::String>("type", "") == "range") {
+            const std::string numericId = std::string(id) + "-exact";
+            if(routeDocument_->GetElementById(numericId)) {
+                auto editor = std::make_unique<NumericEditor>(*routeDocument_, numericId, [this, field=std::string(field)](int value) {
+                    controller_->setNewGameField(NewGameFieldId{field}, static_cast<std::int32_t>(value));
+                    const auto& fields=controller_->state().newGame.draft.fields;
+                    auto found=std::ranges::find_if(fields,[&](const auto& entry){return entry.field.value==field;});
+                    return found!=fields.end() && std::get_if<std::int32_t>(&found->value) && std::get<std::int32_t>(found->value)==value;
+                });
+                editor->sync(element->GetAttribute<int>("value",element->GetAttribute<int>("min",0)),element->GetAttribute<int>("min",0),element->GetAttribute<int>("max",100));
+                numericEditors_.emplace_back(id,std::move(editor));
+            }
+        }
 	}
 }
 
@@ -366,32 +447,45 @@ void ShellRmlBinding::bindCallback( const char* id, ShellControl control )
 	}
 }
 
+// Custom Game wizard pages (PDF p.304-309): Welcome, World, Settlement, Terrain and Life, Completion.
+// < Back is unavailable on the first page; Finish takes the place of Next > on the last page.
+namespace
+{
+constexpr std::array wizardPages{ "welcome", "world", "settlement", "terrain", "review" };
+}
 void ShellRmlBinding::selectNewGameTab( std::string_view tab )
 {
-	static constexpr std::array tabs{
-		std::pair{ "world", "new-tab-world" },
-		std::pair{ "settlement", "new-tab-settlement" },
-		std::pair{ "terrain", "new-tab-terrain" },
-		std::pair{ "review", "new-tab-review" } };
-	static constexpr std::array panels{
-		std::pair{ "world", "new-panel-world" },
-		std::pair{ "settlement", "new-panel-settlement" },
-		std::pair{ "terrain", "new-panel-terrain" },
-		std::pair{ "review", "new-panel-review" } };
-	const auto valid = std::ranges::find_if( tabs, [&]( const auto& entry ) { return tab == entry.first; } );
-	if( valid == tabs.end() || !routeDocument_ ) return;
+	const auto valid = std::ranges::find( wizardPages, tab );
+	if( valid == wizardPages.end() || !routeDocument_ ) return;
 	activeNewGameTab_ = std::string( tab );
-	for( const auto& [name, id] : tabs )
-	{
-		if( auto* element = routeDocument_->GetElementById( id ) )
+	for( const char* page : wizardPages ) setVisible( ( std::string( "new-panel-" ) + page ).c_str(), activeNewGameTab_ == page );
+	const bool first = valid == wizardPages.begin();
+	const bool last = valid + 1 == wizardPages.end();
+	setEnabled( "new-back", !first );
+	setVisible( "new-next", !last );
+	setVisible( "new-start", last );
+}
+void ShellRmlBinding::moveWizard( int step )
+{
+	const auto current = std::ranges::find( wizardPages, activeNewGameTab_ );
+	if( current == wizardPages.end() || !routeDocument_ ) return;
+	if( step > 0 )
+		// Next accepts the page only when its typed numbers are in range; the invalid box keeps the focus.
+		for( auto& [id, editor] : numericEditors_ )
 		{
-			const bool selected = name == activeNewGameTab_;
-			element->SetClass( "is-selected", selected );
-			element->SetAttribute( "aria-selected", selected ? "true" : "false" );
-			element->SetAttribute( "tab-index", selected ? "0" : "-1" );
+			auto* range = routeDocument_->GetElementById( id );
+			bool onPage = false;
+			for( auto* e = range; e && !onPage; e = e->GetParentNode() ) onPage = e->GetId() == "new-panel-" + activeNewGameTab_;
+			if( onPage && !editor->commit() )
+			{
+				if( auto* input = routeDocument_->GetElementById( id + "-exact" ) ) input->Focus( true );
+				return;
+			}
 		}
-	}
-	for( const auto& [name, id] : panels ) setVisible( id, name == activeNewGameTab_ );
+	const auto index = static_cast<int>( current - wizardPages.begin() ) + step;
+	if( index < 0 || index >= static_cast<int>( wizardPages.size() ) ) return;
+	selectNewGameTab( wizardPages[static_cast<std::size_t>( index )] );
+	if( auto* button = routeDocument_->GetElementById( index + 1 == static_cast<int>( wizardPages.size() ) ? "new-start" : "new-next" ) ) button->Focus();
 }
 
 void ShellRmlBinding::syncNewGameTabs()
@@ -401,7 +495,9 @@ void ShellRmlBinding::syncNewGameTabs()
 
 bool ShellRmlBinding::activateElement( std::string_view id )
 {
+	// Probes and scripts still name wizard pages by their former tab ids.
 	static constexpr std::array tabs{
+		std::pair{ "new-tab-welcome", "welcome" },
 		std::pair{ "new-tab-world", "world" },
 		std::pair{ "new-tab-settlement", "settlement" },
 		std::pair{ "new-tab-terrain", "terrain" },
@@ -417,6 +513,21 @@ bool ShellRmlBinding::activateElement( std::string_view id )
 	if( *control == ShellControl::ContinueLastGame && !controller_->state().continueAvailable ) return false;
 	controller_->activate( *control, FocusToken{ ++lastFocusToken_ } );
 	return true;
+}
+
+bool ShellRmlBinding::dispatchElementClickForProbe( std::string_view id, std::string* focusedTarget )
+{
+	if ( focusedTarget ) focusedTarget->clear();
+	for ( auto* document : { routeDocument_, appShell_, dialog_.document() } )
+		if ( document )
+			if ( auto* element = document->GetElementById( rml( id ) ) )
+			{
+				element->Focus();
+				if ( focusedTarget ) *focusedTarget = focusedElementIdForProbe();
+				element->DispatchEvent( "click", Rml::Dictionary {} );
+				return true;
+			}
+	return false;
 }
 
 bool ShellRmlBinding::dispatchSettingChangeForProbe( std::string_view id, float value, bool checked )
@@ -460,6 +571,10 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	updatingDom_ = true;
 	setText( "shell-version", state.version.empty() ? "Version unavailable" : state.version );
 	setEnabled( "shell-continue", state.continueAvailable );
+	// The save scan finishes after the menu appears: once Continue is available it becomes the default command,
+	// unless the player already moved the focus or is returning to the menu.
+	if( routeValue_ == "shell.main_menu" && state.continueAvailable && mainMenuReturnFocus_.empty() && focusedElementIdForProbe() == "shell-load" && routeDocument_ )
+		if( auto* element = routeDocument_->GetElementById( "shell-continue" ) ) element->Focus();
 	setText( "shell-continue-reason", state.continueAvailable
 		? escape( state.continueSaveName + " · Last saved " + state.continueSavedAt )
 		: "No compatible save found" );
@@ -467,75 +582,15 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	if( state.actionError ) setText( "shell-action-error-detail", messageText( textCatalog_, state.actionError->message ) );
 	setVisible( "load-kingdoms-empty", state.loadGame.kingdomsStatus == RequestStatus::Empty );
 	setVisible( "load-saves-empty", state.loadGame.savesStatus == RequestStatus::Empty );
-	setText( "load-saves-empty-title", state.loadGame.selectedKingdom ? "No saves for this kingdom" : "Select a kingdom" );
-	setText( "load-saves-empty-detail", state.loadGame.selectedKingdom ? "Start a new kingdom or refresh the save list." : "Choose a kingdom to see its saves." );
-	// Empty-state cards replace their list rather than layering over it. Leaving
-	// the empty list in the flow makes the message appear at the bottom of the
-	// pane and can cover the footer controls on the load screen.
-	setVisible( "load-kingdoms", state.loadGame.kingdomsStatus != RequestStatus::Empty );
-	setVisible( "load-saves", state.loadGame.savesStatus != RequestStatus::Empty );
+	setText( "load-saves-empty-title", state.loadGame.selectedKingdom ? "This kingdom has no saves." : "Choose a kingdom in Look in." );
+	setText( "load-saves-empty-detail", state.loadGame.selectedKingdom ? "Start a new kingdom from the main menu, or press F5 to refresh the list." : "" );
 	setVisible( "load-error", state.loadGame.error.has_value() );
 	if( state.loadGame.error ) setText( "load-error-detail", messageText( textCatalog_, state.loadGame.error->message ) );
 	const auto selectedSave = state.loadGame.selectedSlot
 		? std::ranges::find_if( state.loadGame.saves, [&]( const SaveSlotRow& row ) { return row.id == *state.loadGame.selectedSlot; } )
 		: state.loadGame.saves.end();
 	setEnabled( "load-selected", selectedSave != state.loadGame.saves.end() && selectedSave->compatible && !state.pendingRequest );
-	if( routeDocument_ )
-	{
-		if( auto* kingdoms = routeDocument_->GetElementById( "load-kingdoms" ) )
-		{
-			std::string markup;
-			detachLoadRowListeners();
-			loadRowCallbacks_.clear();
-			for( std::size_t index = 0; index < state.loadGame.kingdoms.size(); ++index )
-			{
-				const auto& row = state.loadGame.kingdoms[index];
-				// Keep the DOM id transport-safe. The typed SaveKingdomId remains the
-				// callback payload; it must not be exposed as an RML identifier.
-				const auto elementId = "kingdom-row-" + std::to_string( index );
-				markup += "<button id=\"" + elementId + "\" class=\"c-list__row";
-				if( state.loadGame.selectedKingdom && *state.loadGame.selectedKingdom == row.id ) markup += " is-selected";
-				markup += "\" data-load-row=\"kingdom\"><span class=\"c-list__primary\">" + escape( row.displayName ) + "</span></button>";
-			}
-			kingdoms->SetInnerRML( rml( markup ) );
-			for( std::size_t index = 0; index < state.loadGame.kingdoms.size(); ++index )
-			{
-				const auto& row = state.loadGame.kingdoms[index];
-				if( auto* element = kingdoms->GetElementById( rml( "kingdom-row-" + std::to_string( index ) ) ) )
-				{
-					auto callback = std::make_unique<LoadRowCallback>( *this, LoadRowCallback::Kind::Kingdom, row.id.relativeKey );
-					element->AddEventListener( Rml::EventId::Click, callback.get(), false );
-					loadRowListeners_.push_back( { element, "click", callback.get() } );
-					loadRowCallbacks_.push_back( std::move( callback ) );
-				}
-			}
-		}
-		if( auto* saves = routeDocument_->GetElementById( "load-saves" ) )
-		{
-			std::string markup;
-			for( std::size_t index = 0; index < state.loadGame.saves.size(); ++index )
-			{
-				const auto& row = state.loadGame.saves[index];
-				const auto elementId = "save-row-" + std::to_string( index );
-				markup += "<button id=\"" + elementId + "\" class=\"c-list__row";
-				if( state.loadGame.selectedSlot && *state.loadGame.selectedSlot == row.id ) markup += " is-selected";
-				markup += "\"><span class=\"c-list__primary\">" + escape( row.displayName )
-					+ "</span><span class=\"c-list__meta\">" + escape( row.version ) + ( row.compatible ? " Compatible" : " Incompatible" ) + "</span></button>";
-			}
-			saves->SetInnerRML( rml( markup ) );
-			for( std::size_t index = 0; index < state.loadGame.saves.size(); ++index )
-			{
-				const auto& row = state.loadGame.saves[index];
-				if( auto* element = saves->GetElementById( rml( "save-row-" + std::to_string( index ) ) ) )
-				{
-					auto callback = std::make_unique<LoadRowCallback>( *this, LoadRowCallback::Kind::Save, row.id.relativeKey );
-					element->AddEventListener( Rml::EventId::Click, callback.get(), false );
-					loadRowListeners_.push_back( { element, "click", callback.get() } );
-					loadRowCallbacks_.push_back( std::move( callback ) );
-				}
-			}
-		}
-	}
+	renderLoadGame( state );
 	setVisible( "settings-loading", state.settings.status == RequestStatus::Loading );
 	setVisible( "settings-supported", state.settings.status == RequestStatus::Ready );
 	setVisible( "settings-error", state.settings.error.has_value() );
@@ -629,6 +684,8 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	syncNewGameField( "new-wild-animals", "wild_animals" );
 	syncNewGameField( "new-gnomes", "gnomes" );
 	syncNewGameField( "new-start-zone", "start_zone" );
+    for(auto& [id, editor] : numericEditors_)
+        if(auto* range=routeDocument_->GetElementById(id)) editor->sync(range->GetAttribute<int>("value",0),range->GetAttribute<int>("min",0),range->GetAttribute<int>("max",100));
 	const auto newGameFieldText = [&]( std::string_view fieldId, std::string fallback ) {
 		const auto field = std::ranges::find_if( state.newGame.draft.fields, [&]( const NewGameFieldValue& value ) {
 			return value.field.value == fieldId;
@@ -685,11 +742,104 @@ void ShellRmlBinding::syncDom( const ShellState& state )
 	setVisible( "pause-error", state.actionError.has_value() );
 	if( state.actionError ) setText( "pause-error-detail", messageText( textCatalog_, state.actionError->message ) );
 	setVisible( "loading-error", state.lifecycle.error.has_value() );
+	setVisible( "loading-progress", !state.lifecycle.error.has_value() );
+	if( routeDocument_ ) routeDocument_->SetClass( "is-failed", state.lifecycle.error.has_value() );
+	if( routeDocument_ )
+		if( auto* symbol = routeDocument_->GetElementById( "loading-symbol" ) ) symbol->SetClass( "is-info", !state.lifecycle.error.has_value() );
 	setVisible( "loading-error-actions", state.lifecycle.error.has_value() );
 	setEnabled( "loading-retry", state.lifecycle.error && state.lifecycle.error->retryable );
-	if( !state.lifecycle.progressText.empty() ) setText( "loading-progress", state.lifecycle.progressText );
-	else if( state.lifecycle.progress ) setText( "loading-progress", messageText( textCatalog_, *state.lifecycle.progress ) );
+	if(state.lifecycle.error)
+	{
+		auto text=messageText(textCatalog_,state.lifecycle.error->message);
+		if(!text.empty() && text.back()!='.') text+='.';
+		setText("loading-error-detail",escape(text));
+	}
+	if( !state.lifecycle.progressText.empty() ) setText( "loading-progress", escape(state.lifecycle.progressText) );
+	else if( state.lifecycle.progress ) setText( "loading-progress", escape(messageText( textCatalog_, *state.lifecycle.progress )) );
+    else setText("loading-progress",textCatalog_.format(LocalizationKey{"shell.loading.loading-progress"}));
 	updatingDom_ = false;
+}
+
+namespace
+{
+// Windows 98 short date and time, for example "9/25/2026 10:05 AM".
+std::string shortDateTime( std::int64_t utcSeconds )
+{
+	if( utcSeconds <= 0 ) return "Unknown";
+	const auto dateTime = QDateTime::fromSecsSinceEpoch( utcSeconds ).toLocalTime();
+	return dateTime.toString( QStringLiteral( "M/d/yyyy h:mm AP" ) ).toStdString();
+}
+}
+
+// Load Game (Open dialog model): "Look in:" lists the kingdoms, the list view their saves. The list is rebuilt only
+// when its rows change, never for a selection, so a click never destroys the row it is dispatched to.
+void ShellRmlBinding::renderLoadGame( const ShellState& state )
+{
+	if( !routeDocument_ ) return;
+	const auto& load = state.loadGame;
+	if( auto* kingdoms = routeDocument_->GetElementById( "load-kingdoms" ) )
+	{
+		std::vector<std::string> keys;
+		std::vector<std::pair<std::string, std::string>> options;
+		for( std::size_t index = 0; index < load.kingdoms.size(); ++index )
+		{
+			keys.push_back( load.kingdoms[index].id.relativeKey );
+			options.emplace_back( std::to_string( index ), load.kingdoms[index].displayName );
+		}
+		if( keys != renderedKingdomKeys_ )
+		{
+			setSelectOptions( kingdoms, options, true );
+			renderedKingdomKeys_ = keys;
+		}
+		std::string selected;
+		for( std::size_t index = 0; index < load.kingdoms.size(); ++index )
+			if( load.selectedKingdom && *load.selectedKingdom == load.kingdoms[index].id ) selected = std::to_string( index );
+		if( auto* control = rmlui_dynamic_cast<Rml::ElementFormControl*>( kingdoms ); control && control->GetValue() != selected ) control->SetValue( selected );
+	}
+	if( auto* saves = routeDocument_->GetElementById( "load-saves" ) )
+	{
+		std::string markup;
+		std::vector<std::string> keys;
+		for( std::size_t index = 0; index < load.saves.size(); ++index )
+		{
+			const auto& row = load.saves[index];
+			keys.push_back( row.id.relativeKey );
+			markup += "<button id=\"save-row-" + std::to_string( index ) + "\" class=\"w98-list-item" + std::string( row.compatible ? "" : " is-incompatible" ) + "\" role=\"option\">"
+				+ "<span class=\"w98-cell w98-cell--grow\">" + escape( row.displayName ) + "</span><span class=\"w98-cell l-load-modified\">" + escape( shortDateTime( row.modifiedUtcSeconds ) )
+				+ "</span><span class=\"w98-cell l-load-version\">" + escape( row.version.empty() ? std::string( "Unknown" ) : row.version ) + "</span></button>";
+		}
+		if( markup != renderedSavesMarkup_ || keys != renderedSaveKeys_ )
+		{
+			detachLoadRowListeners();
+			std::erase_if( loadRowCallbacks_, []( const auto& callback ) { return callback->kind() != LoadRowCallback::Kind::Kingdom; } );
+			saves->SetInnerRML( rml( markup ) );
+			renderedSavesMarkup_ = markup;
+			renderedSaveKeys_ = keys;
+			for( std::size_t index = 0; index < keys.size(); ++index )
+				if( auto* element = saves->GetElementById( rml( "save-row-" + std::to_string( index ) ) ) )
+					for( const auto kind : { LoadRowCallback::Kind::Save, LoadRowCallback::Kind::Open } )
+					{
+						auto callback = std::make_unique<LoadRowCallback>( *this, kind, keys[index] );
+						element->AddEventListener( kind == LoadRowCallback::Kind::Open ? Rml::EventId::Dblclick : Rml::EventId::Click, callback.get(), false );
+						loadRowListeners_.push_back( { element, kind == LoadRowCallback::Kind::Open ? "dblclick" : "click", callback.get() } );
+						loadRowCallbacks_.push_back( std::move( callback ) );
+					}
+		}
+		const SaveSlotRow* chosen = nullptr;
+		for( std::size_t index = 0; index < load.saves.size(); ++index )
+			if( auto* element = saves->GetElementById( rml( "save-row-" + std::to_string( index ) ) ) )
+			{
+				const bool selected = load.selectedSlot && *load.selectedSlot == load.saves[index].id;
+				if( selected ) chosen = &load.saves[index];
+				element->SetClass( "is-selected", selected );
+				element->SetAttribute( "aria-selected", selected ? "true" : "false" );
+			}
+		if( auto* name = rmlui_dynamic_cast<Rml::ElementFormControl*>( routeDocument_->GetElementById( "load-file-name" ) ) )
+			name->SetValue( rml( chosen ? chosen->displayName : std::string{} ) );
+		setText( "load-status", escape( chosen && !chosen->compatible
+			? "This save was made by version " + ( chosen->version.empty() ? std::string( "unknown" ) : chosen->version ) + " and cannot be opened by this version."
+			: std::string{} ) );
+	}
 }
 
 void ShellRmlBinding::setText( const char* id, std::string_view text )
@@ -719,6 +869,12 @@ void ShellRmlBinding::setEnabled( const char* id, bool enabled )
 
 void ShellRmlBinding::focusInitial( std::string_view route )
 {
+	if( route == "shell.main_menu" && !mainMenuReturnFocus_.empty() && routeDocument_ )
+		if( auto* element = routeDocument_->GetElementById( rml( mainMenuReturnFocus_ ) ); element && !element->HasAttribute( "disabled" ) )
+		{
+			element->Focus();
+			return;
+		}
 	const auto id = route == "shell.main_menu" && controller_ && !controller_->state().continueAvailable
 		? std::string_view{ "shell-load" } : ShellRmlAdapter::initialFocusForRoute( route );
 	if( !id.empty() ) if( auto* element = routeDocument_->GetElementById( rml( id ) ) ) element->Focus();
@@ -726,44 +882,26 @@ void ShellRmlBinding::focusInitial( std::string_view route )
 
 void ShellRmlBinding::showConfirmation( const Message& title, const Message& detail, FocusToken returnFocus )
 {
-	lastFocusToken_ = returnFocus.value;
-	if( confirmation_ ) { detachModalListeners(); context_.UnloadDocument( confirmation_ ); }
-	confirmation_ = context_.LoadDocument( "modals/confirm_destructive.rml" );
-	if( !confirmation_ ) return;
-	localization::applyRmlText( *confirmation_, textCatalog_ );
-	if( auto* element = confirmation_->GetElementById( "confirm-title" ) ) element->SetInnerRML( rml( messageText( textCatalog_, title ) ) );
-	if( auto* element = confirmation_->GetElementById( "confirm-detail" ) ) element->SetInnerRML( rml( messageText( textCatalog_, detail ) ) );
-	for( const char* id : { "confirm-cancel", "confirm-accept" } )
-	{
-		const auto control = ShellRmlAdapter::controlForElement( id );
-		if( auto* element = confirmation_->GetElementById( id ); element && control )
-		{
-			auto callback = std::make_unique<Callback>( *this, *control );
-			element->AddEventListener( Rml::EventId::Click, callback.get(), false );
-			modalListeners_.push_back( { element, "click", callback.get() } );
-			modalCallbacks_.push_back( std::move( callback ) );
-		}
-	}
-	confirmation_->Show( Rml::ModalFlag::Modal );
-	if( auto* cancel = confirmation_->GetElementById( "confirm-cancel" ) ) cancel->Focus();
+    if(dialog_.active()) return;
+    lastFocusToken_ = returnFocus.value;
+    confirmationFocusId_ = focusedElementIdForProbe();
+    // A message box names the program in its caption, asks the whole question in its text, and answers with Yes / No
+    // (PDF p.182-185).
+    dialog_.show("Ingnomia", messageText(textCatalog_,title) + " " + messageText(textCatalog_,detail), "Yes", "No",
+        [this]{controller_->activate(ShellControl::ConfirmDestructive);},
+        [this]{controller_->activate(ShellControl::CancelDestructive);});
 }
-
-void ShellRmlBinding::closeConfirmation()
+void ShellRmlBinding::closeConfirmation() { dialog_.close(); }
+void ShellRmlBinding::restoreFocus(FocusToken token)
 {
-	if( !confirmation_ ) return;
-	detachModalListeners();
-	context_.UnloadDocument( confirmation_ );
-	confirmation_ = nullptr;
-}
-
-void ShellRmlBinding::restoreFocus( FocusToken token )
-{
-	lastFocusToken_ = token.value;
-	focusInitial( routeValue_ );
+    lastFocusToken_ = token.value;
+    if(routeDocument_) if(auto* e=routeDocument_->GetElementById(confirmationFocusId_); e && e->IsVisible(true)) { e->Focus(); return; }
+    if(routeDocument_) focusInitial(routeValue_);
 }
 
 void ShellRmlBinding::detachRouteListeners()
 {
+    numericEditors_.clear();
 	for( const auto& binding : routeListeners_ )
 		if( binding.element && binding.listener ) binding.element->RemoveEventListener( binding.event, binding.listener );
 	routeListeners_.clear();

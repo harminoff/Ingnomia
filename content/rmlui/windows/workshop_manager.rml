@@ -1,56 +1,101 @@
 <rml>
-<head><link type="text/template" href="/templates/management_window.rml"/><link type="text/rcss" href="../screens/management6a.rcss"/></head>
+<head><title>Workshop</title><link type="text/template" href="/templates/management_window.rml"/><link type="text/rcss" href="../screens/management6a.rcss"/><link type="text/rcss" href="/screens/win98_classic.rcss"/><link type="text/rcss" href="/styles/accessibility.rcss"/></head>
 <body id="workshop_manager_root" class="l-m6a-root is-hidden">
 <template src="management-window">
-<section id="workshop_workbench" class="c-window l-m6a-panel">
-  <header class="l-m6a-title"><handle class="l-m6a-drag-handle" move_target="workshop_workbench"><div class="l-m6a-title__copy"><small id="workshop_subtype">Production</small><h2 id="workshop_title">Workshop</h2></div></handle><button id="workshop_close" class="c-button" data-l10n="common.close">Close</button></header>
-  <div class="l-workshop-body">
-    <aside class="l-stockpile-rail"><div class="l-stockpile-rail-heading">Workshop</div><nav class="l-stockpile-view-tabs" role="tablist" aria-orientation="vertical">
-      <button id="workshop_view_craft" data-l10n="management.workshop.view_craft" class="c-button l-stockpile-rail-button" role="tab">Craft</button>
-      <button id="workshop_view_queue" data-l10n="management.workshop.view_queue" class="c-button l-stockpile-rail-button" role="tab">Queue</button>
-      <button id="workshop_view_settings" data-l10n="management.workshop.view_settings" class="c-button l-stockpile-rail-button" role="tab">Settings</button>
-      <button id="workshop_view_trade" data-l10n="management.workshop.view_trade" class="c-button l-stockpile-rail-button is-hidden" role="tab">Trade</button>
-    </nav><button id="workshop_locate" data-l10n="management.workshop.locate" class="c-button l-stockpile-rail-button">Center on map</button><p id="workshop_rail_status" class="c-m6a-help"></p></aside>
-    <main id="workshop_scroll" class="l-workshop-main">
-      <div id="workshop_loading" class="c-m6a-state">Loading workshop data...</div><div id="workshop_empty" class="c-m6a-state is-hidden">No craft products are available.</div><div id="workshop_error" class="c-m6a-state is-error is-hidden"></div>
-      <div id="workshop_content" class="is-hidden">
-        <section id="workshop_craft_pane" class="l-workshop-pane" role="tabpanel" aria-labelledby="workshop_view_craft">
-          <div class="l-workshop-list-pane"><h3 data-l10n="management.workshop.available_crafts">Available crafts</h3><div class="l-workshop-search"><input id="workshop_search" class="text" type="text" placeholder="Find a craft" data-l10n-placeholder="management.workshop.find_craft"/><button id="workshop_sort" class="c-button">A-Z</button></div><div id="workshop_products" class="c-list c-scroll-region c-m6a-list"></div><div class="l-workshop-pager"><button id="workshop_page_previous" data-l10n="management.workshop.previous" class="c-button">Previous</button><button id="workshop_page_next" data-l10n="management.workshop.next" class="c-button">Next</button></div></div>
-          <div class="l-workshop-detail"><h3 data-l10n="management.workshop.new_order">New order</h3><div id="workshop_product_selection" class="c-workshop-editor"></div><div class="c-workshop-count-row"><label for="workshop_order_count" id="workshop_order_count_label">Quantity</label><input id="workshop_order_count" class="text" type="number" min="1" max="999" value="1"/></div><p id="workshop_order_help" class="c-m6a-help"></p><button id="workshop_queue_once" class="c-button c-workshop-add" data-l10n="management.workshop.workshop_add_order">Add order</button><p id="workshop_order_feedback" class="c-m6a-help" role="status"></p></div>
-        </section>
-        <section id="workshop_queue_pane" class="l-workshop-pane is-hidden" role="tabpanel" aria-labelledby="workshop_view_queue">
-          <div class="l-workshop-list-pane"><h3>Production queue</h3><p class="c-m6a-help" data-l10n="management.workshop.queue_help">Orders run from top to bottom.</p><div id="workshop_queue" class="c-list c-scroll-region c-m6a-list"></div></div>
-          <div id="workshop_job_editor" class="l-workshop-detail"><h3 data-l10n="management.workshop.edit_order">Edit order</h3><div id="workshop_job_selection" class="c-workshop-editor"></div><div id="workshop_job_quantity" class="c-workshop-count-row"><label for="workshop_job_count" id="workshop_job_count_label">Quantity</label><input id="workshop_job_count" class="text" type="number" min="1" max="999" value="1"/><button id="workshop_job_apply" data-l10n="management.workshop.apply" class="c-button" data-job-action="apply-count">Apply</button></div><p id="workshop_job_help" class="c-m6a-help"></p></div>
-        </section>
-        <section id="workshop_settings_pane" class="l-workshop-settings is-hidden" role="tabpanel" aria-labelledby="workshop_view_settings">
-          <div class="c-m6a-section-heading"><div><h3>Workshop settings</h3><p class="c-m6a-help">Set the name and production priority.</p></div></div>
-          <div class="l-stockpile-settings">
-            <label class="c-stockpile-field c-stockpile-name"><span>Name</span><input id="workshop_name" class="text" type="text" /></label>
-            <div class="c-stockpile-field c-stockpile-priority"><label for="workshop_priority">Priority</label><span class="c-stockpile-priority-stepper"><button id="workshop_priority_up" class="c-stockpile-priority-button" title="Raise priority">^</button><input id="workshop_priority" class="text" type="text" value="1" title="1 is highest"/><button id="workshop_priority_down" class="c-stockpile-priority-button" title="Lower priority">v</button></span></div>
-            <button id="workshop_apply_basics" class="c-button">Apply</button><p id="workshop_summary" class="c-stockpile-summary"></p>
+<!-- Windows 98 property sheet (252 x 218 DLU): pages never scroll; OK / Cancel / Apply apply to the whole window. -->
+<section id="workshop_workbench" class="c-window l-m6a-panel w98-sheet">
+  <header class="w98-caption"><handle class="c-title-bar__drag-handle l-m6a-drag-handle" move_target="workshop_workbench"><h2 id="workshop_title" class="c-title-bar__title"></h2></handle><button id="workshop_help" class="w98-caption__close w98-caption__help" title="Help" data-l10n-title="win98.common.help.title" aria-label="What's This?"><span class="w98-caption__glyph w98-caption__glyph--help"></span></button><button id="workshop_close" class="w98-caption__close" title="Close" data-l10n-title="win98.workshop.close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button></header>
+  <div class="w98-sheet__body">
+    <nav id="workshop_tabs" class="c-tabs c-connected-tabs w98-tabs" role="tablist"><button id="workshop_view_craft" class="c-tabs__tab" role="tab" aria-controls="workshop_craft_pane" data-l10n="win98.workshop.view_craft">Craft</button><button id="workshop_view_queue" class="c-tabs__tab" role="tab" aria-controls="workshop_queue_pane"></button><button id="workshop_view_settings" class="c-tabs__tab" role="tab" aria-controls="workshop_settings_pane" data-l10n="win98.workshop.view_settings">General</button><button id="workshop_view_stockpiles" class="c-tabs__tab" role="tab" aria-controls="workshop_stockpiles_pane" data-l10n="win98.workshop.view_stockpiles">Stockpiles</button><button id="workshop_view_trade" class="c-tabs__tab" role="tab" aria-controls="workshop_trade_pane" data-l10n="win98.workshop.view_trade">Trade</button></nav>
+    <div id="workshop_scroll" class="w98-page-frame">
+      <p id="workshop_loading" class="w98-text" data-l10n="win98.workshop.loading">Loading workshop data...</p><p id="workshop_empty" class="w98-text is-hidden" data-l10n="win98.workshop.empty">No craft products are available.</p><p id="workshop_error" class="w98-text is-hidden"></p>
+      <div id="workshop_content" class="w98-page is-hidden">
+
+        <section id="workshop_craft_pane" class="w98-page w98-row w98-row--fill" role="tabpanel" aria-labelledby="workshop_view_craft">
+          <div class="w98-col w98-craft-list">
+            <label class="w98-label" for="workshop_search" data-l10n="win98.workshop.search">Available crafts:</label>
+            <div class="w98-line"><input id="workshop_search" class="w98-field w98-field--wide" type="text"/></div>
+            <div class="w98-gap"></div>
+            <div id="workshop_products" class="w98-list" role="listbox" aria-label="Available crafts"></div>
           </div>
-          <div class="c-m6a-section-heading"><div><h3>Production options</h3><p class="c-m6a-help">Control automatic orders and material storage.</p></div></div>
-          <div class="l-workshop-options">
-            <label class="c-stockpile-checkbox" for="workshop_toggle_generated"><input id="workshop_toggle_generated" class="checkbox" type="checkbox"/><span>Accept generated orders</span></label>
-            <label class="c-stockpile-checkbox" for="workshop_toggle_auto_missing"><input id="workshop_toggle_auto_missing" class="checkbox" type="checkbox"/><span>Auto-craft missing components</span></label>
+          <div class="w98-col w98-grow">
+            <div class="w98-group w98-grow"><span class="w98-group__title" data-l10n="win98.workshop.order">New order</span>
+              <p id="workshop_product_title" class="w98-text"></p>
+              <div class="w98-line"><label class="w98-label" for="workshop_order_mode" data-l10n="win98.workshop.order_mode">Type:</label><select id="workshop_order_mode" class="w98-select"><option value="once" data-l10n="win98.workshop.craft_number">Craft number</option><option value="maintain" data-l10n="win98.workshop.stock_limit">Stock limit</option><option value="repeat" data-l10n="win98.workshop.repeat">Repeat</option></select></div>
+              <div id="workshop_product_selection" class="w98-stack"></div>
+              <div class="w98-line"><label id="workshop_order_count_label" class="w98-label" for="workshop_order_count"></label><div class="c-numeric-editor w98-spin"><input id="workshop_order_count" class="w98-field c-numeric-editor__input" type="text" value="1" min="1" max="999" step="1" inputmode="numeric" aria-describedby="workshop_order_count-error"/><div class="c-numeric-editor__arrows"><button id="workshop_order_count-up" class="c-numeric-editor__up" aria-label="Increase quantity" title="Increase quantity" data-l10n-title="win98.workshop.order_count_up.title"/><button id="workshop_order_count-down" class="c-numeric-editor__down" aria-label="Decrease quantity" title="Decrease quantity" data-l10n-title="win98.workshop.order_count_down.title"/></div></div><span id="workshop_order_count-error" class="c-field__error u-hidden" role="status"/></div>
+              <p id="workshop_order_help" class="w98-text"></p>
+              <p id="workshop_order_feedback" class="w98-text" role="status"></p>
+              <div class="w98-line w98-line--end"><button id="workshop_queue_once" class="w98-button"></button></div>
+            </div>
           </div>
-          <div class="c-m6a-section-heading"><div><h3>Linked stockpiles</h3><p class="c-m6a-help">Materials are collected from linked stockpiles nearest to this workshop first, then from other locations.</p></div></div>
-          <div class="l-workshop-options">
-            <div class="c-workshop-link-picker"><select id="workshop_stockpile_choice"/><button id="workshop_link_add" class="c-button">Link</button></div>
-            <div id="workshop_linked_stockpiles" class="c-workshop-links"></div>
-            <p id="workshop_link_help" class="c-m6a-help"></p>
+        </section>
+
+        <section id="workshop_queue_pane" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="workshop_view_queue">
+          <label class="w98-label" for="workshop_queue" data-l10n="win98.workshop.queue">Orders (run from top to bottom):</label>
+          <div class="w98-row w98-row--fill w98-grow">
+            <div class="w98-listview"><div class="w98-listview__header"><span class="w98-cell--grow" style="flex: 1 1 auto;" data-l10n="win98.workshop.order_2">Order</span><span class="w98-w-amount" style="text-align: right;" data-l10n="win98.workshop.amount">Amount</span><span class="w98-w-state" data-l10n="win98.workshop.state">State</span></div><div id="workshop_queue" class="w98-list" role="listbox" aria-label="Orders"></div></div>
+            <div class="w98-stack"><button id="workshop_job_up" class="w98-button" data-l10n="win98.workshop.job_up">Move Up</button><button id="workshop_job_down" class="w98-button" data-l10n="win98.workshop.job_down">Move Down</button><button id="workshop_job_top" class="w98-button" data-l10n="win98.workshop.job_top">Move to Top</button><button id="workshop_job_bottom" class="w98-button" data-l10n="win98.workshop.job_bottom">Move to Bottom</button></div>
           </div>
-          <div class="c-m6a-section-heading"><div><h3>Workshop status</h3><p class="c-m6a-help">Pause or resume production at this workshop.</p></div></div>
-          <div class="l-workshop-options"><button id="workshop_toggle_suspended" class="c-button">Suspend</button></div>
-      <section id="workshop_special" class="l-m6a-section"><h3 data-l10n="management.workshop.special_production">Special production</h3><div id="workshop_butcher_actions" class="l-m6a-actions is-hidden"><button id="workshop_toggle_corpses" class="c-button" data-l10n="management.workshop.workshop_toggle_corpses">Butcher corpses</button><button id="workshop_toggle_excess" class="c-button" data-l10n="management.workshop.workshop_toggle_excess">Butcher excess animals</button></div><div id="workshop_fisher_actions" class="l-m6a-actions is-hidden"><button id="workshop_toggle_catch" class="c-button" data-l10n="management.workshop.workshop_toggle_catch">Catch fish</button><button id="workshop_toggle_process" class="c-button" data-l10n="management.workshop.workshop_toggle_process">Process fish</button></div></section>
+          <div id="workshop_job_editor" class="w98-group"><span class="w98-group__title" data-l10n="win98.workshop.selected_order">Selected order</span>
+            <div class="w98-line"><label class="w98-label" for="workshop_job_mode" data-l10n="win98.workshop.job_mode">Type:</label><select id="workshop_job_mode" class="w98-select"><option value="once" data-l10n="win98.workshop.craft_number">Craft number</option><option value="maintain" data-l10n="win98.workshop.stock_limit">Stock limit</option><option value="repeat" data-l10n="win98.workshop.repeat">Repeat</option></select><p id="workshop_job_selection" class="w98-text w98-grow"></p></div>
+            <div id="workshop_job_quantity" class="w98-line"><label id="workshop_job_count_label" class="w98-label" for="workshop_job_count" data-l10n="win98.workshop.job_count_label">Quantity:</label><div class="c-numeric-editor w98-spin"><input id="workshop_job_count" class="w98-field c-numeric-editor__input" type="text" value="1" min="1" max="999" step="1" inputmode="numeric" aria-describedby="workshop_job_count-error"/><div class="c-numeric-editor__arrows"><button id="workshop_job_count-up" class="c-numeric-editor__up" aria-label="Increase quantity" title="Increase quantity" data-l10n-title="win98.workshop.job_count_up.title"/><button id="workshop_job_count-down" class="c-numeric-editor__down" aria-label="Decrease quantity" title="Decrease quantity" data-l10n-title="win98.workshop.job_count_down.title"/></div></div><span id="workshop_job_count-error" class="c-field__error u-hidden" role="status"/><label class="w98-check" for="workshop_job_move_back"><input id="workshop_job_move_back" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.job_move_back">Move to bottom after each item</span></label></div>
+            <p id="workshop_job_help" class="w98-text"></p>
+            <div class="w98-line w98-line--end"><button id="workshop_job_suspend" class="w98-button"></button><button id="workshop_job_cancel" class="w98-button" data-l10n="win98.workshop.job_cancel">Cancel Order</button><button id="workshop_job_apply" class="w98-button" data-l10n="win98.workshop.job_apply">Update Order</button></div>
+          </div>
         </section>
-        <section id="workshop_trade_pane" class="l-workshop-settings is-hidden" role="tabpanel" aria-labelledby="workshop_view_trade">
-      <section id="workshop_trade" class="l-m6a-section is-hidden"><h3 data-l10n="management.workshop.trade_ledger">Trade ledger</h3><p id="workshop_trade_totals"></p><div id="workshop_trade_rows" class="c-m6a-list"></div><div class="l-m6a-actions"><button id="workshop_trade_refresh" class="c-button" data-l10n="management.workshop.workshop_trade_refresh">Refresh trade</button><button id="workshop_next_trade" class="c-button" data-l10n="management.workshop.workshop_next_trade">Next trade row</button><button id="workshop_trade_less" class="c-button" data-l10n="management.workshop.workshop_trade_less">Offer one less</button><button id="workshop_trade_more" class="c-button" data-l10n="management.workshop.workshop_trade_more">Offer one more</button><button id="workshop_trade_execute" class="c-button c-button--danger" data-l10n="management.workshop.workshop_trade_execute">Review trade</button></div></section>
+
+        <section id="workshop_settings_pane" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="workshop_view_settings">
+          <div class="w98-line"><label class="w98-label" for="workshop_name" data-l10n="win98.workshop.name">Name:</label><input id="workshop_name" class="w98-field w98-field--wide" type="text"/></div>
+          <div class="w98-gap"></div>
+          <div class="w98-line"><label class="w98-label" for="workshop_priority" data-l10n="win98.workshop.priority">Priority:</label><div class="c-numeric-editor w98-spin"><input id="workshop_priority" class="w98-field c-numeric-editor__input" type="text" value="1" min="1" step="1" inputmode="numeric" aria-describedby="workshop_priority-error"/><div class="c-numeric-editor__arrows"><button id="workshop_priority_up" class="c-numeric-editor__up" aria-label="Raise priority" title="Raise priority" data-l10n-title="win98.workshop.priority_up.title"/><button id="workshop_priority_down" class="c-numeric-editor__down" aria-label="Lower priority" title="Lower priority" data-l10n-title="win98.workshop.priority_down.title"/></div></div><span id="workshop_priority-error" class="c-field__error u-hidden" role="status"/><p id="workshop_priority_range" class="w98-text"></p></div>
+          <div class="w98-separator"></div>
+          <div id="workshop_production_section" class="w98-group"><span class="w98-group__title" data-l10n="win98.workshop.production">Production</span>
+            <label class="w98-check" for="workshop_toggle_generated"><input id="workshop_toggle_generated" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_generated">Accept generated orders</span></label>
+            <label class="w98-check" for="workshop_toggle_auto_missing"><input id="workshop_toggle_auto_missing" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_auto_missing">Auto-craft missing components</span></label>
+          </div>
+          <div id="workshop_special">
+            <div id="workshop_butcher_actions" class="w98-group is-hidden"><span class="w98-group__title" data-l10n="win98.workshop.butchering">Butchering</span>
+              <label class="w98-check" for="workshop_toggle_corpses"><input id="workshop_toggle_corpses" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_corpses">Butcher corpses</span></label>
+              <label class="w98-check" for="workshop_toggle_excess"><input id="workshop_toggle_excess" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_excess">Butcher excess animals</span></label>
+            </div>
+            <div id="workshop_fisher_actions" class="w98-group is-hidden"><span class="w98-group__title" data-l10n="win98.workshop.fishing">Fishing</span>
+              <label class="w98-check" for="workshop_toggle_catch"><input id="workshop_toggle_catch" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_catch">Catch fish</span></label>
+              <label class="w98-check" for="workshop_toggle_process"><input id="workshop_toggle_process" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_process">Process fish</span></label>
+            </div>
+          </div>
+          <div class="w98-group"><span class="w98-group__title" data-l10n="win98.workshop.status">Status</span>
+            <div class="w98-line"><label class="w98-check w98-grow" for="workshop_toggle_suspended"><input id="workshop_toggle_suspended" class="checkbox" type="checkbox"/><span data-l10n="win98.workshop.toggle_suspended">Suspend production</span></label><button id="workshop_locate" class="w98-button" data-l10n="win98.workshop.locate">Center on Map</button></div>
+          </div>
         </section>
-      </div><p id="workshop_status" class="c-m6a-status"></p>
-    </main>
-  </div><span class="c-window__resize-grip" aria-hidden="true"></span>
+
+        <section id="workshop_stockpiles_pane" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="workshop_view_stockpiles">
+          <section id="workshop_links_section" class="w98-col w98-grow">
+            <label class="w98-label" for="workshop_linked_stockpiles" data-l10n="win98.workshop.linked_stockpiles">Collect materials from these stockpiles first:</label>
+            <div id="workshop_linked_stockpiles" class="w98-list" role="listbox" aria-multiselectable="true" aria-label="Linked stockpiles"></div>
+            <div class="w98-gap"></div>
+            <p id="workshop_link_help" class="w98-text" data-l10n="win98.workshop.link_help">The nearest checked stockpile is used first, then any other stockpile.</p>
+          </section>
+        </section>
+
+        <section id="workshop_trade_pane" class="w98-page w98-col is-hidden" role="tabpanel" aria-labelledby="workshop_view_trade">
+          <section id="workshop_trade" class="w98-col w98-grow">
+            <label class="w98-label" for="workshop_trade_merchant" data-l10n="win98.workshop.trade_merchant">Merchant goods (you receive):</label>
+            <div class="w98-listview"><div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.workshop.item">Item</span><span class="w98-w-stock" style="text-align: right;" data-l10n="win98.workshop.available">Available</span><span class="w98-w-offer" style="text-align: right;" data-l10n="win98.workshop.offer">Offer</span><span class="w98-w-value" style="text-align: right;" data-l10n="win98.workshop.value">Value</span></div><div id="workshop_trade_merchant" class="w98-list" role="listbox" aria-label="Merchant goods"></div></div>
+            <div class="w98-gap"></div>
+            <label class="w98-label" for="workshop_trade_settlement" data-l10n="win98.workshop.trade_settlement">Settlement goods (you give):</label>
+            <div class="w98-listview"><div class="w98-listview__header"><span style="flex: 1 1 auto;" data-l10n="win98.workshop.item">Item</span><span class="w98-w-stock" style="text-align: right;" data-l10n="win98.workshop.available">Available</span><span class="w98-w-offer" style="text-align: right;" data-l10n="win98.workshop.offer">Offer</span><span class="w98-w-value" style="text-align: right;" data-l10n="win98.workshop.value">Value</span></div><div id="workshop_trade_settlement" class="w98-list" role="listbox" aria-label="Settlement goods"></div></div>
+            <div class="w98-gap"></div>
+            <div class="w98-line"><label class="w98-label" for="workshop_trade_count" data-l10n="win98.workshop.trade_count">Offer:</label><div class="c-numeric-editor w98-spin"><input id="workshop_trade_count" class="w98-field c-numeric-editor__input" type="text" value="0" min="0" step="1" inputmode="numeric"/><div class="c-numeric-editor__arrows"><button id="workshop_trade_count-up" class="c-numeric-editor__up" aria-label="Increase offer" title="Increase offer" data-l10n-title="win98.workshop.trade_count_up.title"/><button id="workshop_trade_count-down" class="c-numeric-editor__down" aria-label="Decrease offer" title="Decrease offer" data-l10n-title="win98.workshop.trade_count_down.title"/></div></div><button id="workshop_trade_set" class="w98-button" data-l10n="win98.workshop.trade_set">Set Offer</button><p id="workshop_trade_blocked" class="w98-text w98-grow" role="status"></p></div>
+            <div class="w98-gap"></div>
+            <div class="w98-line"><p id="workshop_trade_totals" class="w98-text w98-grow"></p><button id="workshop_trade_refresh" class="w98-button" data-l10n="win98.workshop.trade_refresh">Refresh</button><button id="workshop_trade_execute" class="w98-button" data-l10n="win98.workshop.trade_execute">Review Trade...</button></div>
+          </section>
+        </section>
+
+      </div>
+    </div>
+    <div class="w98-buttonbar"><button id="workshop_ok" class="w98-button w98-button--default" data-l10n="win98.common.ok">OK</button><button id="workshop_cancel" class="w98-button" data-l10n="win98.common.cancel">Cancel</button><button id="workshop_apply" class="w98-button" data-l10n="win98.common.apply">Apply</button></div>
+  </div>
 </section>
-<div id="workshop_trade_confirmation" class="c-m6a-blocker is-hidden"><section class="c-m6a-dialog"><h3 data-l10n="management.workshop.complete_this_trade">Complete this trade?</h3><p data-l10n="management.workshop.this_immediately_exchanges_the_displayed_offers">This immediately exchanges the displayed offers. Review both values before continuing.</p><div class="l-m6a-actions"><button id="workshop_trade_confirm" class="c-button c-button--danger" data-l10n="management.workshop.workshop_trade_confirm">Confirm irreversible trade</button><button id="workshop_trade_cancel" class="c-button" data-l10n="management.workshop.workshop_trade_cancel">Cancel</button></div></section></div>
 </template>
 </body></rml>

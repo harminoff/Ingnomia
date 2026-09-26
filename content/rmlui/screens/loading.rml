@@ -1,15 +1,25 @@
 <rml>
 <head>
-    <title data-l10n="shell.loading.preparing_kingdom">Preparing kingdom</title>
-    <link type="text/rcss" href="/styles/base.rcss" /><link type="text/rcss" href="/styles/components.rcss" /><link type="text/rcss" href="/styles/accessibility.rcss" /><link type="text/rcss" href="/screens/shell.rcss" />
+    <title>Preparing Kingdom</title>
+    <link type="text/rcss" href="/styles/base.rcss" />
+    <link type="text/rcss" href="/styles/components.rcss" />
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
+    <link type="text/rcss" href="/screens/shell.rcss" />
+    <link type="text/rcss" href="/styles/accessibility.rcss" />
 </head>
-<body class="l-shell-screen l-shell-screen--centered is-blocking">
-    <main class="c-shell-chamber c-shell-chamber--compact">
-        <header class="c-shell-masthead"><h1 id="loading-heading" tab-index="auto" data-l10n="shell.loading.loading-heading">Preparing kingdom</h1></header>
-        <p id="loading-progress" class="c-shell-copy" data-l10n="shell.loading.loading-progress">Please wait while the world transition completes.</p>
-        <div class="c-shell-loading-mark"><span class="c-loading-step"></span><span class="c-loading-step is-active"></span><span class="c-loading-step"></span></div>
-        <section id="loading-error" class="c-alert-row c-alert-row--danger u-hidden"><span class="c-alert-row__marker">!</span><span class="c-alert-row__body"><span class="c-alert-row__title" data-l10n="shell.loading.the_kingdom_could_not_be_prepared">The kingdom could not be prepared</span><span id="loading-error-detail" class="c-alert-row__detail"></span></span></section>
-        <div id="loading-error-actions" class="c-shell-actions c-shell-actions--row u-hidden"><button id="shell-back" data-l10n="shell.loading.shell-back">Back</button><button id="loading-retry" class="c-button c-button--primary" data-l10n="shell.loading.loading-retry">Retry</button></div>
-    </main>
+<body class="l-shell-screen l-shell-desktop">
+  <!-- Loading (Stage 19): a progress message box (PDF p.145, p.184). The game reports steps, not a fraction, so the
+       box shows the current step in words instead of an invented bar, and has no button while it cannot be stopped.
+       A failure becomes a Warning message box with Retry and Cancel (PDF p.183-185). -->
+  <section id="loading-dialog" class="w98-sheet w98-msgbox l-loading-box" role="alertdialog" aria-labelledby="loading-heading" aria-describedby="loading-progress">
+    <div class="w98-caption"><h1 id="loading-heading" class="c-title-bar__title" tab-index="auto" data-l10n="win98.loading.heading">Preparing Kingdom</h1></div>
+    <div class="w98-msgbox__body"><span id="loading-symbol" class="w98-msgbox__symbol is-info"></span>
+      <div class="w98-col w98-grow">
+        <p id="loading-progress" class="w98-text w98-msgbox__text" role="status" aria-live="polite"></p>
+        <p id="loading-error" class="w98-text w98-msgbox__text u-hidden"><span id="loading-error-detail"></span> Click Cancel to return to the main menu.</p>
+      </div>
+    </div>
+    <div id="loading-error-actions" class="w98-msgbox__buttons u-hidden"><button id="loading-retry" class="w98-button" data-l10n="win98.loading.retry">Retry</button><button id="shell-back" class="w98-button" data-l10n="win98.common.cancel">Cancel</button></div>
+  </section>
 </body>
 </rml>

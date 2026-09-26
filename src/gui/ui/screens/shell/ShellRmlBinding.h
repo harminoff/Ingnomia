@@ -6,6 +6,8 @@
 #pragma once
 
 #include "ShellController.h"
+#include "../../runtime/ModalDialog.h"
+#include "../../runtime/NumericEditor.h"
 #include "../../localization/UiText.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -33,12 +35,14 @@ public:
 	ShellRmlBinding& operator=( const ShellRmlBinding& ) = delete;
 
 	bool initialize( ShellController& controller );
+	[[nodiscard]] std::string focusedElementIdForProbe() const;
 	bool reloadDocuments();
 	void shutdown();
 	void setInMenu( bool inMenu );
 	[[nodiscard]] bool initialized() const noexcept;
 	[[nodiscard]] Rml::ElementDocument* routeDocument() const noexcept { return routeDocument_; }
 	[[nodiscard]] bool activateElement( std::string_view id );
+	[[nodiscard]] bool dispatchElementClickForProbe( std::string_view id, std::string* focusedTarget = nullptr );
 	bool dispatchSettingChangeForProbe( std::string_view id, float value, bool checked );
 
 	void stateChanged( const ShellState& state ) override;
@@ -86,9 +90,11 @@ private:
 	class LoadRowCallback final : public Rml::EventListener
 	{
 	public:
-		enum class Kind : std::uint8_t { Kingdom, Save };
+		// Kingdom: the "Look in:" drop-down changed; Save: a save row was clicked; Open: a save row was double-clicked.
+		enum class Kind : std::uint8_t { Kingdom, Save, Open };
 		LoadRowCallback( ShellRmlBinding& owner, Kind kind, std::string id ) : owner_( owner ), kind_( kind ), id_( std::move( id ) ) {}
 		void ProcessEvent( Rml::Event& event ) override;
+		[[nodiscard]] Kind kind() const noexcept { return kind_; }
 	private:
 		ShellRmlBinding& owner_;
 		Kind kind_;
@@ -106,6 +112,8 @@ private:
 	void syncDom( const ShellState& state );
 	void syncModel( const ShellState& state );
 	void selectNewGameTab( std::string_view tab );
+	void moveWizard( int step );
+	void renderLoadGame( const ShellState& state );
 	void syncNewGameTabs();
 	void setText( const char* id, std::string_view text );
 	void setVisible( const char* id, bool visible );
@@ -117,6 +125,8 @@ private:
 	struct ListenerBinding { Rml::Element* element{}; const char* event{}; Rml::EventListener* listener{}; };
 
 	Rml::Context& context_;
+        ModalDialog dialog_;
+        std::string confirmationFocusId_;
 	ShellController* controller_{};
 	Rml::ElementDocument* appShell_{};
 	Rml::ElementDocument* routeDocument_{};
@@ -145,8 +155,13 @@ private:
 	int kingdomCount_{};
 	int saveCount_{};
 	std::uint64_t lastFocusToken_{};
+	std::vector<std::pair<std::string, std::unique_ptr<NumericEditor>>> numericEditors_;
 	bool updatingDom_{};
-	std::string activeNewGameTab_{ "world" };
+	std::string activeNewGameTab_{ "welcome" };
+	std::string mainMenuReturnFocus_;
+	std::vector<std::string> renderedKingdomKeys_;
+	std::string renderedSavesMarkup_;
+	std::vector<std::string> renderedSaveKeys_;
 	localization::UiText textCatalog_;
 };
 

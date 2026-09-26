@@ -1,4 +1,7 @@
 #include "RmlUiQtInputAdapter.h"
+#include "AccessKeys.h"
+#include "ConnectedTabs.h"
+#include <RmlUi/Core/Elements/ElementFormControlSelect.h>
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Element.h>
@@ -11,12 +14,61 @@
 
 namespace ingnomia::ui
 {
-RmlUiQtInputAdapter::RmlUiQtInputAdapter( Rml::Context* context ) : m_context( context ) {}
+RmlUiQtInputAdapter::RmlUiQtInputAdapter( Rml::Context* context ) { setContext(context); }
+RmlUiQtInputAdapter::~RmlUiQtInputAdapter() { setContext(nullptr); }
+void RmlUiQtInputAdapter::ProcessEvent(Rml::Event& event)
+{
+    if(event.GetId() == Rml::EventId::Blur)
+    {
+        for(auto& gesture : m_commands)
+            if(gesture.focus == event.GetTargetElement())
+            {
+                if(gesture.target) gesture.target->SetClass("is-key-pressed", false);
+                gesture.target.reset(); gesture.focus.reset();
+            }
+    }
+    else if(event.GetId() == Rml::EventId::Click)
+    {
+        auto* tab = event.GetTargetElement();
+        while(tab && tab->GetTagName() != "button") tab = tab->GetParentNode();
+        if(auto* strip = connected_tabs::stripFor(tab); strip && connected_tabs::enabled(tab))
+            connected_tabs::select(*strip, tab);
+    }
+    else if(event.GetId() == Rml::EventId::Keydown)
+    {
+        int modifiers = 0;
+        if(event.GetParameter("ctrl_key", false)) modifiers |= Rml::Input::KM_CTRL;
+        if(event.GetParameter("shift_key", false)) modifiers |= Rml::Input::KM_SHIFT;
+        if(event.GetParameter("alt_key", false)) modifiers |= Rml::Input::KM_ALT;
+        if(event.GetParameter("meta_key", false)) modifiers |= Rml::Input::KM_META;
+        auto* focus=m_context->GetFocusElement();
+        const int key=event.GetParameter<int>("key_identifier",0);
+        if(focus && focus->GetTagName()=="input" && focus->GetAttribute<Rml::String>("type","")=="radio" && !modifiers &&
+            (key==Rml::Input::KI_LEFT || key==Rml::Input::KI_RIGHT || key==Rml::Input::KI_UP || key==Rml::Input::KI_DOWN)) {
+            Rml::ElementList choices;auto* group=focus->GetParentNode();
+            while(group && group->GetTagName()!="form" && group!=focus->GetOwnerDocument())group=group->GetParentNode();
+            if(group)group->GetElementsByTagName(choices,"input");
+            const auto name=focus->GetAttribute<Rml::String>("name","");
+            std::erase_if(choices,[&](auto* e){return e->GetAttribute<Rml::String>("type","")!="radio" || e->GetAttribute<Rml::String>("name","")!=name || !connected_tabs::enabled(e);});
+            auto it=std::find(choices.begin(),choices.end(),focus);
+            if(it!=choices.end()) {
+                const int count=static_cast<int>(choices.size()),index=static_cast<int>(it-choices.begin());
+                auto* next=choices[(index+((key==Rml::Input::KI_LEFT || key==Rml::Input::KI_UP)?count-1:1))%count];
+                auto observer=next->GetObserverPtr();next->Click();if(observer)observer->Focus(true);
+            }
+            event.StopPropagation();return;
+        }
+        if(connected_tabs::key(*m_context, event.GetParameter("key_identifier", 0), modifiers)) event.StopPropagation();
+    }
+}
 
 void RmlUiQtInputAdapter::setContext( Rml::Context* context )
 {
-    if ( m_context != context ) cancelInteraction();
+    if(m_context == context) return;
+    cancelInteraction();
+    if(m_context) for(const char* event : {"click", "keydown", "blur"}) m_context->RemoveEventListener(event, this, true);
     m_context = context;
+    if(m_context) for(const char* event : {"click", "keydown", "blur"}) m_context->AddEventListener(event, this, true);
 }
 
 Rml::Context* RmlUiQtInputAdapter::context() const noexcept { return m_context; }
@@ -34,6 +86,7 @@ PointerDispatch RmlUiQtInputAdapter::mouseButtonDown( Qt::MouseButton button, Qt
 {
     const int index = buttonIndex( button );
     if ( !m_context || index < 0 ) return {};
+    cancelCommands();
     const bool worldMayHandle = m_context->ProcessMouseButtonDown( index, keyModifiers( modifiers ) );
     const PointerOwner owner = ( !worldMayHandle || m_context->IsMouseInteracting() ) ? PointerOwner::Ui : PointerOwner::World;
     m_pointerOwners[static_cast<size_t>( index )] = owner;
@@ -62,23 +115,119 @@ InputDispatch RmlUiQtInputAdapter::mouseWheel( QPoint angleDelta, QPoint pixelDe
     return {!m_context->ProcessMouseWheel( delta, keyModifiers( modifiers ) )};
 }
 
-InputDispatch RmlUiQtInputAdapter::keyDown( int qtKey, Qt::KeyboardModifiers modifiers )
+namespace
 {
-    if ( !m_context ) return {};
-    const Rml::Input::KeyIdentifier key = keyIdentifier( qtKey, modifiers );
-    return {key != Rml::Input::KI_UNKNOWN && !m_context->ProcessKeyDown( key, keyModifiers( modifiers ) )};
+int commandIndex(int key) { return key == Qt::Key_Space ? 0 : key == Qt::Key_Return ? 1 : key == Qt::Key_Enter ? 2 : key == Qt::Key_Escape ? 3 : -1; }
+Rml::Element* commandTarget(Rml::Context& context, int key)
+{
+    auto* focus = context.GetFocusElement();
+    if(!focus || !focus->IsVisible(true)) return nullptr;
+    if(key == Qt::Key_Escape) {
+        auto* doc=focus->GetOwnerDocument();
+        return doc && doc->HasAttribute("data-modal-dialog") ? doc->GetElementById("confirm-cancel") : nullptr;
+    }
+    if(focus->GetTagName() == "button") return focus;
+    if(focus->GetTagName()=="input" && key==Qt::Key_Space) {
+        auto type=focus->GetAttribute<Rml::String>("type","");
+        if(type=="checkbox" || type=="radio") return focus;
+    }
+    if(focus->HasAttribute("data-numeric-editor")) return nullptr;
+    if(key == Qt::Key_Space || focus->GetTagName() == "textarea" || focus->GetTagName() == "select") return nullptr;
+    if(focus->GetTagName() == "input")
+    {
+        const auto type = focus->GetAttribute<Rml::String>("type", "text");
+        if(type != "text" && type != "password") return nullptr;
+    }
+    auto* document = focus->GetOwnerDocument();
+    if(!document) return nullptr;
+    Rml::ElementList buttons; document->GetElementsByTagName(buttons, "button");
+    for(auto* button : buttons)
+        if(button->HasAttribute("data-default-action") && connected_tabs::enabled(button)) return button;
+    return nullptr;
 }
-
-InputDispatch RmlUiQtInputAdapter::keyUp( int qtKey, Qt::KeyboardModifiers modifiers )
+}
+void RmlUiQtInputAdapter::cancelCommands()
 {
-    if ( !m_context ) return {};
-    const Rml::Input::KeyIdentifier key = keyIdentifier( qtKey, modifiers );
-    return {key != Rml::Input::KI_UNKNOWN && !m_context->ProcessKeyUp( key, keyModifiers( modifiers ) )};
+    for(auto& gesture : m_commands)
+    {
+        if(gesture.target) gesture.target->SetClass("is-key-pressed", false);
+        gesture.target.reset(); gesture.focus.reset();
+    }
+}
+InputDispatch RmlUiQtInputAdapter::keyDown(int qtKey, Qt::KeyboardModifiers modifiers, bool autoRepeat)
+{
+    if(!m_context) return {};
+    if(auto* focus=m_context->GetFocusElement();focus && focus->HasAttribute("readonly")) {
+        const bool edit=qtKey==Qt::Key_Backspace || qtKey==Qt::Key_Delete || (qtKey==Qt::Key_Insert && (modifiers & Qt::ShiftModifier)) || ((modifiers & Qt::ControlModifier) && (qtKey==Qt::Key_X || qtKey==Qt::Key_V));
+        if(edit) return {true,true};
+    }
+    if(auto* focus=m_context->GetFocusElement();autoRepeat && focus && focus->HasAttribute("data-numeric-editor") && (qtKey==Qt::Key_Return || qtKey==Qt::Key_Enter)) return {true,true};
+    // Access keys: Alt+letter, or the plain letter when the focused control does not take text (Stage 20).
+    if(qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z && !autoRepeat && !(modifiers & (Qt::ControlModifier | Qt::MetaModifier))
+        && access_keys::activate(*m_context, static_cast<char>('a' + (qtKey - Qt::Key_A)), bool(modifiers & Qt::AltModifier)))
+        return {true, true};
+    const int index = commandIndex(qtKey);
+    if(qtKey == Qt::Key_Escape) {
+        cancelCommands();
+        auto* focus=m_context->GetFocusElement();
+        for(auto* node=focus;node;node=node->GetParentNode())
+            if(auto* select=rmlui_dynamic_cast<Rml::ElementFormControlSelect*>(node);select && select->IsSelectBoxVisible()) {
+                auto observer=select->GetObserverPtr();select->CancelSelectBox();if(observer)observer->Focus(true);
+                return {true,true};
+            }
+    }
+    if(index >= 0 && m_commands[index].held) return {true, true};
+    // Reports and matrices own Enter/Space semantics (for example Watch versus Open).
+    // Dispatch to that owner once, instead of translating every row button into Click.
+    if(index >= 0) if(auto* focus=m_context->GetFocusElement()) {
+        const auto role=focus->GetAttribute<Rml::String>("role","");
+        if(role=="row" || role=="gridcell") {
+            m_commands[index].held=true;
+            if(!autoRepeat && connected_tabs::enabled(focus)) m_context->ProcessKeyDown(keyIdentifier(qtKey,modifiers),keyModifiers(modifiers));
+            return {true,true};
+        }
+    }
+    if(index >= 0 && !(modifiers & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)))
+    {
+        if(auto* target = commandTarget(*m_context, qtKey))
+        {
+            auto& gesture = m_commands[index]; gesture.held = true;
+            if(!autoRepeat && connected_tabs::enabled(target))
+            {
+                gesture.target = target->GetObserverPtr();
+                gesture.focus = m_context->GetFocusElement()->GetObserverPtr();
+                target->SetClass("is-key-pressed", true);
+                if(index != 0) target->Click();
+            }
+            return {true, true};
+        }
+    }
+    const auto key = keyIdentifier(qtKey, modifiers);
+    return {key != Rml::Input::KI_UNKNOWN && !m_context->ProcessKeyDown(key, keyModifiers(modifiers))};
+}
+InputDispatch RmlUiQtInputAdapter::keyUp(int qtKey, Qt::KeyboardModifiers modifiers, bool autoRepeat)
+{
+    if(!m_context) return {};
+    const int index = commandIndex(qtKey);
+    if(index >= 0 && m_commands[index].held)
+    {
+        if(autoRepeat) return {true, true};
+        auto gesture = std::move(m_commands[index]); m_commands[index] = {};
+        if(gesture.target)
+        {
+            gesture.target->SetClass("is-key-pressed", false);
+            if(index == 0 && gesture.focus == m_context->GetFocusElement() && connected_tabs::enabled(gesture.target.get())) gesture.target->Click();
+        }
+        return {true, true};
+    }
+    const auto key = keyIdentifier(qtKey, modifiers);
+    return {key != Rml::Input::KI_UNKNOWN && !m_context->ProcessKeyUp(key, keyModifiers(modifiers))};
 }
 
 InputDispatch RmlUiQtInputAdapter::committedText( const QString& text )
 {
     if ( !m_context || text.isEmpty() ) return {};
+    if(auto* focus=m_context->GetFocusElement();focus && focus->HasAttribute("readonly")) return {true,true};
     // QKeyEvent::text() may contain the C0/C1 control code associated with an
     // editing key (Backspace is U+0008, Delete is U+007F). Those keys have
     // already been delivered through ProcessKeyDown; forwarding the control
@@ -106,6 +255,8 @@ PointerOwner RmlUiQtInputAdapter::pointerOwner( Qt::MouseButton button ) const n
 
 void RmlUiQtInputAdapter::cancelInteraction()
 {
+    cancelCommands();
+    for(auto& gesture : m_commands) gesture.held = false;
     if ( m_context ) m_context->ProcessMouseLeave();
     m_pointerOwners.fill( PointerOwner::None );
     if ( QGuiApplication::inputMethod() ) QGuiApplication::inputMethod()->hide();

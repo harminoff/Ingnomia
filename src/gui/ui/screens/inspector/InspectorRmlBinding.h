@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 namespace Rml { class Context; class Element; class ElementDocument; class Event; }
 namespace ingnomia::ui::inspector
@@ -49,7 +50,7 @@ private:
 	};
 	class Callback final : public Rml::EventListener { public: explicit Callback(std::function<void(Rml::Event&)> f):fn_(std::move(f)){}void ProcessEvent(Rml::Event&)override;private:std::function<void(Rml::Event&)>fn_;};
 	struct Listener { Rml::Element* target{}; std::string event; std::unique_ptr<Callback> callback; };
-	void bind(const char*,std::function<void()>);void bindEvent(const char*,const char*,std::function<void(Rml::Event&)>);void bindElement(Rml::Element*,const char*,std::function<void(Rml::Event&)>,std::vector<Listener>&);void clearListeners(std::vector<Listener>&);void text(const char*,const std::string&);void rml(const char*,const std::string&);void visible(const char*,bool);void rows(const char*,const std::vector<TextCountRow>&);void renderLiveTileRows(const TileInspectorState*);void renderEquipment(const InspectorState&);bool previewPageAvailable(PreviewPage) const;void setPreviewPage(PreviewPage);void syncPreviewPageButtons();void setSkillSort(SkillSort);void syncSkillSortButtons();void positionTileLabel(const SelectionConfigurationState&);void positionSelectionTip(const SelectionConfigurationState&);
+	void bind(const char*,std::function<void()>);void bindEvent(const char*,const char*,std::function<void(Rml::Event&)>);void bindElement(Rml::Element*,const char*,std::function<void(Rml::Event&)>,std::vector<Listener>&);void clearListeners(std::vector<Listener>&);void text(const char*,const std::string&);void rml(const char*,const std::string&);void visible(const char*,bool);void rows(const char*,const std::vector<TextCountRow>&);void renderTile(const TileInspectorState*);void syncTileSelection(const TileInspectorState*);void cyclePreviewPage(int step);void renderEquipment(const InspectorState&);bool previewPageAvailable(PreviewPage) const;void setPreviewPage(PreviewPage);void syncPreviewPageButtons();void setSkillSort(SkillSort);void syncSkillSortButtons();void positionTileLabel(const SelectionConfigurationState&);void positionSelectionTip(const SelectionConfigurationState&);
     Rml::Context& context_; InspectorController* controller_{}; Rml::ElementDocument* document_{};
     localization::UiText textCatalog_;
 	std::vector<Listener> listeners_, professionListeners_, equipmentListeners_, liveTileListeners_;
@@ -65,11 +66,14 @@ private:
 	std::optional<std::string> renderedPreviewSkillRows_;
 	std::optional<std::string> renderedFullSkillRows_;
 	std::vector<std::string> renderedProfessionChoices_;
+	bool renderedProfessionKnown_{};
+	std::vector<std::pair<std::string, std::string>> renderedTypeOptions_, renderedMaterialOptions_;
+	std::uint32_t tileCreature_{};
+	bool rendering_{};
 	PreviewPage previewPage_{ PreviewPage::Camera };
 	SkillSort skillSort_{ SkillSort::Name };
 	std::uint32_t previewCreatureId_{};
 	bool lastSkillPanelOpen_{};
-	bool professionMenuOpen_{};
 	int cameraSlot_{};
 	int windowIndex_{};
 	bool detachedWindow_{};

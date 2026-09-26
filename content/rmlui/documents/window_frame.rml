@@ -1,0 +1,35 @@
+<rml>
+<head>
+    <title>Ingnomia window frame</title>
+    <link type="text/rcss" href="/screens/win98_classic.rcss" />
+</head>
+<!-- Primary window frame. The native frame is removed and this document draws the Windows 98 one above every
+     other document of the main context (PDF p.311-313). MainWindowFrame moves and sizes the window through the
+     system when the caption or a sizing zone is dragged, and insets the other documents to the client area. -->
+<body id="window_frame" class="w98-window-frame">
+  <div class="w98-window-frame__edge">
+    <div class="w98-window-frame__face">
+      <div id="frame_caption" class="w98-caption w98-window-frame__caption">
+        <span id="frame_icon" class="w98-window-frame__icon"></span>
+        <h1 id="frame_title" class="c-title-bar__title">Ingnomia</h1>
+        <button id="frame_minimize" class="w98-caption__button" tab-index="none" title="Minimize" data-l10n-title="win98.frame.minimize.title" aria-label="Minimize"><span class="w98-caption__glyph w98-caption__glyph--minimize"></span></button>
+        <button id="frame_maximize" class="w98-caption__button" tab-index="none" title="Maximize" data-l10n-title="win98.frame.maximize.title" aria-label="Maximize"><span class="w98-caption__glyph w98-caption__glyph--maximize"></span></button>
+        <button id="frame_close" class="w98-caption__button w98-caption__button--close" tab-index="none" title="Close" data-l10n-title="win98.frame.close.title" aria-label="Close"><span class="w98-caption__glyph w98-caption__glyph--close"></span></button>
+      </div>
+      <div id="frame_client" class="w98-window-frame__client"></div>
+    </div>
+  </div>
+  <div id="frame_size_n" class="w98-window-frame__size w98-window-frame__size--n"></div>
+  <div id="frame_size_s" class="w98-window-frame__size w98-window-frame__size--s"></div>
+  <div id="frame_size_w" class="w98-window-frame__size w98-window-frame__size--w"></div>
+  <div id="frame_size_e" class="w98-window-frame__size w98-window-frame__size--e"></div>
+  <div id="frame_size_nw" class="w98-window-frame__size w98-window-frame__size--nw"></div>
+  <div id="frame_size_ne" class="w98-window-frame__size w98-window-frame__size--ne"></div>
+  <div id="frame_size_sw" class="w98-window-frame__size w98-window-frame__size--sw"></div>
+  <div id="frame_size_se" class="w98-window-frame__size w98-window-frame__size--se"></div>
+  <div id="frame_size_wn" class="w98-window-frame__size w98-window-frame__size--wn"></div>
+  <div id="frame_size_en" class="w98-window-frame__size w98-window-frame__size--en"></div>
+  <div id="frame_size_ws" class="w98-window-frame__size w98-window-frame__size--ws"></div>
+  <div id="frame_size_es" class="w98-window-frame__size w98-window-frame__size--es"></div>
+</body>
+</rml>

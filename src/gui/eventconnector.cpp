@@ -334,8 +334,8 @@ void EventConnector::onSetRenderOptions( bool designations, bool jobs, bool wall
 	Global::showDesignations = designations;
 	Global::showJobs = jobs;
 	Global::showAxles = axles;
-
-
+	// Echo the new settings so the View menu shows the state the renderer actually uses.
+	onUpdateRenderOptions();
 }
 
 /// @brief Emits the current render-option Globals so the GUI can reflect them.
