@@ -108,7 +108,6 @@ endif()
 
 target_sources(${PROJECT_NAME}
 	PRIVATE
-		Changelog.md
 		README.md
 		LICENSE
 )
@@ -217,7 +216,6 @@ endif(WIN32)
 install(
 	FILES
 		${RUNTIME_DLLS}
-		Changelog.md
 		LICENSE
 	DESTINATION
 		${CMAKE_INSTALL_BINDIR}
